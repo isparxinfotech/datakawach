@@ -1,0 +1,6 @@
+/* Ensure the logo image size is aligned with the text in the navbar */
+.navbar-logo {
+    height: 80px; /* Adjust height as needed */
+    width: auto;  /* Maintain aspect ratio */
+    object-fit: contain;
+}

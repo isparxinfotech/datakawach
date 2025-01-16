@@ -1,0 +1,29 @@
+
+
+    <div class="container-fluid p-0 d-flex h-100">
+      <app-dynamic-menus></app-dynamic-menus>
+
+        <div class="bg-light flex-fill">
+            <div class="p-2 d-md-none d-flex text-white bg-success">
+                <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
+                    <i class="fa-solid fa-bars"></i>
+                </a>
+                <span class="ms-3">DATA KAVACH</span>
+            </div>
+            <div class="p-4">
+                <nav class="navbar navbar-expand-lg bg-body-tertiary">
+                    <div class="container-fluid">
+                        <a class="navbar-brand" href="dashboard" style="float: right;position: absolute;right: 1px;padding-right: 0px;margin-right: 0px;font-size: 15px;">Welcome: {{userSessionDetails?.username}}</a>
+                    </div>
+                </nav>
+                <hr>
+                <div class="row">
+                    <div class="col">
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <app-footer></app-footer>
+

@@ -1,0 +1,192 @@
+<div class="d-flex flex-row">
+  <!-- Sidebar Menu -->
+  <div
+    id="bdSidebar"
+    class="d-flex flex-column flex-shrink-0 p-3 custom-sidebar text-dark offcanvas-md offcanvas-start menu-container"
+  >
+    <!-- Logo and Text Section -->
+    <a href="dynamic" class="navbar-brand">
+      <img
+        src="assets/images/WhatsApp Image 2025-01-13 at 18.14.50_d3a0ce4d.jpg"
+        alt="Logo"
+        class="brand-logo"
+        style="width: 120px; height: auto; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0;"
+      />
+    </a>
+
+    <hr />
+    <ul class="nav flex-column">
+      <!-- <li class="nav-item">
+        <a (click)="selectOption('uploadToCloud')" class="menu-link">
+          <span class="menu-text">Upload To Cloud</span>
+        </a>
+      </li> -->
+      <li class="nav-item">
+        <a (click)="selectOption('homeScreen')" class="menu-link">
+          <span class="menu-text">Home Screen</span>
+        </a>
+      </li>
+    </ul>
+    <hr />
+    <ul class="mynav nav nav-pills flex-column mb-auto">
+      <li class="nav-item mb-1" *ngFor="let item of resourceNames">
+        <a href="/{{ item.pageName }}" class="nav-link">
+          <i class="fa-regular"></i>
+          {{ item.displayName }}
+        </a>
+      </li>
+    </ul>
+    <hr />
+    <div class="d-flex">
+      <i class="fa-solid fa-book me-2"></i>
+      <span>
+        <h6 class="mt-1 mb-0">DATA KAVACH</h6>
+      </span>
+    </div>
+    <div class="d-flex justify-content-center mt-3">
+      <span class="text-muted">Powered by Isparx Infotech</span>
+    </div>
+  </div>
+
+  <!-- Content Area -->
+  <div class="content-container flex-grow-1 p-4">
+    <!-- Welcome Bar with Logout Button -->
+    <div class="welcome-bar d-flex justify-content-between align-items-center bg-light p-3 border">
+      <h5 class="text-success">
+        Welcome: {{ userSessionDetails?.username || "Guest" }}
+      </h5>
+      <!-- Logout Button -->
+      <button class="btn btn-danger" (click)="logout()">Logout</button>
+    </div>
+
+    <ng-container [ngSwitch]="selectedOption">
+      <!-- Upload Files Section -->
+      <div *ngSwitchCase="'uploadToCloud'">
+        <h1>ADD Backup</h1>
+        <div class="form-container mb-3">
+          <input
+            type="text"
+            placeholder="Enter username"
+            [(ngModel)]="username"
+            class="form-control"
+          />
+          <button
+            (click)="handleConnect()"
+            [disabled]="loading"
+            class="btn btn-primary mt-2"
+          >
+            {{ loading ? "Connecting..." : "Connect" }}
+          </button>
+        </div> 
+
+        <div class="file-upload-container">
+          <input
+            type="file"
+            (change)="handleFileChange($event)"
+            multiple
+            class="form-control mb-3"
+          />
+          <button
+            (click)="handleFileUpload()"
+            [disabled]="loading || files.length === 0 || !username.trim()"
+            class="btn btn-success"
+          >
+            {{ loading ? "Uploading..." : "Upload Files" }}
+          </button>
+        </div>
+
+        <div *ngIf="loading" class="progress-container mt-3">
+          <div class="progress" style="height: 20px;">
+            <div class="progress-bar" [style.width.%]="uploadProgress"></div>
+          </div>
+          <p>{{ uploadProgress }}%</p>
+        </div>
+
+        <div *ngIf="result" class="result-container mt-3">
+          <h2>Result:</h2>
+          <pre>{{ result }}</pre>
+        </div>
+
+        <div *ngIf="uploadDetails.length > 0" class="upload-details-container mt-3">
+          <h2>Uploaded Files</h2>
+          <table class="table table-bordered">
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Time Taken (ms)</th>
+                <th>Size (bytes)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let detail of uploadDetails">
+                <td>{{ detail.name }}</td>
+                <td>{{ detail.time }}</td>
+                <td>{{ detail.size }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Home Screen Section (Fetch Files) -->
+      <div *ngSwitchCase="'homeScreen'">
+        <h1>Backup Files</h1>
+
+        <!-- Display Files in Bucket -->
+        <div *ngIf="bucketFiles && bucketFiles.length > 0" class="file-list-container">
+          <div class="row">
+            <div *ngFor="let file of bucketFiles" class="col-md-4 mb-3">
+              <div class="card shadow-sm">
+                <div class="card-body">
+                  <h5 class="card-title">{{ file.name }}</h5>
+                  <p class="card-text">Size: {{ file.size | number }} bytes</p>
+                  <a href="{{ file.url }}" class="btn btn-info btn-sm" download>
+                    Download
+                  </a>
+                  <button
+                    class="btn btn-danger btn-sm ms-2"
+                    (click)="handleDelete(file)"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- No Files Message -->
+        <div *ngIf="bucketFiles.length === 0" class="text-center">
+          <p>No files available in the bucket.</p>
+        </div>
+
+        <!-- Loading and Fetching Files -->
+        <div *ngIf="loading" class="spinner-container text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+
+        <!-- Input to Fetch Files -->
+        <div *ngIf="!loading" class="mb-3">
+          <label for="username" class="form-label">Backup ID</label>
+          <div class="d-flex align-items-center">
+            <input
+              type="text"
+              [(ngModel)]="username"
+              class="form-control me-2"
+              id="username"
+              placeholder="Enter Your backup ID"
+            />
+            <button class="btn btn-primary" (click)="fetchFiles()">Connect</button>
+          </div>
+        </div>
+        
+        
+      </div>
+
+      <!-- Default Message -->
+      <div *ngSwitchDefault>Select an option from the menu.</div>
+    </ng-container>
+  </div>
+</div>

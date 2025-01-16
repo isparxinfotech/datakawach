@@ -1,0 +1,154 @@
+/* Sidebar Styles */
+.menu-container {
+    height: 100vh;
+    overflow-y: auto;
+    background: #ffffff;
+    padding: 20px;
+    font-family: 'Arial', sans-serif;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.brand-logo {
+	margin-top: 0;
+	margin-bottom: 0;
+	padding-top: 0;
+	padding-bottom: 0;
+	width: 200px; 
+	height: auto;
+  }
+  
+
+.brand-text {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #000000; /* Black text */
+}
+
+.menu-link {
+    font-size: 1rem;
+    color: #000000; /* Black text */
+    text-decoration: none;
+    padding: 0.5rem 0;
+    display: block;
+    transition: color 0.3s, padding-left 0.3s;
+}
+
+.menu-link:hover {
+    color: #555555; /* Darker gray on hover */
+    padding-left: 15px;
+}
+
+/* Input Fields */
+.input-field,
+.form-control {
+    max-width: 300px; /* Decrease the textbox width */
+    padding: 10px; /* Adjust padding for a clean look */
+    font-size: 0.9rem; /* Keep the font professional */
+    color: #000000; /* Black text */
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.input-field:focus,
+.form-control:focus {
+    border-color: #555555; /* Neutral focus border */
+    box-shadow: 0 0 5px rgba(85, 85, 85, 0.5); /* Subtle focus shadow */
+    outline: none;
+}
+
+/* File Upload Button */
+.file-upload-container .form-control {
+    max-width: 300px; /* Limit the width */
+    padding: 5px; /* Reduce padding */
+    font-size: 0.85rem; /* Smaller font size */
+    height: 35px; /* Adjust height */
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.file-upload-container .form-control:focus {
+    border-color: #555555; /* Neutral focus border */
+    box-shadow: 0 0 4px rgba(85, 85, 85, 0.5); /* Subtle focus shadow */
+    outline: none;
+}
+
+.file-upload-container .btn {
+    max-width: 300px; /* Align button width with input fields */
+    padding: 5px 10px; /* Compact button size */
+    font-size: 0.85rem; /* Match smaller font size */
+    height: 35px;
+    border-radius: 5px;
+    background-color: #000000; /* Black button */
+    color: #ffffff; /* White text */
+    transition: background-color 0.3s ease;
+}
+
+.file-upload-container .btn:hover {
+    background-color: #333333; /* Darker hover state */
+}
+
+/* Content Area */
+.content-container {
+    background-color: #ffffff; /* White background */
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+    font-size: 1.5rem;
+    color: #000000; /* Black text */
+    margin-bottom: 20px;
+}
+
+.welcome-bar {
+    border-bottom: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 30px;
+    font-size: 1rem;
+    color: #000000; /* Black text */
+    background-color: #f8f9fa;
+}
+
+.logout-button {
+    font-size: 0.9rem;
+    background-color: #000000; /* Black button */
+    border: none;
+    color: white;
+}
+
+.logout-button:hover {
+    background-color: #333333; /* Darker hover state */
+}
+
+/* Table Styles */
+.upload-details-container table {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.upload-details-container th,
+.upload-details-container td {
+    padding: 12px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #000000; /* Black text */
+}
+
+.upload-details-container td {
+    background-color: #f1f1f1;
+}
+
+.upload-details-container th {
+    background-color: #000000; /* Black header */
+    color: #ffffff; /* White text */
+}

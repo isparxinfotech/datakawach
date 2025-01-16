@@ -1,0 +1,62 @@
+<div class="container">
+    <h1>UPLOAD FILES</h1>
+  
+    <div class="form-container">
+      <input
+        type="text"
+        placeholder="Enter username"
+        [(ngModel)]="username"
+        class="input-field"
+      />
+      <button (click)="handleConnect()" [disabled]="loading" class="connect-button">
+        {{ loading ? 'Connecting...' : 'Connect' }}
+      </button>
+    </div>
+  
+    <div class="file-upload-container">
+      <input
+        type="file"
+        (change)="handleFileChange($event)"
+        multiple
+        class="file-input"
+      />
+      <button
+        (click)="handleFileUpload()"
+        [disabled]="loading || files.length === 0 || !username.trim()"
+        class="upload-button"
+      >
+        {{ loading ? 'Uploading...' : 'Upload Files' }}
+      </button>
+    </div>
+  
+    <div *ngIf="loading" class="progress-container">
+      <div class="progress-bar" [style.width.%]="uploadProgress"></div>
+      <p>{{ uploadProgress }}%</p>
+    </div>
+  
+    <div *ngIf="result" class="result-container">
+      <h2>Result:</h2>
+      <pre>{{ result }}</pre>
+    </div>
+  
+    <div *ngIf="uploadDetails.length > 0" class="upload-details-container">
+      <h2>Uploaded Files</h2>
+      <table class="upload-details-table">
+        <thead>
+          <tr>
+            <th>File Name</th>
+            <th>Time Taken (ms)</th>
+            <th>Size (bytes)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let detail of uploadDetails">
+            <td>{{ detail.name }}</td>
+            <td>{{ detail.time }}</td>
+            <td>{{ detail.size }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  

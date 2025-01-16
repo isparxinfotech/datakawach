@@ -1,0 +1,48 @@
+.gradient-left {
+    background: linear-gradient(135deg, #DE4D3D, #0052A1); /* Gradient for background */
+    color: #c8c8c8;
+    position: relative; /* Enables pseudo-element positioning */
+    overflow: hidden; /* Ensures circle stays within the section */
+  }
+  
+  .gradient-left::before {
+    content: '';
+    position: absolute;
+    width: 500px; /* Size of the circle */
+    height: 500px;
+    background: linear-gradient(135deg, #F04D35, #0052A1); /* Gradient for the circle */
+    border-radius: 70%; /* Makes it a perfect circle */
+    top: 60%; /* Centers vertically */
+    left: 50%; /* Centers horizontally */
+    transform: translate(-50%, -50%); /* Adjusts for centering */
+    z-index: 0; /* Places behind the content */
+  }
+  
+  .content {
+    position: relative; /* Ensures content is above the circle */
+    z-index: 1;
+  }
+  
+  .carousel-item img {
+    max-height: 500px;
+    margin: 0 auto;
+  }
+  
+  .btn-primary {
+    background-color: #0052A1;
+    border: none;
+    transition: 0.2s;
+  }
+  
+  .btn-primary:hover {
+    background-color: #0052A1;
+    box-shadow: 0 4px 10px rgba(0, 91, 187, 0.4);
+  }
+  
+  .bg-white {
+    background-color: #ffffff; /* White background */
+    border-radius: 0 1rem 1rem 0; /* Rounded corners for the right side */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Adds shadow for floating effect */
+    position: relative; /* Ensures proper layering */
+    z-index: 2; /* Keeps it above other elements */
+  }
