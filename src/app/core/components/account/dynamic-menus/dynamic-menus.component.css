@@ -2,9 +2,9 @@
 .menu-container {
     height: 100vh;
     overflow-y: auto;
-    background: #ffffff;
     padding: 20px;
     font-family: 'Arial', sans-serif;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
 }
 
 .navbar-brand {
@@ -14,14 +14,9 @@
 }
 
 .brand-logo {
-	margin-top: 0;
-	margin-bottom: 0;
-	padding-top: 0;
-	padding-bottom: 0;
-	width: 200px; 
-	height: auto;
-  }
-  
+    width: 120px; 
+    height: auto;
+}
 
 .brand-text {
     font-size: 1.2rem;
@@ -39,8 +34,30 @@
 }
 
 .menu-link:hover {
-    color: #555555; /* Darker gray on hover */
+    color: #007bff; /* Bootstrap primary color on hover */
     padding-left: 15px;
+}
+
+.offcanvas-md {
+    width: 250px; /* Fixed width for the sidebar */
+}
+
+.offcanvas-md .offcanvas-body {
+    padding: 0; /* Remove default padding */
+}
+
+.offcanvas-md .nav-link {
+    padding: 0.5rem 1rem; /* Adjust padding for nav links */
+}
+
+.offcanvas-md .nav-link:hover {
+    background-color: #e9ecef; /* Light gray background on hover */
+    border-radius: 0.25rem; /* Rounded corners */
+}
+
+/* Toggle Button Styles */
+.position-fixed {
+    z-index: 1050; /* Ensure the button is above other elements */
 }
 
 /* Input Fields */
@@ -104,6 +121,10 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.text-success {
+    color: #F04D35;
+}
+
 .section-title {
     font-size: 1.5rem;
     color: #000000; /* Black text */
@@ -119,11 +140,49 @@
     background-color: #f8f9fa;
 }
 
+.profile-dropdown {
+    position: relative;
+}
+
+.profile-image {
+    cursor: pointer;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    display: none;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    width: 100%; /* Full width */
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.btn-black {
+    font-size: 0.9rem;
+    background-color: #000000; /* Black button */
+    border: none;
+    color: white;
+    width: 100%;
+    padding: 10px;
+}
+
+.btn-black:hover {
+    background-color: #333333; /* Darker hover state */
+}
+
 .logout-button {
     font-size: 0.9rem;
     background-color: #000000; /* Black button */
     border: none;
     color: white;
+    width: 100%;
+    padding: 10px;
 }
 
 .logout-button:hover {

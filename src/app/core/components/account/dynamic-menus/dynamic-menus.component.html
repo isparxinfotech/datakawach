@@ -1,52 +1,52 @@
 <div class="d-flex flex-row">
-  <!-- Sidebar Menu -->
-  <div
-    id="bdSidebar"
-    class="d-flex flex-column flex-shrink-0 p-3 custom-sidebar text-dark offcanvas-md offcanvas-start menu-container"
-  >
-    <!-- Logo and Text Section -->
-    <a href="dynamic" class="navbar-brand">
-      <img
-        src="assets/images/WhatsApp Image 2025-01-13 at 18.14.50_d3a0ce4d.jpg"
-        alt="Logo"
-        class="brand-logo"
-        style="width: 120px; height: auto; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0;"
-      />
-    </a>
+<!-- Toggle Button for Mobile View -->
+<button id="toggleButton" class="btn btn-primary d-md-none position-fixed top-0 start-0 m-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar" aria-controls="bdSidebar">
+  <i class="fa fa-bars"></i>
+</button>
 
-    <hr />
-    <ul class="nav flex-column">
-      <!-- <li class="nav-item">
-        <a (click)="selectOption('uploadToCloud')" class="menu-link">
-          <span class="menu-text">Upload To Cloud</span>
-        </a>
-      </li> -->
-      <li class="nav-item">
-        <a (click)="selectOption('homeScreen')" class="menu-link">
-          <span class="menu-text">Home Screen</span>
-        </a>
-      </li>
-    </ul>
-    <hr />
-    <ul class="mynav nav nav-pills flex-column mb-auto">
-      <li class="nav-item mb-1" *ngFor="let item of resourceNames">
-        <a href="/{{ item.pageName }}" class="nav-link">
-          <i class="fa-regular"></i>
-          {{ item.displayName }}
-        </a>
-      </li>
-    </ul>
-    <hr />
-    <div class="d-flex">
-      <i class="fa-solid fa-book me-2"></i>
-      <span>
-        <h6 class="mt-1 mb-0">DATA KAVACH</h6>
-      </span>
-    </div>
-    <div class="d-flex justify-content-center mt-3">
-      <span class="text-muted">Powered by Isparx Infotech</span>
-    </div>
+<!-- Sidebar -->
+<div
+  id="bdSidebar"
+  class="offcanvas-md offcanvas-start d-flex flex-column flex-shrink-0 p-3 custom-sidebar text-dark menu-container"
+  style="width: 20%;"
+>
+  <!-- Logo and Text Section -->
+  <a href="dynamic" class="navbar-brand">
+    <img
+      src="assets/images/WhatsApp Image 2025-01-13 at 18.14.50_d3a0ce4d.jpg"
+      alt="Logo"
+      class="brand-logo"
+    />
+  </a>
+
+  <hr />
+  <ul class="nav flex-column">
+    <li class="nav-item">
+      <a (click)="selectOption('homeScreen')" class="menu-link">
+        <span class="menu-text">Restore</span>
+      </a>
+    </li>
+  </ul>
+  <hr />
+  <ul class="mynav nav nav-pills flex-column mb-auto">
+    <li class="nav-item mb-1" *ngFor="let item of resourceNames">
+      <a href="/{{ item.pageName }}" class="nav-link">
+        <i class="fa-regular"></i>
+        {{ item.displayName }}
+      </a>
+    </li>
+  </ul>
+  <hr />
+  <div class="d-flex align-items-center">
+    <i class="fa-solid fa-book me-2"></i>
+    <span>
+      <h6 class="mt-1 mb-0">DATA KAVACH</h6>
+    </span>
   </div>
+  <div class="d-flex justify-content-center mt-3">
+    <span class="text-muted">Powered by Isparx Infotech</span>
+  </div>
+</div>
 
   <!-- Content Area -->
   <div class="content-container flex-grow-1 p-4">
@@ -55,8 +55,16 @@
       <h5 class="text-success">
         Welcome: {{ userSessionDetails?.username || "Guest" }}
       </h5>
-      <!-- Logout Button -->
-      <button class="btn btn-danger" (click)="logout()">Logout</button>
+      <div class="profile-dropdown">
+        <svg class="profile-image" (click)="toggleDropdown()" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40">
+          <circle cx="12" cy="12" r="10" fill=" #F04D35"/>
+          <circle cx="12" cy="10" r="4" fill=" #0052A1"/>
+          <path d="M12 14c-4 0-6 2-6 4v1h12v-1c0-2-2-4-6-4z" fill="#0052A1"/>
+        </svg>
+        <div class="dropdown-menu" [class.show]="dropdownOpen">
+          <button class="btn btn-red" (click)="logout()">Logout</button>
+        </div>
+      </div>
     </div>
 
     <ng-container [ngSwitch]="selectedOption">
@@ -130,7 +138,7 @@
 
       <!-- Home Screen Section (Fetch Files) -->
       <div *ngSwitchCase="'homeScreen'">
-        <h1>Backup Files</h1>
+        <h1>Restore File</h1>
 
         <!-- Display Files in Bucket -->
         <div *ngIf="bucketFiles && bucketFiles.length > 0" class="file-list-container">

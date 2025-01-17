@@ -22,6 +22,12 @@ import { UploadDocumentComponent } from './core/components/account/upload-docume
 import { LabDetailsComponent } from './core/components/account/lab-details/lab-details.component';
 import { HealthScoreComponent } from './core/components/account/health-score/health-score.component';
 import { UploadToCloudComponent } from './core/components/account/upload-to-cloud/upload-to-cloud.component';
+import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -41,7 +47,9 @@ import { UploadToCloudComponent } from './core/components/account/upload-to-clou
     UploadDocumentComponent,
     LabDetailsComponent,
     HealthScoreComponent,
-    UploadToCloudComponent
+    UploadToCloudComponent,
+    AdminDashboardComponent
+    
   ],
   imports: [
     BrowserModule,
@@ -50,7 +58,11 @@ import { UploadToCloudComponent } from './core/components/account/upload-to-clou
     HttpClientModule,
     ReactiveFormsModule,
     CommonModule,
-    DatePipe
+    DatePipe,
+    BrowserAnimationsModule,
+    MatCardModule,
+    MatIconModule
+
   ],
   providers: [],
   bootstrap: [AppComponent]

@@ -35,6 +35,12 @@ sidebarOpen: any;
 
   constructor(private authService: AuthService) {}
 
+  dropdownOpen = false;
+
+  toggleDropdown() {
+    this.dropdownOpen = !this.dropdownOpen;
+  }
+
   ngOnInit(): void {
     this.loadUserSessionDetails();
     this.initializeScheduledUpload();

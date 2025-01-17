@@ -16,6 +16,7 @@ import { LabDetailsComponent } from './core/components/account/lab-details/lab-d
 import { HealthScoreComponent } from './core/components/account/health-score/health-score.component';
 import { UploadToCloudComponent } from './core/components/account/upload-to-cloud/upload-to-cloud.component';
 import { DynamicMenusComponent } from './core/components/account/dynamic-menus/dynamic-menus.component';
+import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
 
 const routes: Routes = [
   { path: '', redirectTo: 'dynamic', pathMatch: 'full' },
@@ -27,6 +28,10 @@ const routes: Routes = [
     path: 'dynamic',
     component: DynamicMenusComponent,
     // canActivate: [AuthGuard] // Ensures the user is authenticated before accessing dynamic
+  },
+  {
+    path: 'admin-dashboard',
+    component: AdminDashboardComponent,
   },
   {
     path: 'register',
@@ -44,7 +49,7 @@ const routes: Routes = [
   {
     path: 'dashboard',
     component: UserDashboardComponent,
-    canActivate: [AuthGuard]
+    // canActivate: [AuthGuard]
   },
   {
     path: 'personalinformation',

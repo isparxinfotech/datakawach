@@ -1,6 +1,117 @@
-/* Ensure the logo image size is aligned with the text in the navbar */
+/* Navbar Logo */
 .navbar-logo {
     height: 80px; /* Adjust height as needed */
     width: auto;  /* Maintain aspect ratio */
     object-fit: contain;
-}
+  }
+  
+  /* Menu Button (Hamburger) */
+  .menu-btn {
+    font-size: 30px;
+    background: none;
+    border: none;
+    color: #6a1b9a;
+    cursor: pointer;
+    display: block; /* Show by default */
+  }
+  
+  /* Sidebar Default Styles */
+  .sidebar {
+    height: 100%;
+    width: 0; /* Hidden by default */
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: #6a1b9a;
+    overflow-x: hidden;
+    transition: width 0.3s; /* Smooth sliding effect */
+    padding-top: 60px;
+    color: white;
+    z-index: 1000;
+  }
+  
+  /* Sidebar When Open */
+  .sidebar.open {
+    width: 250px;
+  }
+  
+  /* Close Button (Right) */
+  .sidebar .close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px; /* Place on the right */
+    font-size: 30px;
+    border: none;
+    background: none;
+    color: white;
+    cursor: pointer;
+  }
+  
+  /* Sidebar Links */
+  .sidebar ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .sidebar a {
+    padding: 10px 20px;
+    text-decoration: none;
+    color: white;
+    display: block;
+    font-size: 18px;
+    transition: 0.3s;
+  }
+  
+  .sidebar a:hover {
+    background-color: #483d8b;
+  }
+  
+  /* RESPONSIVENESS */
+  
+  /* For Mobile View */
+  @media (max-width: 768px) {
+    .menu-btn {
+      display: block; /* Show menu button for mobile */
+    }
+  
+    .navbar-collapse {
+      display: none; /* Hide navbar links for mobile */
+    }
+  
+    .navbar-brand {
+      margin-left: 50px; /* Adjust logo position */
+    }
+  
+    .sidebar.open {
+      display: block; /* Sidebar will be visible when open */
+    }
+  
+    .navbar-collapse.show {
+      display: flex; /* Show when toggled */
+    }
+  }
+  
+  /* For Desktop View */
+  @media (min-width: 769px) {
+    /* Hide menu button for desktop */
+    .menu-btn {
+      display: none;
+    }
+  
+    /* Navbar Links are shown as default for desktop */
+    .navbar-collapse {
+      display: flex;
+      justify-content: flex-end;
+    }
+  
+    .navbar-nav {
+      display: flex;
+      align-items: center;
+    }
+  
+    .navbar-nav .nav-item {
+      margin-left: 20px;
+    }
+  }
+  
