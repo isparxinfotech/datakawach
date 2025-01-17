@@ -7,11 +7,11 @@ import { FooterComponent } from './core/components/footer/footer.component';
 import { RegisterUserComponent } from './core/components/account/register-user/register-user.component';
 import { LoginComponent } from './core/components/account/login/login.component';
 import { HomeComponent } from './core/components/home/home.component';
-import { FormsModule,ReactiveFormsModule } from '@angular/forms';
-import {HttpClientModule} from '@angular/common/http'
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
 import { UserDashboardComponent } from './core/components/account/user-dashboard/user-dashboard.component';
 import { PersonalInformationComponent } from './core/components/account/personal-information/personal-information.component';
-import {DatePipe,CommonModule} from '@angular/common';
+import { DatePipe, CommonModule, DecimalPipe } from '@angular/common';
 import { CreateCorporateAccountComponent } from './core/components/account/create-corporate-account/create-corporate-account.component';
 import { LogOutComponent } from './core/components/account/log-out/log-out.component';
 import { DynamicMenusComponent } from './core/components/account/dynamic-menus/dynamic-menus.component';
@@ -20,13 +20,11 @@ import { CreateUserAccountComponent } from './core/components/account/create-use
 import { UserAccountListComponent } from './core/components/account/user-account-list/user-account-list.component';
 import { UploadDocumentComponent } from './core/components/account/upload-document/upload-document.component';
 import { LabDetailsComponent } from './core/components/account/lab-details/lab-details.component';
-import { HealthScoreComponent } from './core/components/account/health-score/health-score.component';
 import { UploadToCloudComponent } from './core/components/account/upload-to-cloud/upload-to-cloud.component';
 import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-
 
 @NgModule({
   declarations: [
@@ -46,10 +44,8 @@ import { MatIconModule } from '@angular/material/icon';
     UserAccountListComponent,
     UploadDocumentComponent,
     LabDetailsComponent,
-    HealthScoreComponent,
     UploadToCloudComponent,
     AdminDashboardComponent
-    
   ],
   imports: [
     BrowserModule,
@@ -59,10 +55,10 @@ import { MatIconModule } from '@angular/material/icon';
     ReactiveFormsModule,
     CommonModule,
     DatePipe,
+    DecimalPipe,
     BrowserAnimationsModule,
     MatCardModule,
     MatIconModule
-
   ],
   providers: [],
   bootstrap: [AppComponent]

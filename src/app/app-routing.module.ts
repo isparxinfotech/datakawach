@@ -13,7 +13,6 @@ import { CreateUserAccountComponent } from './core/components/account/create-use
 import { UserAccountListComponent } from './core/components/account/user-account-list/user-account-list.component';
 import { UploadDocumentComponent } from './core/components/account/upload-document/upload-document.component';
 import { LabDetailsComponent } from './core/components/account/lab-details/lab-details.component';
-import { HealthScoreComponent } from './core/components/account/health-score/health-score.component';
 import { UploadToCloudComponent } from './core/components/account/upload-to-cloud/upload-to-cloud.component';
 import { DynamicMenusComponent } from './core/components/account/dynamic-menus/dynamic-menus.component';
 import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
@@ -86,11 +85,11 @@ const routes: Routes = [
     component: LabDetailsComponent,
     canActivate: [AuthGuard]
   },
-  {
-    path: 'healthScore',
-    component: HealthScoreComponent,
-    canActivate: [AuthGuard]
-  },
+  // {
+  //   path: 'healthScore',
+  //   component: HealthScoreComponent,
+  //   canActivate: [AuthGuard]
+  // },
   {
     path: 'uploadtocloud',
     component: UploadToCloudComponent,
