@@ -152,3 +152,19 @@
     background-color: #000000; /* Black header */
     color: #ffffff; /* White text */
 }
+
+.btn-primary {
+    background: linear-gradient(90deg, #F04D35, #0052A1); /* Gradient background */
+    color: #ffffff; /* White text */
+    border: none; /* Remove border */
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+    padding: 10px 20px; /* Adjust padding */
+    font-size: 1rem; /* Adjust font size */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor */
+}
+
+.btn-primary:hover {
+    background: linear-gradient(90deg, #0052A1, #F04D35); /* Reverse gradient on hover */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Add shadow effect */
+}

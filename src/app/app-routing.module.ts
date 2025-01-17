@@ -89,7 +89,7 @@ const routes: Routes = [
   {
     path: 'uploadtocloud',
     component: UploadToCloudComponent,
-    canActivate: [AuthGuard]
+     canActivate: [AuthGuard]
   }
 ];
 

@@ -31,6 +31,7 @@ export class DynamicMenusComponent implements OnInit {
     { name: 'Sunday', selected: false }
   ];
   frequency: string = '';
+sidebarOpen: any;
 
   constructor(private authService: AuthService) {}
 
@@ -142,6 +143,10 @@ export class DynamicMenusComponent implements OnInit {
     }
   }
 
+  toggleSidebar() {
+    this.sidebarOpen = !this.sidebarOpen;
+  }
+  
   logout(): void {
     this.authService.logout();
     alert('Logged out successfully.');

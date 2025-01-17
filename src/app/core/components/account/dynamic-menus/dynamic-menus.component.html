@@ -156,9 +156,7 @@
         </div>
 
         <!-- No Files Message -->
-        <div *ngIf="bucketFiles.length === 0" class="text-center">
-          <p>No files available in the bucket.</p>
-        </div>
+        
 
         <!-- Loading and Fetching Files -->
         <div *ngIf="loading" class="spinner-container text-center">
@@ -168,21 +166,39 @@
         </div>
 
         <!-- Input to Fetch Files -->
-        <div *ngIf="!loading" class="mb-3">
-          <label for="username" class="form-label">Backup ID</label>
-          <div class="d-flex align-items-center">
-            <input
-              type="text"
-              [(ngModel)]="username"
-              class="form-control me-2"
-              id="username"
-              placeholder="Enter Your backup ID"
-            />
-            <button class="btn btn-primary" (click)="fetchFiles()">Connect</button>
-          </div>
+       <div *ngIf="!loading" class="mb-3">
+  <label for="username" class="form-label">Backup ID</label>
+  <div class="d-flex align-items-center justify-content-between">
+    <!-- Input and Button -->
+    <div class="d-flex align-items-center flex-grow-1">
+      <input
+        type="text"
+        [(ngModel)]="username"
+        class="form-control me-2"
+        id="username"
+        placeholder="Enter Your backup ID"
+      />
+      <button class="btn btn-primary" (click)="fetchFiles()">Connect</button>
+    </div>
+    
+    <!-- SVG Icon -->
+    <a (click)="selectOption('uploadToCloud')" 
+       class="ms-3 d-flex align-items-center" 
+       style="cursor: pointer;">
+      <img 
+        src="assets/images/add-circle-svgrepo-com (1).svg" 
+        alt="Icon" 
+        style="width: 40px; height: 40px;"
+      />
+    </a>
+  </div>
+</div>
+
+        
+        
+        <div *ngIf="bucketFiles.length === 0" class="text-center">
+          <p>No files available in the bucket.</p>
         </div>
-        
-        
       </div>
 
       <!-- Default Message -->
