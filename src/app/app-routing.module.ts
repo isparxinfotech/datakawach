@@ -26,7 +26,7 @@ const routes: Routes = [
   {
     path: 'dynamic',
     component: DynamicMenusComponent,
-    // canActivate: [AuthGuard] // Ensures the user is authenticated before accessing dynamic
+    canActivate: [AuthGuard] // Ensures the user is authenticated before accessing dynamic
   },
   {
     path: 'admin-dashboard',
