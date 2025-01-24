@@ -18,7 +18,7 @@ import { DynamicMenusComponent } from './core/components/account/dynamic-menus/d
 import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
 
 const routes: Routes = [
-  { path: '', redirectTo: 'dynamic', pathMatch: 'full' },
+  { path: '', redirectTo: 'login', pathMatch: 'full' },
   {
   path: 'login',
   component: LoginComponent
