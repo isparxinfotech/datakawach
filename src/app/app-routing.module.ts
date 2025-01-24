@@ -48,7 +48,7 @@ const routes: Routes = [
   {
     path: 'dashboard',
     component: UserDashboardComponent,
-    // canActivate: [AuthGuard]
+    canActivate: [AuthGuard]
   },
   {
     path: 'personalinformation',
