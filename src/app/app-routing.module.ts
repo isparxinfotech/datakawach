@@ -63,7 +63,7 @@ const routes: Routes = [
   {
     path: 'useraccount',
     component: UserAccountListComponent,
-    canActivate: [AuthGuard]
+    // canActivate: [AuthGuard]
   },
   {
     path: 'createuseraccount',
