@@ -25,6 +25,7 @@ import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.compo
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MainLayoutComponent } from './main-layout/main-layout.component';
 
 @NgModule({
   declarations: [
@@ -45,7 +46,8 @@ import { MatIconModule } from '@angular/material/icon';
     UploadDocumentComponent,
     LabDetailsComponent,
     UploadToCloudComponent,
-    AdminDashboardComponent
+    AdminDashboardComponent,
+    MainLayoutComponent
   ],
   imports: [
     BrowserModule,
@@ -58,7 +60,8 @@ import { MatIconModule } from '@angular/material/icon';
     DecimalPipe,
     BrowserAnimationsModule,
     MatCardModule,
-    MatIconModule
+    MatIconModule,
+    ReactiveFormsModule
   ],
   providers: [],
   bootstrap: [AppComponent]

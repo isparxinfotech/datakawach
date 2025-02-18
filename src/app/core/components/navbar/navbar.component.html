@@ -1,46 +1,55 @@
-<nav class="navbar bg-body-tertiary">
-    <div class="container-fluid">
-      <!-- Menu button (hamburger) for mobile view -->
-      <button
-        class="menu-btn"
-        type="button"
-        (click)="openSidebar()"
-        aria-label="Toggle navigation"
-      >
-        &#9776; <!-- Hamburger icon -->
-      </button>
-  
-      <!-- Replace text with image inside navbar-brand -->
-      <a class="navbar-brand" href="/">
-        <img src="assets/images/Data Kawach New Logo.pdf.png" alt="Data Kavach" class="navbar-logo">
-      </a>
+<nav class="navbar">
+  <div class="navbar__top">
+    <button class="menu-toggle" (click)="toggleSidebar()">
+      <i data-feather="menu"></i>
+    </button>
+    <div class="logo">
+      <img src="/assets/images/KAVACH.png" alt="Logo" />
     </div>
-  </nav>
-  
-  <!-- Sidebar Navigation -->
-  <div
-    id="sidebar"
-    class="sidebar"
-    [ngClass]="{ 'open': isSidebarOpen }"
-  >
-    <!-- Close button on the right -->
-    <button class="close-btn" (click)="closeSidebar()">&times;</button>
-    <ul class="navbar-nav">
-      <li class="nav-item">
-        <a class="nav-link active" aria-current="page" href="#">About Us</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link active" aria-current="page" href="#">Contact Us</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link active" aria-current="page" href="#">Privacy Policy</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link active" aria-current="page" href="/login">Login</a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link active" aria-current="page" href="/register">Register</a>
-      </li>
-    </ul>
   </div>
-  
+
+  <ul class="sidebar-menu" [class.open]="isSidebarOpen">
+    <li>
+      <a routerLink="/admin-dashboard" (click)="closeSidebar()">
+        <i data-feather="grid"></i><span>Dashboard</span>
+      </a>
+    </li>
+    <li>
+      <a routerLink="/dynamic" (click)="closeSidebar()">
+        <i data-feather="upload"></i><span>Restore File</span>
+      </a>
+    </li>
+    <li>
+      <a routerLink="/personalinformation" (click)="closeSidebar()">
+        <i data-feather="user"></i><span>Personal Info</span>
+      </a>
+    </li>
+    <li>
+      <a routerLink="/corporateaccount" (click)="closeSidebar()">
+        <i data-feather="briefcase"></i><span>Corporate Accounts</span>
+      </a>
+    </li>
+    <li>
+      <a routerLink="/useraccount" (click)="closeSidebar()">
+        <i data-feather="users"></i><span>User Accounts</span>
+      </a>
+    </li>
+   
+    <!-- <li>
+      <a routerLink="/labdetails" (click)="closeSidebar()">
+        <i data-feather="microscope"></i><span>Lab Details</span>
+      </a>
+    </li>
+    <li>
+      <a routerLink="/uploadtocloud" (click)="closeSidebar()">
+        <i data-feather="cloud-upload"></i><span>Upload to Cloud</span>
+      </a>
+    </li> -->
+   
+    <li class="logout">
+      <a routerLink="/logout" (click)="closeSidebar()">
+        <i data-feather="log-out"></i><span>Logout</span>
+      </a>
+    </li>
+  </ul>
+</nav>

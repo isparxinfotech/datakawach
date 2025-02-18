@@ -1,118 +1,3 @@
-/* Sidebar Styles */
-.menu-container {
-    height: 100vh;
-    overflow-y: auto;
-    padding: 20px;
-    font-family: 'Arial', sans-serif;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
-}
-
-.navbar-brand {
-    display: flex;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.brand-logo {
-    width: 120px; 
-    height: auto;
-}
-
-.brand-text {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #000000; /* Black text */
-}
-
-.menu-link {
-    font-size: 1rem;
-    color: #000000; /* Black text */
-    text-decoration: none;
-    padding: 0.5rem 0;
-    display: block;
-    transition: color 0.3s, padding-left 0.3s;
-}
-
-.menu-link:hover {
-    color: #007bff; /* Bootstrap primary color on hover */
-    padding-left: 15px;
-}
-
-.offcanvas-md {
-    width: 250px; /* Fixed width for the sidebar */
-}
-
-.offcanvas-md .offcanvas-body {
-    padding: 0; /* Remove default padding */
-}
-
-.offcanvas-md .nav-link {
-    padding: 0.5rem 1rem; /* Adjust padding for nav links */
-}
-
-.offcanvas-md .nav-link:hover {
-    background-color: #e9ecef; /* Light gray background on hover */
-    border-radius: 0.25rem; /* Rounded corners */
-}
-
-/* Toggle Button Styles */
-.position-fixed {
-    z-index: 1050; /* Ensure the button is above other elements */
-}
-
-/* Input Fields */
-.input-field,
-.form-control {
-    max-width: 300px; /* Decrease the textbox width */
-    padding: 10px; /* Adjust padding for a clean look */
-    font-size: 0.9rem; /* Keep the font professional */
-    color: #000000; /* Black text */
-    border: 2px solid #ccc;
-    border-radius: 5px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    background-color: #f8f9fa;
-}
-
-.input-field:focus,
-.form-control:focus {
-    border-color: #555555; /* Neutral focus border */
-    box-shadow: 0 0 5px rgba(85, 85, 85, 0.5); /* Subtle focus shadow */
-    outline: none;
-}
-
-/* File Upload Button */
-.file-upload-container .form-control {
-    max-width: 300px; /* Limit the width */
-    padding: 5px; /* Reduce padding */
-    font-size: 0.85rem; /* Smaller font size */
-    height: 35px; /* Adjust height */
-    border: 2px solid #ccc;
-    border-radius: 5px;
-    background-color: #f8f9fa;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.file-upload-container .form-control:focus {
-    border-color: #555555; /* Neutral focus border */
-    box-shadow: 0 0 4px rgba(85, 85, 85, 0.5); /* Subtle focus shadow */
-    outline: none;
-}
-
-.file-upload-container .btn {
-    max-width: 300px; /* Align button width with input fields */
-    padding: 5px 10px; /* Compact button size */
-    font-size: 0.85rem; /* Match smaller font size */
-    height: 35px;
-    border-radius: 5px;
-    background-color: #000000; /* Black button */
-    color: #ffffff; /* White text */
-    transition: background-color 0.3s ease;
-}
-
-.file-upload-container .btn:hover {
-    background-color: #333333; /* Darker hover state */
-}
-
 /* Content Area */
 .content-container {
     background-color: #ffffff; /* White background */
@@ -226,4 +111,57 @@
 .btn-primary:hover {
     background: linear-gradient(90deg, #0052A1, #F04D35); /* Reverse gradient on hover */
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Add shadow effect */
+}
+
+/* Input Fields */
+.input-field,
+.form-control {
+    max-width: 300px; /* Decrease the textbox width */
+    padding: 10px; /* Adjust padding for a clean look */
+    font-size: 0.9rem; /* Keep the font professional */
+    color: #000000; /* Black text */
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.input-field:focus,
+.form-control:focus {
+    border-color: #555555; /* Neutral focus border */
+    box-shadow: 0 0 5px rgba(85, 85, 85, 0.5); /* Subtle focus shadow */
+    outline: none;
+}
+
+/* File Upload Button */
+.file-upload-container .form-control {
+    max-width: 300px; /* Limit the width */
+    padding: 5px; /* Reduce padding */
+    font-size: 0.85rem; /* Smaller font size */
+    height: 35px; /* Adjust height */
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    background-color: #f8f9fa;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.file-upload-container .form-control:focus {
+    border-color: #555555; /* Neutral focus border */
+    box-shadow: 0 0 4px rgba(85, 85, 85, 0.5); /* Subtle focus shadow */
+    outline: none;
+}
+
+.file-upload-container .btn {
+    max-width: 300px; /* Align button width with input fields */
+    padding: 5px 10px; /* Compact button size */
+    font-size: 0.85rem; /* Match smaller font size */
+    height: 35px;
+    border-radius: 5px;
+    background-color: #000000; /* Black button */
+    color: #ffffff; /* White text */
+    transition: background-color 0.3s ease;
+}
+
+.file-upload-container .btn:hover {
+    background-color: #333333; /* Darker hover state */
 }

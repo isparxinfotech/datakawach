@@ -10,7 +10,7 @@ import { AuthService } from 'src/app/services/auth.service';
 export class DynamicMenusComponent implements OnInit {
   userSessionDetails: { username: string } | null = null;
   resourceNames: resourcePermission[] = [];
-  selectedOption = '';
+  selectedOption = 'homeScreen'; // Set default selected option to 'homeScreen'
   username = '';
   files: File[] = [];
   result = '';
@@ -31,7 +31,7 @@ export class DynamicMenusComponent implements OnInit {
     { name: 'Sunday', selected: false }
   ];
   frequency: string = '';
-sidebarOpen: any;
+  sidebarOpen: any;
 
   constructor(private authService: AuthService) {}
 
@@ -44,6 +44,8 @@ sidebarOpen: any;
   ngOnInit(): void {
     this.loadUserSessionDetails();
     this.initializeScheduledUpload();
+    // Set the default selectedOption to 'homeScreen' to show the Restore UI immediately
+    this.selectedOption = 'homeScreen';
   }
 
   loadUserSessionDetails(): void {
@@ -152,7 +154,7 @@ sidebarOpen: any;
   toggleSidebar() {
     this.sidebarOpen = !this.sidebarOpen;
   }
-  
+
   logout(): void {
     this.authService.logout();
     alert('Logged out successfully.');
@@ -218,3 +220,4 @@ sidebarOpen: any;
     }
   }
 }
+

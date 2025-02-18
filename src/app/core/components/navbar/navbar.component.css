@@ -1,117 +1,96 @@
-/* Navbar Logo */
-.navbar-logo {
-    height: 80px; /* Adjust height as needed */
-    width: auto;  /* Maintain aspect ratio */
-    object-fit: contain;
-  }
-  
-  /* Menu Button (Hamburger) */
-  .menu-btn {
-    font-size: 30px;
-    background: none;
-    border: none;
-    color: #6a1b9a;
-    cursor: pointer;
-    display: block; /* Show by default */
-  }
-  
-  /* Sidebar Default Styles */
-  .sidebar {
-    height: 100%;
-    width: 0; /* Hidden by default */
-    position: fixed;
-    top: 0;
-    left: 0;
-    background-color: #6a1b9a;
-    overflow-x: hidden;
-    transition: width 0.3s; /* Smooth sliding effect */
-    padding-top: 60px;
-    color: white;
-    z-index: 1000;
-  }
-  
-  /* Sidebar When Open */
-  .sidebar.open {
-    width: 250px;
-  }
-  
-  /* Close Button (Right) */
-  .sidebar .close-btn {
-    position: absolute;
-    top: 20px;
-    right: 20px; /* Place on the right */
-    font-size: 30px;
-    border: none;
-    background: none;
-    color: white;
-    cursor: pointer;
-  }
-  
-  /* Sidebar Links */
-  .sidebar ul {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-  }
-  
-  .sidebar a {
-    padding: 10px 20px;
-    text-decoration: none;
-    color: white;
-    display: block;
-    font-size: 18px;
-    transition: 0.3s;
-  }
-  
-  .sidebar a:hover {
-    background-color: #483d8b;
-  }
-  
-  /* RESPONSIVENESS */
-  
-  /* For Mobile View */
-  @media (max-width: 768px) {
-    .menu-btn {
-      display: block; /* Show menu button for mobile */
-    }
-  
-    .navbar-collapse {
-      display: none; /* Hide navbar links for mobile */
-    }
-  
-    .navbar-brand {
-      margin-left: 50px; /* Adjust logo position */
-    }
-  
-    .sidebar.open {
-      display: block; /* Sidebar will be visible when open */
-    }
-  
-    .navbar-collapse.show {
-      display: flex; /* Show when toggled */
-    }
-  }
-  
-  /* For Desktop View */
-  @media (min-width: 769px) {
-    /* Hide menu button for desktop */
-    .menu-btn {
-      display: none;
-    }
-  
-    /* Navbar Links are shown as default for desktop */
-    .navbar-collapse {
-      display: flex;
-      justify-content: flex-end;
-    }
-  
-    .navbar-nav {
-      display: flex;
-      align-items: center;
-    }
-  
-    .navbar-nav .nav-item {
-      margin-left: 20px;
-    }
-  }
-  
+/* Navbar Styling */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 250px;
+  height: 100vh;
+  background: linear-gradient(135deg, #ffffff, #000a4d);
+  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.2);
+  transition: width 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+.navbar__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+}
+
+.logo img {
+  width: 120px;
+}
+
+.menu-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  color: #0052a1;
+  font-size: 24px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.menu-toggle:hover {
+  transform: scale(1.1);
+}
+
+/* Sidebar Menu */
+.sidebar-menu {
+  list-style: none;
+  padding: 20px 0;
+  margin: 0;
+}
+
+.sidebar-menu li {
+  margin-bottom: 10px;
+}
+
+.sidebar-menu a {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.3s ease-in-out;
+  border-radius: 8px;
+}
+
+.sidebar-menu a:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(5px);
+}
+
+.sidebar-menu i {
+  margin-right: 12px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.sidebar-menu a:hover i {
+  transform: rotate(10deg);
+}
+
+/* Logout button */
+.sidebar-menu .logout a {
+  background: #f04d35;
+}
+
+.sidebar-menu .logout a:hover {
+  background: #f78d47;
+}
+
+/* Sidebar animation */
+.sidebar-menu.open {
+  width: 80px;
+}
+
+.sidebar-menu.open a span {
+  display: none;
+}
+
+.sidebar-menu.open i {
+  margin-right: 0;
+}
