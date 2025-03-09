@@ -21,11 +21,10 @@ import { UserAccountListComponent } from './core/components/account/user-account
 import { UploadDocumentComponent } from './core/components/account/upload-document/upload-document.component';
 import { LabDetailsComponent } from './core/components/account/lab-details/lab-details.component';
 import { UploadToCloudComponent } from './core/components/account/upload-to-cloud/upload-to-cloud.component';
-import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { MainLayoutComponent } from './main-layout/main-layout.component';
+import { UploadComponent } from './core/components/account/upload/upload.component';
 
 @NgModule({
   declarations: [
@@ -46,8 +45,7 @@ import { MainLayoutComponent } from './main-layout/main-layout.component';
     UploadDocumentComponent,
     LabDetailsComponent,
     UploadToCloudComponent,
-    AdminDashboardComponent,
-    MainLayoutComponent
+    UploadComponent
   ],
   imports: [
     BrowserModule,

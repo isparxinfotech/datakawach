@@ -1,4 +1,3 @@
-// app-routing.module.ts
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { RegisterUserComponent } from './core/components/account/register-user/register-user.component';
@@ -14,89 +13,86 @@ import { CreateUserAccountComponent } from './core/components/account/create-use
 import { UserAccountListComponent } from './core/components/account/user-account-list/user-account-list.component';
 import { UploadDocumentComponent } from './core/components/account/upload-document/upload-document.component';
 import { LabDetailsComponent } from './core/components/account/lab-details/lab-details.component';
+import { UploadComponent } from './core/components/account/upload/upload.component';
 import { UploadToCloudComponent } from './core/components/account/upload-to-cloud/upload-to-cloud.component';
-import { DynamicMenusComponent } from './core/components/account/dynamic-menus/dynamic-menus.component';
-import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
-import { MainLayoutComponent } from './main-layout/main-layout.component';
 
 const routes: Routes = [
-  { path: '', redirectTo: 'home', pathMatch: 'full' },
+    {
+    path: '',
+    component: HomeComponent,
+    pathMatch: 'full'
+  },
   {
-    path: 'home',
-    component: HomeComponent
+    path: 'register',
+    component: RegisterUserComponent
   },
   {
     path: 'login',
     component: LoginComponent
   },
   {
-    path: '',
-    component: MainLayoutComponent,
-    children: [
-      {
-        path: 'dynamic',
-        component: DynamicMenusComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'admin-dashboard',
-        component: AdminDashboardComponent,
-      },
-      {
-        path: 'register',
-        component: RegisterUserComponent
-      },
-      {
-        path: 'logout',
-        component: LogOutComponent
-      },
-      {
-        path: 'dashboard',
-        component: UserDashboardComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'personalinformation',
-        component: PersonalInformationComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'corporateaccount',
-        component: CorporateAccountListComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'useraccount',
-        component: UserAccountListComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'createuseraccount',
-        component: CreateUserAccountComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'createcorporateaccount',
-        component: CreateCorporateAccountComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'uploaddoc',
-        component: UploadDocumentComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'labdetails',
-        component: LabDetailsComponent,
-        canActivate: [AuthGuard]
-      },
-      {
-        path: 'uploadtocloud',
-        component: UploadToCloudComponent,
-        canActivate: [AuthGuard]
-      }
-    ]
+    path: 'logout',
+    component: LogOutComponent
+  },
+  {
+    path: 'dashboard',
+    component: UserDashboardComponent,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'personalinformation',
+    component: PersonalInformationComponent,
+    canActivate: [AuthGuard]
   }
+  ,
+  {
+    path: 'corporateaccount',
+    component: CorporateAccountListComponent,
+    canActivate: [AuthGuard]
+  }
+  ,
+  {
+    path: 'useraccount',
+    component: UserAccountListComponent,
+    canActivate: [AuthGuard]
+  }
+  ,
+  {
+    path: 'createuseraccount',
+    component: CreateUserAccountComponent,
+    canActivate: [AuthGuard]
+  }
+  ,
+  {
+    path: 'createcorporateaccount',
+    component: CreateCorporateAccountComponent,
+    canActivate: [AuthGuard]
+  }
+  ,
+  {
+    path: 'uploaddoc',
+    component: UploadDocumentComponent,
+    canActivate: [AuthGuard]
+  }
+  ,
+  {
+    path: 'labdetails',
+    component: LabDetailsComponent,
+    canActivate: [AuthGuard]
+  },
+
+  {
+    path: 'upload',
+    component: UploadComponent,
+    canActivate: [AuthGuard]
+  }
+  ,
+  {
+    path: 'uploadtocloud',
+    component: UploadToCloudComponent,
+    canActivate: [AuthGuard]
+  }
+
 ];
 
 @NgModule({
