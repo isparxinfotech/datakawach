@@ -15,6 +15,7 @@ import { UploadDocumentComponent } from './core/components/account/upload-docume
 import { LabDetailsComponent } from './core/components/account/lab-details/lab-details.component';
 import { UploadComponent } from './core/components/account/upload/upload.component';
 import { UploadToCloudComponent } from './core/components/account/upload-to-cloud/upload-to-cloud.component';
+import { AdminDashboardComponent } from './core/components/account/admin-dashboard/admin-dashboard.component';
 
 const routes: Routes = [
     {
@@ -37,6 +38,11 @@ const routes: Routes = [
   {
     path: 'dashboard',
     component: UserDashboardComponent,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'admindashboard',
+    component: AdminDashboardComponent,
     canActivate: [AuthGuard]
   },
   {

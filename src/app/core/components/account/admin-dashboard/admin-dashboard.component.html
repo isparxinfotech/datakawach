@@ -1,0 +1,105 @@
+<div class="container-fluid p-0 d-flex h-100">
+    <app-dynamic-menus></app-dynamic-menus>
+  
+    <div class="bg-light flex-fill">
+      <div class="p-2 d-md-none d-flex text-white bg-success">
+        <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
+          <i class="fa-solid fa-bars"></i>
+        </a>
+        <span class="ms-3">Data Kavach</span>
+      </div>
+      <div class="p-4">
+        <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
+          <div class="container-fluid">
+            <a class="navbar-brand" href="dashboard" style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
+              Welcome: {{userSessionDetails?.username}}
+            </a>
+          </div>
+        </nav>
+        <hr class="my-4">
+        <div class="row">
+          <div class="col">
+            <!-- OneDrive Folders Section -->
+            <h2 class="text-center mb-4 fw-bold text-primary">Folder Explorer (OneDrive)</h2>
+  
+            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="folders.length > 0; else noFolders">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Size</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let folder of folders">
+                    <td>{{ folder.name }}</td>
+                    <td>{{ folder.id }}</td>
+                    <td>{{ formatSize(folder.size) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+  
+            <!-- No OneDrive Folders Message -->
+            <ng-template #noFolders>
+              <div class="card shadow-sm p-4 mb-4 bg-white rounded">
+                <div class="alert alert-info text-center" *ngIf="userSessionDetails">
+                  No folders found in the OneDrive account for "{{userSessionDetails?.username}}".
+                </div>
+              </div>
+            </ng-template>
+  
+            <!-- S3 Buckets Section -->
+            <h2 class="text-center mb-4 fw-bold text-primary">Bucket Explorer (AWS S3)</h2>
+  
+            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="buckets.length > 0; else noBuckets">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Region</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Object Count</th>
+                    <th scope="col">Creation Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let bucket of buckets">
+                    <td>{{ bucket.name }}</td>
+                    <td>{{ bucket.region }}</td>
+                    <td>{{ formatSize(bucket.size) }}</td>
+                    <td>{{ bucket.objectCount }}</td>
+                    <td>{{ bucket.creationDate }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+  
+            <!-- No S3 Buckets Message -->
+            <ng-template #noBuckets>
+              <div class="card shadow-sm p-4 mb-4 bg-white rounded">
+                <div class="alert alert-info text-center" *ngIf="userSessionDetails">
+                  No buckets found in the AWS S3 account for "{{userSessionDetails?.username}}".
+                </div>
+              </div>
+            </ng-template>
+  
+            <!-- Loading Spinner -->
+            <div class="text-center mt-4" *ngIf="(!folders || !buckets) && userSessionDetails">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+  
+            <!-- Login Prompt -->
+            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!userSessionDetails">
+              <div class="alert alert-warning text-center">
+                Please log in to view OneDrive folders and S3 buckets.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

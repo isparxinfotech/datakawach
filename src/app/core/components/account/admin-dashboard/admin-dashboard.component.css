@@ -1,0 +1,69 @@
+/* Ensure the layout takes full height */
+.h-100 {
+    height: 100vh;
+  }
+  
+  /* Table styling */
+  .table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: #212529;
+  }
+  
+  .table th,
+  .table td {
+    padding: 0.75rem;
+    vertical-align: top;
+    border-top: 1px solid #dee2e6;
+  }
+  
+  .table thead th {
+    vertical-align: bottom;
+    border-bottom: 2px solid #dee2e6;
+    background-color: #f8f9fa;
+  }
+  
+  .table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+  }
+  
+  /* Card styling */
+  .card {
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .card-body {
+    padding: 1.25rem;
+  }
+  
+  /* Text styling */
+  .text-primary {
+    color: #007bff !important;
+  }
+  
+  .fw-bold {
+    font-weight: 700 !important;
+  }
+  
+  .text-center {
+    text-align: center !important;
+  }
+  
+  /* Spinner */
+  .spinner-border {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 767.98px) {
+    .navbar-brand {
+      position: static !important;
+      float: none !important;
+      margin: 0 auto !important;
+      display: block;
+      text-align: center;
+    }
+  }

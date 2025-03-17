@@ -1,78 +1,83 @@
 <div class="container-fluid p-0 d-flex h-100">
-    <app-dynamic-menus></app-dynamic-menus>
-  
-    <div class="bg-light flex-fill">
-      <div class="p-2 d-md-none d-flex text-white bg-success">
-        <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
-          <i class="fa-solid fa-bars"></i>
-        </a>
-        <span class="ms-3">PROFFERS</span>
-      </div>
-      <div class="p-4">
-        <nav class="navbar navbar-expand-lg bg-body-tertiary">
-          <div class="container-fluid">
-            <a class="navbar-brand" href="dashboard" style="float: right;position: absolute;right: 1px;padding-right: 0px;margin-right: 0px;font-size: 15px;">Welcome: {{userSessionDetails?.username}}</a>
+  <app-dynamic-menus></app-dynamic-menus>
+
+  <div class="bg-light flex-fill">
+    <div class="p-2 d-md-none d-flex text-white bg-success">
+      <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
+        <i class="fa-solid fa-bars"></i>
+      </a>
+      <span class="ms-3">Data Kavach</span>
+    </div>
+    <div class="p-4">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="dashboard" style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
+            Welcome: {{userSessionDetails?.username}}
+          </a>
+        </div>
+      </nav>
+      <hr class="my-4">
+      <div class="row">
+        <div class="col">
+          <h2 class="text-center mb-4 fw-bold text-primary">File Explorer</h2>
+
+          <!-- Input Section -->
+          <div class="card shadow-sm p-4 mb-4 bg-white rounded">
+            <div class="row g-3">
+              <div class="col-md-5">
+                <label for="email" class="form-label fw-semibold">User Email</label>
+                <input type="email" id="email" class="form-control" [(ngModel)]="email" placeholder="e.g., user@example.com" required>
+              </div>
+              <div class="col-md-5">
+                <label for="folderName" class="form-label fw-semibold">Folder Name</label>
+                <input type="text" id="folderName" class="form-control" [(ngModel)]="folderName" placeholder="e.g., demo" required>
+              </div>
+              <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" (click)="listFiles()" [disabled]="!email || !folderName || loading">
+                  {{ loading ? 'Loading...' : 'List Files' }}
+                </button>
+              </div>
+            </div>
           </div>
-        </nav>
-        <hr>
-        <div class="row">
-          <div class="col">
-            <h2>Dashboard</h2>
-  
-            <!-- Cards for Total Accepted, Pending, and Rejected Offers -->
-            <div class="row">
-              
-              <div class="col-md-4">
-                <div class="card text-center mb-4">
-                  <div class="card-body">
-                    
-                    <h5 class="card-title">Total Users</h5>
-                    <h3 class="card-text">5672</h3>
-                    <p class="text-success">+74%</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="card text-center mb-4">
-                  <div class="card-body">
-                    <h5 class="card-title">Total companies</h5>
-                    <h3 class="card-text">234</h3>
-                    <p class="text-warning">+74%</p>
-                  </div>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="card text-center mb-4">
-                  <div class="card-body">
-                    <h5 class="card-title">Total Offers</h5>
-                    <h3 class="card-text">3567</h3>
-                    <p class="text-danger">+74%</p>
+
+          <!-- File Cards Section -->
+          <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" *ngIf="files.length > 0">
+            <div class="col" *ngFor="let file of files">
+              <div class="card h-100 shadow-sm file-card">
+                <div class="card-body text-center">
+                  <i class="bi bi-file-earmark-text fs-2 text-muted mb-3"></i>
+                  <h5 class="card-title text-truncate" title="{{file.name}}">{{file.name}}</h5>
+                  <div class="btn-group mt-3">
+                    <a [href]="file.downloadUrl" target="_blank" class="btn btn-sm btn-outline-success">
+                      <i class="bi bi-download me-1"></i> Download
+                    </a>
+                    <button class="btn btn-sm btn-outline-primary" (click)="viewFile(file.downloadUrl)">
+                      <i class="bi bi-eye me-1"></i> View
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-           
-                
-                    <!-- Repeat similar structure for other messages -->
-                    
-            
-            <!-- Statistics of Offers Chart -->
-            <div class="card">
-              <div class="card-body">
-                <h5 class="card-title">Statistics of Offers</h5>
-                <div class="chart-container">
-                  <canvas id="offerChart"></canvas>
-                </div>
-                <!-- <div class="mt-3">
-                  <span class="badge bg-primary">Accepted Offers</span>
-                  <span class="badge bg-warning">Pending Offers</span>
-                  <span class="badge bg-danger">Rejected Offers</span>
-                </div> -->
-              </div>
+          <!-- Messages -->
+          <div class="mt-4" *ngIf="files.length === 0 && !loading && (email || folderName)">
+            <div class="alert alert-info text-center" *ngIf="!errorMessage">
+              No files found in "{{folderName}}" for "{{email}}".
+            </div>
+            <div class="alert alert-danger text-center" *ngIf="errorMessage">
+              {{errorMessage}}
+            </div>
+          </div>
+
+          <!-- Loading Spinner -->
+          <div class="text-center mt-4" *ngIf="loading">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+</div>

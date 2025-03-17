@@ -25,6 +25,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { UploadComponent } from './core/components/account/upload/upload.component';
+import { AdminDashboardComponent } from './core/components/account/admin-dashboard/admin-dashboard.component';
 
 @NgModule({
   declarations: [
@@ -45,7 +46,8 @@ import { UploadComponent } from './core/components/account/upload/upload.compone
     UploadDocumentComponent,
     LabDetailsComponent,
     UploadToCloudComponent,
-    UploadComponent
+    UploadComponent,
+    AdminDashboardComponent
   ],
   imports: [
     BrowserModule,

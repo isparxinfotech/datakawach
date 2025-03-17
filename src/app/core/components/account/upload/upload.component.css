@@ -1,70 +1,136 @@
-/* upload.component.css */
+/* General Page Styling */
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+/* Navbar */
+.navbar {
+  background-color: #ffffff !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar Toggle Button */
+.p-2.bg-success {
+  background-color: #28a745 !important;
+  font-weight: bold;
+}
+
+/* Upload Container */
 .upload-container {
-    max-width: 500px;
-    margin: 2rem auto;
-    padding: 2rem;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  margin: auto;
+  margin-top: 30px;
+}
+
+/* Upload Form Headings */
+.upload-container h2 {
+  text-align: center;
+  font-weight: 600;
+  color: #007bff;
+  margin-bottom: 20px;
+}
+
+/* Form Group */
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 5px;
+  color: #444;
+}
+
+/* Input Fields */
+input[type="email"],
+input[type="text"],
+input[type="file"] {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+  transition: 0.3s ease-in-out;
+}
+
+input[type="email"]:focus,
+input[type="text"]:focus,
+input[type="file"]:focus {
+  border-color: #007bff;
+  box-shadow: 0px 0px 5px rgba(0, 123, 255, 0.5);
+}
+
+/* Upload Button */
+button {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  background: linear-gradient(to right, #007bff, #0056b3);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s ease-in-out;
+}
+
+button:hover {
+  background: linear-gradient(to right, #0056b3, #003f7f);
+}
+
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  background: #e9ecef;
+  border-radius: 5px;
+  margin-top: 10px;
+  height: 20px;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  text-align: center;
+  color: white;
+  font-weight: bold;
+  background: linear-gradient(to right, #007bff, #0056b3);
+  transition: width 0.4s ease-in-out;
+}
+
+/* Success and Error Messages */
+.message {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.error {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .upload-container {
+    padding: 1.5rem;
+    max-width: 90%;
   }
-  
-  .form-group {
-    margin-bottom: 1.5rem;
-  }
-  
-  label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: bold;
-  }
-  
-  input[type="email"],
-  input[type="text"],
-  input[type="file"] {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-  }
-  
+
   button {
-    background-color: #007bff;
-    color: white;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+    font-size: 14px;
   }
-  
-  button:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
-  }
-  
-  .progress-bar {
-    margin-top: 1rem;
-    height: 20px;
-    background-color: #f0f0f0;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  
-  .progress {
-    height: 100%;
-    background-color: #28a745;
-    transition: width 0.3s ease;
-  }
-  
-  .message {
-    margin-top: 1rem;
-    padding: 0.5rem;
-    border-radius: 4px;
-  }
-  
-  .message.success {
-    background-color: #d4edda;
-    color: #155724;
-  }
-  
-  .message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-  }
+}

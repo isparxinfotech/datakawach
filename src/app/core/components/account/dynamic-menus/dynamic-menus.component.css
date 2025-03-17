@@ -1,167 +1,66 @@
-/* Content Area */
-.content-container {
-    background-color: #ffffff; /* White background */
-    border-radius: 10px;
+/* Sidebar Styling */
+#bdSidebar {
+    background: linear-gradient(to bottom, #e0e0e0, #b0b0b0); /* Soft Grey Gradient */
+    color: #333;
+    width: 270px;
+    min-height: 100vh;
     padding: 20px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.text-success {
-    color: #F04D35;
-}
-
-.section-title {
-    font-size: 1.5rem;
-    color: #000000; /* Black text */
-    margin-bottom: 20px;
-}
-
-.welcome-bar {
-    border-bottom: 1px solid #ddd;
-    padding: 15px;
-    margin-bottom: 30px;
-    font-size: 1rem;
-    color: #000000; /* Black text */
-    background-color: #f8f9fa;
-}
-
-.profile-dropdown {
-    position: relative;
-}
-
-.profile-image {
-    cursor: pointer;
-}
-
-.dropdown-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    display: none;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-    width: 100%; /* Full width */
-}
-
-.dropdown-menu.show {
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.2);
+    border-radius: 0 20px 20px 0;
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  /* Logo Styling */
+  #bdSidebar .logo {
+    width: 40%;
     display: block;
-}
-
-.btn-black {
-    font-size: 0.9rem;
-    background-color: #000000; /* Black button */
-    border: none;
-    color: white;
-    width: 100%;
-    padding: 10px;
-}
-
-.btn-black:hover {
-    background-color: #333333; /* Darker hover state */
-}
-
-.logout-button {
-    font-size: 0.9rem;
-    background-color: #000000; /* Black button */
-    border: none;
-    color: white;
-    width: 100%;
-    padding: 10px;
-}
-
-.logout-button:hover {
-    background-color: #333333; /* Darker hover state */
-}
-
-/* Table Styles */
-.upload-details-container table {
-    width: 100%;
-    margin-top: 20px;
-}
-
-.upload-details-container th,
-.upload-details-container td {
+    margin: 0 auto 20px;
+    filter: drop-shadow(2px 2px 5px rgba(0, 0, 0, 0.2));
+  }
+  
+  /* Navigation Links */
+  .mynav .nav-item a {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    font-size: 16px;
+    color: #333;
+    text-decoration: none;
+    transition: all 0.3s ease-in-out;
+    border-radius: 8px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.2);
+    margin-bottom: 8px;
+  }
+  
+  .mynav .nav-item a:hover {
+    background: linear-gradient(to right, #0052a1, #eb1318);
+    color: #fff;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Sidebar Footer */
+  #bdSidebar .d-flex {
+    display: flex;
+    align-items: center;
     padding: 12px;
-    text-align: center;
-    font-size: 0.9rem;
-    color: #000000; /* Black text */
-}
-
-.upload-details-container td {
-    background-color: #f1f1f1;
-}
-
-.upload-details-container th {
-    background-color: #000000; /* Black header */
-    color: #ffffff; /* White text */
-}
-
-.btn-primary {
-    background: linear-gradient(90deg, #F04D35, #0052A1); /* Gradient background */
-    color: #ffffff; /* White text */
-    border: none; /* Remove border */
-    transition: background 0.3s ease, box-shadow 0.3s ease;
-    padding: 10px 20px; /* Adjust padding */
-    font-size: 1rem; /* Adjust font size */
-    border-radius: 5px; /* Rounded corners */
-    cursor: pointer; /* Pointer cursor */
-}
-
-.btn-primary:hover {
-    background: linear-gradient(90deg, #0052A1, #F04D35); /* Reverse gradient on hover */
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Add shadow effect */
-}
-
-/* Input Fields */
-.input-field,
-.form-control {
-    max-width: 300px; /* Decrease the textbox width */
-    padding: 10px; /* Adjust padding for a clean look */
-    font-size: 0.9rem; /* Keep the font professional */
-    color: #000000; /* Black text */
-    border: 2px solid #ccc;
-    border-radius: 5px;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-    background-color: #f8f9fa;
-}
-
-.input-field:focus,
-.form-control:focus {
-    border-color: #555555; /* Neutral focus border */
-    box-shadow: 0 0 5px rgba(85, 85, 85, 0.5); /* Subtle focus shadow */
-    outline: none;
-}
-
-/* File Upload Button */
-.file-upload-container .form-control {
-    max-width: 300px; /* Limit the width */
-    padding: 5px; /* Reduce padding */
-    font-size: 0.85rem; /* Smaller font size */
-    height: 35px; /* Adjust height */
-    border: 2px solid #ccc;
-    border-radius: 5px;
-    background-color: #f8f9fa;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.file-upload-container .form-control:focus {
-    border-color: #555555; /* Neutral focus border */
-    box-shadow: 0 0 4px rgba(85, 85, 85, 0.5); /* Subtle focus shadow */
-    outline: none;
-}
-
-.file-upload-container .btn {
-    max-width: 300px; /* Align button width with input fields */
-    padding: 5px 10px; /* Compact button size */
-    font-size: 0.85rem; /* Match smaller font size */
-    height: 35px;
-    border-radius: 5px;
-    background-color: #000000; /* Black button */
-    color: #ffffff; /* White text */
-    transition: background-color 0.3s ease;
-}
-
-.file-upload-container .btn:hover {
-    background-color: #333333; /* Darker hover state */
-}
+    font-size: 14px;
+    border-top: 1px solid rgba(0, 0, 0, 0.2);
+  }
+  
+  #bdSidebar .d-flex i {
+    font-size: 18px;
+    color: #4a4a4a;
+    margin-right: 10px;
+  }
+  
+  #bdSidebar h6 {
+    font-size: 15px;
+    font-weight: bold;
+    color: #222;
+  }
+  

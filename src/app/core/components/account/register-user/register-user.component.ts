@@ -34,7 +34,14 @@ export class RegisterUserComponent implements OnDestroy{
       corpoName: '',
       branch:'',
       landlineNumber: '',
-      userType: 0
+      userType: 0,
+      oneDriveUserId:'',
+      onedriveUsername:'',
+      onedrivePassword:'',
+      onedriveTenantId:'',
+      onedriveClientId:'',
+      clientSecret:'',
+      folderName:''
     };
       this.frmValidate = fv.group(
         {
@@ -51,6 +58,12 @@ export class RegisterUserComponent implements OnDestroy{
           password: ['', [Validators.required, Validators.minLength(4)]],
           confirmPwd: ['', [Validators.required, Validators.minLength(4)]],
           isTermsAndCondtionAccepted: ['', [Validators.required]],
+          oneDriveUserId: ['', [Validators.maxLength(250)]],
+          onedriveUsername: ['', [Validators.maxLength(250)]],
+          onedrivePassword: ['', [Validators.maxLength(250)]],
+          onedriveTenantId: ['', [Validators.maxLength(250)]],
+          onedriveClientId: ['', [Validators.maxLength(250)]],
+          clientSecret: ['', [Validators.maxLength(250)]]
         }
       );
   }

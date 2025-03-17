@@ -14,5 +14,14 @@ export interface RegisterUserRequest{
     branch: string;
     landlineNumber: string;
     userType: number;
+    oneDriveUserId: string;
+    onedriveUsername: string,
+    onedrivePassword: string,
+    onedriveTenantId:string,
+    onedriveClientId:string,
+    clientSecret:string,
+    folderName:string
+
+
 
 }

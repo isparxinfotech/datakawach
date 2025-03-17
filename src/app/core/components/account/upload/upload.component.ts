@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { HttpClient, HttpEventType } from '@angular/common/http';
 
 @Component({
@@ -6,7 +6,7 @@ import { HttpClient, HttpEventType } from '@angular/common/http';
   templateUrl: './upload.component.html',
   styleUrls: ['./upload.component.css']
 })
-export class UploadComponent {
+export class UploadComponent implements OnInit {
   userEmail: string = '';
   folderName: string = '';
   selectedFile: File | null = null;
@@ -14,8 +14,14 @@ export class UploadComponent {
   progress: number = 0;
   message: string = '';
   isSuccess: boolean = false;
+  userSessionDetails: { username: string } | null = null; // Added for navbar username display
 
   constructor(private http: HttpClient) {}
+
+  ngOnInit() {
+    // Simulate fetching user session details (e.g., from a service or local storage)
+    this.loadUserSession();
+  }
 
   onFileSelected(event: any) {
     this.selectedFile = event.target.files[0];
@@ -32,7 +38,7 @@ export class UploadComponent {
     const formData = new FormData();
     formData.append('email', this.userEmail);
     formData.append('folderName', this.folderName);
-    formData.append('file', this.selectedFile); // Remove explicit filename
+    formData.append('file', this.selectedFile);
 
     const fileName = encodeURIComponent(this.selectedFile.name);
     const url = `http://localhost:8080/onedrive/upload/${fileName}`;
@@ -70,7 +76,6 @@ export class UploadComponent {
     this.uploading = false;
     this.isSuccess = false;
 
-    // Customize error message based on status
     if (error.status === 404) {
       this.message = 'Upload endpoint not found. Please check the server configuration.';
     } else if (error.status === 400) {
@@ -92,5 +97,17 @@ export class UploadComponent {
     setTimeout(() => {
       this.message = '';
     }, 5000);
+  }
+
+  // New method to load user session details (example implementation)
+  private loadUserSession() {
+    // This could be replaced with an actual service call or authentication logic
+    const storedUser = localStorage.getItem('userSession'); // Example: fetching from local storage
+    if (storedUser) {
+      this.userSessionDetails = JSON.parse(storedUser);
+    } else {
+      // Mock data for demonstration; replace with real logic
+      this.userSessionDetails = { username: 'JohnDoe' };
+    }
   }
 }
