@@ -1,62 +1,99 @@
-<div class="container">
-    <h1>UPLOAD FILES</h1>
-  
-    <div class="form-container">
-      <input
-        type="text"
-        placeholder="Enter username"
-        [(ngModel)]="username"
-        class="input-field"
-      />
-      <button (click)="handleConnect()" [disabled]="loading" class="connect-button">
-        {{ loading ? 'Connecting...' : 'Connect' }}
-      </button>
+<div class="container-fluid p-0 d-flex h-100">
+  <app-dynamic-menus></app-dynamic-menus>
+
+  <div class="bg-light flex-fill">
+    <!-- Mobile Sidebar Toggle -->
+    <div class="p-2 d-md-none d-flex text-white bg-success">
+      <a href="dashboard" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
+        <i class="fa-solid fa-bars"></i>
+      </a>
+      <span class="ms-3">Data Kavach</span>
     </div>
-  
-    <div class="file-upload-container">
-      <input
-        type="file"
-        (change)="handleFileChange($event)"
-        multiple
-        class="file-input"
-      />
-      <button
-        (click)="handleFileUpload()"
-        [disabled]="loading || files.length === 0 || !username.trim()"
-        class="upload-button"
-      >
-        {{ loading ? 'Uploading...' : 'Upload Files' }}
-      </button>
-    </div>
-  
-    <div *ngIf="loading" class="progress-container">
-      <div class="progress-bar" [style.width.%]="uploadProgress"></div>
-      <p>{{ uploadProgress }}%</p>
-    </div>
-  
-    <div *ngIf="result" class="result-container">
-      <h2>Result:</h2>
-      <pre>{{ result }}</pre>
-    </div>
-  
-    <div *ngIf="uploadDetails.length > 0" class="upload-details-container">
-      <h2>Uploaded Files</h2>
-      <table class="upload-details-table">
-        <thead>
-          <tr>
-            <th>File Name</th>
-            <th>Time Taken (ms)</th>
-            <th>Size (bytes)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let detail of uploadDetails">
-            <td>{{ detail.name }}</td>
-            <td>{{ detail.time }}</td>
-            <td>{{ detail.size }}</td>
-          </tr>
-        </tbody>
-      </table>
+
+    <!-- Main Content -->
+    <div class="p-4">
+      <!-- Navbar -->
+      <nav class="navbar navbar-expand-lg bg-body-tertiary">
+        <div class="container-fluid">
+          <a class="navbar-brand" href="dashboard"
+            style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
+            Welcome: {{userSessionDetails?.username}}
+          </a>
+        </div>
+      </nav>
+      <hr>
+
+      <!-- Upload Form -->
+      <div class="row">
+        <div class="container">
+          <h1>UPLOAD FILES</h1>
+
+          <div class="form-container">
+            <select [(ngModel)]="selectedBucket" (change)="loadFolders()" class="input-field">
+              <option value="" disabled>Select a bucket</option>
+              <option *ngFor="let bucket of buckets" [value]="bucket">{{ bucket }}</option>
+            </select>
+          </div>
+
+          <!-- Folder Navigation -->
+          <div *ngIf="selectedBucket" class="folder-navigation">
+            <h3>Current Path: {{ currentPath || '/' }}</h3>
+            <ul class="folder-list">
+              <li *ngIf="currentPath" (click)="goBack()" class="folder-item">.. (Go Up)</li>
+              <li *ngFor="let folder of folders" (click)="navigateToFolder(folder)" class="folder-item">
+                [Folder] {{ folder }}
+              </li>
+              <li *ngFor="let file of files" class="file-item">{{ file }}</li>
+            </ul>
+          </div>
+
+          <div class="file-upload-container">
+            <input
+              type="file"
+              (change)="handleFileChange($event)"
+              multiple
+              class="file-input"
+            />
+            <button
+              (click)="handleFileUpload()"
+              [disabled]="loading || filesToUpload.length === 0 || !selectedBucket"
+              class="upload-button"
+            >
+              {{ loading ? 'Uploading...' : 'Upload Files' }}
+            </button>
+          </div>
+
+          <div *ngIf="loading" class="progress-container">
+            <div class="progress-bar" [style.width.%]="uploadProgress"></div>
+            <p>{{ uploadProgress }}%</p>
+          </div>
+
+          <div *ngIf="result" class="result-container">
+            <h2>Result:</h2>
+            <pre>{{ result }}</pre>
+          </div>
+
+          <div *ngIf="uploadDetails.length > 0" class="upload-details-container">
+            <h2>Uploaded Files</h2>
+            <table class="upload-details-table">
+              <thead>
+                <tr>
+                  <th>File Name</th>
+                  <th>Time Taken (ms)</th>
+                  <th>Size (bytes)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let detail of uploadDetails">
+                  <td>{{ detail.name }}</td>
+                  <td>{{ detail.uploadTime }}</td>
+                  <td>{{ detail.size }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-  
+</div>
