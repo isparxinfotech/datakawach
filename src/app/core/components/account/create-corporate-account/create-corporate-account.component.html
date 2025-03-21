@@ -1,5 +1,4 @@
 <div class="container-fluid p-0 d-flex h-100">
-  
   <div class="bg-light flex-fill">
     <div class="p-2 d-md-none d-flex text-white bg-success">
       <a href="dashboard" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
@@ -30,41 +29,41 @@
                   <div class="row mb-3">
                     <div class="col-lg-6">
                       <label for="corpoName">Corporate Name <span class="mandatory">*</span></label>
-                      <input type="text" class="form-control" aria-describedby="corpoName"
-                        placeholder="Enter corpoName" id="corpoName" maxlength="30" formControlName="corpoName"
+                      <input type="text" class="form-control" id="corpoName" formControlName="corpoName"
+                        placeholder="Enter Corporate Name" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['corpoName'].errors }">
                       <div *ngIf="submitted && f['corpoName'].errors" class="invalid-feedback">
                         <div *ngIf="f['corpoName'].errors['required']">Corporate name is required</div>
-                        <div *ngIf="f['corpoName'].errors['minlength']">Minimum 3 char name is required</div>
+                        <div *ngIf="f['corpoName'].errors['minlength']">Minimum 3 chars required</div>
                         <div *ngIf="f['corpoName'].errors['pattern']">Please enter valid name</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
-                      <label for="addressLine1">Address <span class="mandatory">*</span></label>
+                      <label for="address">Address <span class="mandatory">*</span></label>
                       <input type="text" class="form-control" id="address" formControlName="address"
-                        aria-describedby="address" placeholder="Enter Address" maxlength="100"
+                        placeholder="Enter Address" maxlength="150"
                         [ngClass]="{ 'is-invalid': submitted && f['address'].errors }">
                       <div *ngIf="submitted && f['address'].errors" class="invalid-feedback">
                         <div *ngIf="f['address'].errors['required']">Address is required</div>
-                        <div *ngIf="f['address'].errors['pattern']">Please enter valid Address</div>
-                        <div *ngIf="f['address'].errors['minlength']">Please enter 3 chars at least</div>
+                        <div *ngIf="f['address'].errors['minlength']">Minimum 3 chars required</div>
                       </div>
                     </div>
                   </div>
                   <div class="row mb-3">
                     <div class="col-lg-6">
                       <label for="branch">Branch <span class="mandatory">*</span></label>
-                      <input type="text" class="form-control" id="branch" formControlName="branch" aria-describedby="branch"
-                        placeholder="Enter branch" maxlength="100"
+                      <input type="text" class="form-control" id="branch" formControlName="branch"
+                        placeholder="Enter Branch" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['branch'].errors }">
                       <div *ngIf="submitted && f['branch'].errors" class="invalid-feedback">
                         <div *ngIf="f['branch'].errors['required']">Branch is required</div>
+                        <div *ngIf="f['branch'].errors['minlength']">Minimum 3 chars required</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
-                      <label for="pincode">Zip Code <span class="mandatory">*</span></label>
+                      <label for="pinCode">Zip Code <span class="mandatory">*</span></label>
                       <input type="text" class="form-control" id="pinCode" formControlName="pinCode"
-                        aria-describedby="pincode" placeholder="Enter Pincode" maxlength="6"
+                        placeholder="Enter Zip Code" maxlength="20"
                         [ngClass]="{ 'is-invalid': submitted && f['pinCode'].errors }">
                       <div *ngIf="submitted && f['pinCode'].errors" class="invalid-feedback">
                         <div *ngIf="f['pinCode'].errors['required']">Zip Code is required</div>
@@ -76,17 +75,17 @@
                     <div class="col-lg-6">
                       <label for="landlineNumber">Landline Number <span class="mandatory">*</span></label>
                       <input type="tel" class="form-control" id="landlineNumber" formControlName="landlineNumber"
-                        aria-describedby="landlineNumber" placeholder="Enter landline Number" maxlength="10"
+                        placeholder="Enter Landline Number" maxlength="15"
                         [ngClass]="{ 'is-invalid': submitted && f['landlineNumber'].errors }">
                       <div *ngIf="submitted && f['landlineNumber'].errors" class="invalid-feedback">
                         <div *ngIf="f['landlineNumber'].errors['required']">Landline Number is required</div>
-                        <div *ngIf="f['landlineNumber'].errors['pattern'] || f['landlineNumber'].errors['minlength']">Please enter valid landline Number</div>
+                        <div *ngIf="f['landlineNumber'].errors['pattern'] || f['landlineNumber'].errors['minlength']">Please enter valid number</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
-                      <label for="email">Email</label>
+                      <label for="email">Email <span class="mandatory">*</span></label>
                       <input type="email" class="form-control" id="email" formControlName="email"
-                        aria-describedby="email" placeholder="Enter Email" maxlength="50"
+                        placeholder="Enter Email" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['email'].errors }">
                       <div *ngIf="submitted && f['email'].errors" class="invalid-feedback">
                         <div *ngIf="f['email'].errors['required']">Email is required</div>
@@ -94,68 +93,125 @@
                       </div>
                     </div>
                   </div>
+                </fieldset>
+
+                <fieldset class="scheduler-border">
+                  <legend class="scheduler-border">Cloud Provider</legend>
+                  <div class="row mb-3">
+                    <div class="col-lg-12">
+                      <label for="cloudProvider">Select Cloud Provider <span class="mandatory">*</span></label>
+                      <select class="form-control" formControlName="cloudProvider" (change)="onCloudProviderChange($event)"
+                        [ngClass]="{ 'is-invalid': submitted && f['cloudProvider'].errors }">
+                        <option value="" selected>--Select Cloud Provider--</option>
+                        <option value="onedrive">OneDrive</option>
+                        <option value="aws">AWS S3</option>
+                      </select>
+                      <div *ngIf="submitted && f['cloudProvider'].errors" class="invalid-feedback">
+                        <div *ngIf="f['cloudProvider'].errors['required']">Cloud provider is required</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- OneDrive Fields -->
-                  <div class="row mb-3">
-                    <div class="col-lg-6">
-                      <label for="oneDriveUserId">OneDrive User ID</label>
-                      <input type="text" class="form-control" id="oneDriveUserId" formControlName="oneDriveUserId"
-                        aria-describedby="oneDriveUserId" placeholder="Enter OneDrive User ID" maxlength="250"
-                        [ngClass]="{ 'is-invalid': submitted && f['oneDriveUserId'].errors }">
-                      <div *ngIf="submitted && f['oneDriveUserId'].errors" class="invalid-feedback">
-                        <div *ngIf="f['oneDriveUserId'].errors['pattern']">Please enter valid OneDrive User ID</div>
+                  <div *ngIf="selectedCloudProvider === 'onedrive'">
+                    <div class="row mb-3">
+                      <div class="col-lg-6">
+                        <label for="oneDriveUserId">OneDrive User ID <span class="mandatory">*</span></label>
+                        <input type="text" class="form-control" id="oneDriveUserId" formControlName="oneDriveUserId"
+                          placeholder="Enter OneDrive User ID" maxlength="250"
+                          [ngClass]="{ 'is-invalid': submitted && f['oneDriveUserId'].errors }">
+                        <div *ngIf="submitted && f['oneDriveUserId'].errors" class="invalid-feedback">
+                          <div *ngIf="f['oneDriveUserId'].errors['required']">OneDrive User ID is required</div>
+                        </div>
+                      </div>
+                      <div class="col-lg-6">
+                        <label for="onedriveUsername">OneDrive Username <span class="mandatory">*</span></label>
+                        <input type="text" class="form-control" id="onedriveUsername" formControlName="onedriveUsername"
+                          placeholder="Enter OneDrive Username" maxlength="250"
+                          [ngClass]="{ 'is-invalid': submitted && f['onedriveUsername'].errors }">
+                        <div *ngIf="submitted && f['onedriveUsername'].errors" class="invalid-feedback">
+                          <div *ngIf="f['onedriveUsername'].errors['required']">OneDrive Username is required</div>
+                        </div>
                       </div>
                     </div>
-                    <div class="col-lg-6">
-                      <label for="onedriveUsername">OneDrive Username</label>
-                      <input type="text" class="form-control" id="onedriveUsername" formControlName="onedriveUsername"
-                        aria-describedby="onedriveUsername" placeholder="Enter OneDrive Username" maxlength="250"
-                        [ngClass]="{ 'is-invalid': submitted && f['onedriveUsername'].errors }">
-                      <div *ngIf="submitted && f['onedriveUsername'].errors" class="invalid-feedback">
-                        <div *ngIf="f['onedriveUsername'].errors['pattern']">Please enter valid OneDrive Username</div>
+                    <div class="row mb-3">
+                      <div class="col-lg-6">
+                        <label for="onedrivePassword">OneDrive Password <span class="mandatory">*</span></label>
+                        <input type="password" class="form-control" id="onedrivePassword" formControlName="onedrivePassword"
+                          placeholder="Enter OneDrive Password" maxlength="250"
+                          [ngClass]="{ 'is-invalid': submitted && f['onedrivePassword'].errors }">
+                        <div *ngIf="submitted && f['onedrivePassword'].errors" class="invalid-feedback">
+                          <div *ngIf="f['onedrivePassword'].errors['required']">OneDrive Password is required</div>
+                        </div>
+                      </div>
+                      <div class="col-lg-6">
+                        <label for="onedriveTenantId">OneDrive Tenant ID <span class="mandatory">*</span></label>
+                        <input type="text" class="form-control" id="onedriveTenantId" formControlName="onedriveTenantId"
+                          placeholder="Enter OneDrive Tenant ID" maxlength="250"
+                          [ngClass]="{ 'is-invalid': submitted && f['onedriveTenantId'].errors }">
+                        <div *ngIf="submitted && f['onedriveTenantId'].errors" class="invalid-feedback">
+                          <div *ngIf="f['onedriveTenantId'].errors['required']">OneDrive Tenant ID is required</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row mb-3">
+                      <div class="col-lg-6">
+                        <label for="onedriveClientId">OneDrive Client ID <span class="mandatory">*</span></label>
+                        <input type="text" class="form-control" id="onedriveClientId" formControlName="onedriveClientId"
+                          placeholder="Enter OneDrive Client ID" maxlength="250"
+                          [ngClass]="{ 'is-invalid': submitted && f['onedriveClientId'].errors }">
+                        <div *ngIf="submitted && f['onedriveClientId'].errors" class="invalid-feedback">
+                          <div *ngIf="f['onedriveClientId'].errors['required']">OneDrive Client ID is required</div>
+                        </div>
+                      </div>
+                      <div class="col-lg-6">
+                        <label for="clientSecret">Client Secret <span class="mandatory">*</span></label>
+                        <input type="password" class="form-control" id="clientSecret" formControlName="clientSecret"
+                          placeholder="Enter Client Secret" maxlength="250"
+                          [ngClass]="{ 'is-invalid': submitted && f['clientSecret'].errors }">
+                        <div *ngIf="submitted && f['clientSecret'].errors" class="invalid-feedback">
+                          <div *ngIf="f['clientSecret'].errors['required']">Client Secret is required</div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div class="row mb-3">
-                    <div class="col-lg-6">
-                      <label for="onedrivePassword">OneDrive Password</label>
-                      <input type="password" class="form-control" id="onedrivePassword" formControlName="onedrivePassword"
-                        aria-describedby="onedrivePassword" placeholder="Enter OneDrive Password" maxlength="250"
-                        [ngClass]="{ 'is-invalid': submitted && f['onedrivePassword'].errors }">
-                      <div *ngIf="submitted && f['onedrivePassword'].errors" class="invalid-feedback">
-                        <div *ngIf="f['onedrivePassword'].errors['pattern']">Please enter valid OneDrive Password</div>
+
+                  <!-- AWS Fields -->
+                  <div *ngIf="selectedCloudProvider === 'aws'">
+                    <div class="row mb-3">
+                      <div class="col-lg-6">
+                        <label for="awsAccessKey">AWS Access Key <span class="mandatory">*</span></label>
+                        <input type="text" class="form-control" id="awsAccessKey" formControlName="awsAccessKey"
+                          placeholder="Enter AWS Access Key" maxlength="250"
+                          [ngClass]="{ 'is-invalid': submitted && f['awsAccessKey'].errors }">
+                        <div *ngIf="submitted && f['awsAccessKey'].errors" class="invalid-feedback">
+                          <div *ngIf="f['awsAccessKey'].errors['required']">AWS Access Key is required</div>
+                        </div>
+                      </div>
+                      <div class="col-lg-6">
+                        <label for="awsSecretKey">AWS Secret Key <span class="mandatory">*</span></label>
+                        <input type="text" class="form-control" id="awsSecretKey" formControlName="awsSecretKey"
+                          placeholder="Enter AWS Secret Key" maxlength="250"
+                          [ngClass]="{ 'is-invalid': submitted && f['awsSecretKey'].errors }">
+                        <div *ngIf="submitted && f['awsSecretKey'].errors" class="invalid-feedback">
+                          <div *ngIf="f['awsSecretKey'].errors['required']">AWS Secret Key is required</div>
+                        </div>
                       </div>
                     </div>
-                    <div class="col-lg-6">
-                      <label for="onedriveTenantId">OneDrive Tenant ID</label>
-                      <input type="text" class="form-control" id="onedriveTenantId" formControlName="onedriveTenantId"
-                        aria-describedby="onedriveTenantId" placeholder="Enter OneDrive Tenant ID" maxlength="250"
-                        [ngClass]="{ 'is-invalid': submitted && f['onedriveTenantId'].errors }">
-                      <div *ngIf="submitted && f['onedriveTenantId'].errors" class="invalid-feedback">
-                        <div *ngIf="f['onedriveTenantId'].errors['pattern']">Please enter valid OneDrive Tenant ID</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="row mb-3">
-                    <div class="col-lg-6">
-                      <label for="onedriveClientId">OneDrive Client ID</label>
-                      <input type="text" class="form-control" id="onedriveClientId" formControlName="onedriveClientId"
-                        aria-describedby="onedriveClientId" placeholder="Enter OneDrive Client ID" maxlength="250"
-                        [ngClass]="{ 'is-invalid': submitted && f['onedriveClientId'].errors }">
-                      <div *ngIf="submitted && f['onedriveClientId'].errors" class="invalid-feedback">
-                        <div *ngIf="f['onedriveClientId'].errors['pattern']">Please enter valid OneDrive Client ID</div>
-                      </div>
-                    </div>
-                    <div class="col-lg-6">
-                      <label for="clientSecret">Client Secret</label>
-                      <input type="password" class="form-control" id="clientSecret" formControlName="clientSecret"
-                        aria-describedby="clientSecret" placeholder="Enter Client Secret" maxlength="250"
-                        [ngClass]="{ 'is-invalid': submitted && f['clientSecret'].errors }">
-                      <div *ngIf="submitted && f['clientSecret'].errors" class="invalid-feedback">
-                        <div *ngIf="f['clientSecret'].errors['pattern']">Please enter valid Client Secret</div>
+                    <div class="row mb-3">
+                      <div class="col-lg-6">
+                        <label for="awsRegion">AWS Region <span class="mandatory">*</span></label>
+                        <input type="text" class="form-control" id="awsRegion" formControlName="awsRegion"
+                          placeholder="Enter AWS Region (e.g., ap-south-1)" maxlength="50"
+                          [ngClass]="{ 'is-invalid': submitted && f['awsRegion'].errors }">
+                        <div *ngIf="submitted && f['awsRegion'].errors" class="invalid-feedback">
+                          <div *ngIf="f['awsRegion'].errors['required']">AWS Region is required</div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </fieldset>
+
                 <div class="row">
                   <div class="col-lg-12">
                     <input type="submit" class="btn btn-primary" value="Submit" />
@@ -169,6 +225,7 @@
     </div>
   </div>
 </div>
+
 <div class="modal" tabindex="-1" role="dialog" [ngStyle]="{'display':modalDisplayStyle}">
   <div class="modal-dialog" role="document">
     <div class="modal-content">

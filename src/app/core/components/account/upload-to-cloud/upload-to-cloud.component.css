@@ -136,4 +136,90 @@ body {
   .upload-details-table tr:hover {
     background-color: #f1f1f1;
   }
+  .pointer {
+    cursor: pointer;
+  }
   
+  .log-container {
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+  }
+  
+  .list-group-item-action:hover {
+    background-color: #e9ecef;
+  }
+  
+  .progress {
+    height: 15px;
+  }
+  
+  .progress-bar {
+    transition: width 0.3s ease-in-out;
+  }
+  
+  .card {
+    border: none;
+  }
+  
+  .btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+  }
+  
+  .btn-primary:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+  }
+  
+  small {
+    font-size: 0.875em;
+    color: #6c757d;
+  }
+
+  .pointer {
+    cursor: pointer;
+  }
+  
+  .log-container {
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
+  }
+  
+  .list-group-item-action:hover {
+    background-color: #e9ecef;
+  }
+  
+  .progress {
+    height: 15px;
+  }
+  
+  .progress-bar {
+    transition: width 0.3s ease-in-out;
+  }
+  
+  .card {
+    border: none;
+  }
+  
+  .btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+  }
+  
+  .btn-primary:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+  }
+  
+  small {
+    font-size: 0.875em;
+    color: #6c757d;
+  }
