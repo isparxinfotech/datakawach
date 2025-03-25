@@ -3,4 +3,5 @@ export interface userSessionDetails {
   username: string;
   jwtToken: string;
   userType: number;
+  cloudProvider: string;
 }

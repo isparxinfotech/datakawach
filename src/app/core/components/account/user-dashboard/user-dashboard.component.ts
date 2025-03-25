@@ -13,6 +13,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   userSessionDetails: userSessionDetails | null | undefined;
   email: string = '';
   folderName: string = '';
+  cloudProvider: string = ''; // Store cloudProvider from session
   oneDriveFiles: { name: string, id: string, downloadUrl: string }[] = [];
   loadingOneDrive: boolean = false;
   oneDriveErrorMessage: string = '';
@@ -29,9 +30,22 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
-    if (this.userSessionDetails?.username) {
+    if (this.userSessionDetails?.username && this.userSessionDetails?.cloudProvider) {
       this.email = this.userSessionDetails.username;
-      this.loadS3Buckets(); // Automatically load S3 buckets on init
+      this.cloudProvider = this.userSessionDetails.cloudProvider.toLowerCase(); // Normalize to lowercase
+      console.log('Cloud provider from session:', this.cloudProvider);
+
+      // Load data based on cloudProvider
+      if (this.cloudProvider === 'aws') {
+        this.loadS3Buckets();
+      } else if (this.cloudProvider === 'onedrive') {
+        this.folderName = this.email; // Default folderName to email for OneDrive
+        this.listOneDriveFiles(); // Auto-load OneDrive files
+      } else {
+        console.error('Unsupported cloud provider:', this.cloudProvider);
+      }
+    } else {
+      console.error('User session details incomplete:', this.userSessionDetails);
     }
   }
 
@@ -63,7 +77,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Load S3 buckets automatically
+  // Load S3 buckets
   loadS3Buckets(): void {
     this.loadingS3 = true;
     this.s3ErrorMessage = '';
@@ -74,10 +88,10 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       next: (response) => {
         this.buckets = response.map(bucketName => ({
           name: bucketName,
-          region: 'Unknown', // Region could be fetched separately if needed
-          size: 0,           // Size requires additional API call
-          objectCount: 0,    // Object count requires additional API call
-          creationDate: 'N/A' // Creation date requires additional API call
+          region: 'Unknown', // Adjust if backend provides region
+          size: 0,           // Adjust if backend provides size
+          objectCount: 0,    // Adjust if backend provides count
+          creationDate: 'N/A' // Adjust if backend provides date
         }));
         this.loadingS3 = false;
         console.log('S3 buckets loaded:', this.buckets);
@@ -114,8 +128,8 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       next: (response) => {
         this.s3Contents = response.map(item => ({
           name: item.name,
-          type: 'file', // Assuming all items from /files are files; adjust if folders are included
-          size: item.size || 0, // Size might not be returned; adjust based on backend
+          type: 'file', // Adjust if backend distinguishes folders
+          size: item.size || 0,
           downloadUrl: item.downloadUrl
         }));
         this.loadingS3 = false;

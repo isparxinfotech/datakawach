@@ -13,7 +13,7 @@ export class UploadToCloudComponent implements OnInit {
   selectedBucket: string = '';
   folders: string[] = [];
   files: string[] = [];
-  currentPath: string = '';
+  currentPath: string = ''; // S3 bucket path
   userSessionDetails: userSessionDetails | null = null;
   filesToUpload: File[] = [];
   result: string = '';
@@ -23,6 +23,10 @@ export class UploadToCloudComponent implements OnInit {
   logs: string[] = [];
   sessionId: string = Math.random().toString(36).substring(2); // Unique session ID
   fileDownloadUrls: { [key: string]: string } = {};
+  backupTime: string = ''; // Backup time (HH:mm)
+  retentionDays: number = 7; // Retention days, default to 7
+  currentLocalLocation: string = 'Not selected'; // Displayed local location
+  fileHandles: any[] = []; // Store file handles for File System Access API
 
   @ViewChild('logContainer') logContainer!: ElementRef;
 
@@ -181,16 +185,50 @@ export class UploadToCloudComponent implements OnInit {
     this.loadFolders();
   }
 
-  handleFileChange(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.filesToUpload = Array.from(input.files);
-      this.addLog(`Selected ${this.filesToUpload.length} files for upload`);
-      this.filesToUpload.forEach(file => this.uploadProgress[file.name] = 0);
-    } else {
+  async selectFiles() {
+    try {
+      // Check if File System Access API is supported
+      if ('showOpenFilePicker' in window) {
+        // Use File System Access API
+        const fileHandles = await (window as any).showOpenFilePicker({
+          multiple: true
+          // Removed types to allow all files by default
+        });
+
+        this.fileHandles = fileHandles;
+        this.filesToUpload = [];
+        this.currentLocalLocation = '';
+
+        // Get files and attempt to construct paths
+        for (const handle of fileHandles) {
+          const file = await handle.getFile();
+          this.filesToUpload.push(file);
+          this.uploadProgress[file.name] = 0;
+
+          // Attempt to get path (Note: Full path not guaranteed)
+          const path = handle.name || file.name; // Limited path info
+          if (!this.currentLocalLocation) {
+            this.currentLocalLocation = path; // Use first file's "path"
+          }
+        }
+
+        if (this.filesToUpload.length > 1) {
+          // For multiple files, use a directory-like path
+          this.currentLocalLocation = this.currentLocalLocation.substring(0, this.currentLocalLocation.lastIndexOf('/') + 1) || 'Unknown Directory';
+        }
+
+        this.addLog(`Selected ${this.filesToUpload.length} files via File System Access API`);
+        this.addLog(`Current local location: ${this.currentLocalLocation}`);
+      } else {
+        // Fallback message
+        this.addLog('File System Access API not supported', true);
+        alert('File System Access API not supported in this browser. Please use Chrome/Edge for the best experience.');
+      }
+    } catch (error: any) {
+      this.addLog(`Error selecting files: ${error.message}`, true);
       this.filesToUpload = [];
-      this.uploadProgress = {};
-      this.addLog('No files selected');
+      this.fileHandles = [];
+      this.currentLocalLocation = 'Not selected';
     }
     this.cdr.detectChanges();
   }
@@ -208,9 +246,29 @@ export class UploadToCloudComponent implements OnInit {
       return;
     }
 
+    if (!this.backupTime) {
+      alert('Please enter a backup time in HH:mm format (e.g., 14:30).');
+      this.addLog('Backup time not provided', true);
+      return;
+    }
+
+    if (!this.retentionDays || this.retentionDays < 1) {
+      alert('Please enter a valid retention period (minimum 1 day).');
+      this.addLog('Invalid retention days: ' + this.retentionDays, true);
+      return;
+    }
+
     if (!this.userSessionDetails?.username) {
       alert('User email not available. Please log in.');
       this.addLog('User email not available', true);
+      return;
+    }
+
+    // Validate backupTime format (HH:mm)
+    const timePattern = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timePattern.test(this.backupTime)) {
+      alert('Invalid backup time format. Please use HH:mm (e.g., 14:30).');
+      this.addLog('Invalid backup time format: ' + this.backupTime, true);
       return;
     }
 
@@ -224,8 +282,11 @@ export class UploadToCloudComponent implements OnInit {
     formData.append('email', this.userSessionDetails.username);
     formData.append('bucketName', this.selectedBucket);
     formData.append('timestamp', new Date().toISOString());
-    formData.append('reuploadAfterDays', '7');
+    formData.append('reuploadAfterDays', this.retentionDays.toString());
     formData.append('sessionId', this.sessionId);
+    formData.append('backupTime', this.backupTime);
+    // Use currentLocalLocation or filename as localFilePath
+    formData.append('localFilePath', this.filesToUpload.length === 1 ? this.currentLocalLocation : this.currentLocalLocation.endsWith('/') ? this.currentLocalLocation : `${this.currentLocalLocation}/`);
     if (this.currentPath) {
       formData.append('folderPath', this.currentPath);
     }
@@ -248,14 +309,18 @@ export class UploadToCloudComponent implements OnInit {
         uploadTime: file.uploadTime
       }));
       this.result = `Uploaded Files:\n${JSON.stringify(this.uploadDetails, null, 2)}`;
-      this.addLog(`Upload successful: ${this.uploadDetails.length} files uploaded`);
+      this.addLog(`Upload successful: ${this.uploadDetails.length} files uploaded with backup scheduled at ${this.backupTime}, retention: ${this.retentionDays} days`);
       this.loadFolders(); // Refresh folder contents
     } catch (error: any) {
       this.result = `Failed to upload files: ${error.message}`;
       this.addLog(`Upload failed: ${error.message}`, true);
     } finally {
       this.loading = false;
-      this.filesToUpload = []; // Clear files after upload attempt
+      this.filesToUpload = [];
+      this.fileHandles = [];
+      this.backupTime = '';
+      this.retentionDays = 7; // Reset to default
+      this.currentLocalLocation = 'Not selected';
       this.cdr.detectChanges();
     }
   }
@@ -270,14 +335,28 @@ export class UploadToCloudComponent implements OnInit {
       return;
     }
 
+    if (!this.backupTime) {
+      alert('Please enter a backup time in HH:mm format (e.g., 14:30) before retrying.');
+      this.addLog('Backup time not provided for retry', true);
+      return;
+    }
+
+    if (!this.retentionDays || this.retentionDays < 1) {
+      alert('Please enter a valid retention period (minimum 1 day) before retrying.');
+      this.addLog('Invalid retention days for retry: ' + this.retentionDays, true);
+      return;
+    }
+
     this.uploadProgress[file.name] = 0;
     const formData = new FormData();
     formData.append('files', file);
     formData.append('email', this.userSessionDetails!.username);
     formData.append('bucketName', this.selectedBucket);
     formData.append('timestamp', new Date().toISOString());
-    formData.append('reuploadAfterDays', '7');
+    formData.append('reuploadAfterDays', this.retentionDays.toString());
     formData.append('sessionId', this.sessionId);
+    formData.append('backupTime', this.backupTime);
+    formData.append('localFilePath', `/selected-files/${file.name}`); // Fallback virtual path
     if (this.currentPath) {
       formData.append('folderPath', this.currentPath);
     }
@@ -300,7 +379,7 @@ export class UploadToCloudComponent implements OnInit {
             size: fileDetail.size,
             uploadTime: fileDetail.uploadTime
           };
-          this.addLog(`Retry successful for ${fileDetail.name}`);
+          this.addLog(`Retry successful for ${fileDetail.name} with backup scheduled at ${this.backupTime}, retention: ${this.retentionDays} days`);
         }
         this.result = `Retry successful:\n${JSON.stringify(this.uploadDetails, null, 2)}`;
         this.loadFolders();

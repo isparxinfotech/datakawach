@@ -56,7 +56,8 @@ getLoggedInUserDetails(): userSessionDetails | null {
       roleid: parsedObj.roleid,
       username: parsedObj.username,
       jwtToken: parsedObj.jwtToken,
-      userType: parsedObj.userType
+      userType: parsedObj.userType,
+      cloudProvider:parsedObj.cloudProvider
     };
     console.log("User Session Details");
     console.log(userDetails);

@@ -19,152 +19,163 @@
       <hr class="my-4">
       <div class="row">
         <div class="col">
-          <!-- OneDrive Files Section -->
-          <h2 class="text-center mb-4 fw-bold text-primary">File Explorer (OneDrive)</h2>
+          <!-- OneDrive Section (shown only if cloudProvider is 'onedrive') -->
+          <div *ngIf="cloudProvider === 'onedrive'">
+            <h2 class="text-center mb-4 fw-bold text-primary">File Explorer (OneDrive)</h2>
 
-          <!-- Input Section for OneDrive -->
-          <div class="card shadow-sm p-4 mb-4 bg-white rounded">
-            <div class="row g-3">
-              <div class="col-md-5">
-                <label for="email" class="form-label fw-semibold">User Email</label>
-                <input type="email" id="email" class="form-control" [(ngModel)]="email" placeholder="e.g., user@example.com" required>
-              </div>
-              <div class="col-md-5">
-                <label for="folderName" class="form-label fw-semibold">Folder Name</label>
-                <input type="text" id="folderName" class="form-control" [(ngModel)]="folderName" placeholder="e.g., demo" required>
-              </div>
-              <div class="col-md-2 d-flex align-items-end">
-                <button class="btn btn-primary w-100" (click)="listOneDriveFiles()" [disabled]="!email || !folderName || loadingOneDrive">
-                  {{ loadingOneDrive ? 'Loading...' : 'List Files' }}
-                </button>
+            <!-- Input Section for OneDrive -->
+            <div class="card shadow-sm p-4 mb-4 bg-white rounded">
+              <div class="row g-3">
+                <div class="col-md-5">
+                  <label for="email" class="form-label fw-semibold">User Email</label>
+                  <input type="email" id="email" class="form-control" [(ngModel)]="email" placeholder="e.g., user@example.com" readonly>
+                </div>
+                <div class="col-md-5">
+                  <label for="folderName" class="form-label fw-semibold">Folder Name</label>
+                  <input type="text" id="folderName" class="form-control" [(ngModel)]="folderName" placeholder="e.g., demo" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                  <button class="btn btn-primary w-100" (click)="listOneDriveFiles()" [disabled]="!email || !folderName || loadingOneDrive">
+                    {{ loadingOneDrive ? 'Loading...' : 'List Files' }}
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- OneDrive File Cards Section -->
-          <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" *ngIf="oneDriveFiles.length > 0">
-            <div class="col" *ngFor="let file of oneDriveFiles">
-              <div class="card h-100 shadow-sm file-card">
-                <div class="card-body text-center">
-                  <i class="bi bi-file-earmark-text fs-2 text-muted mb-3"></i>
-                  <h5 class="card-title text-truncate" title="{{file.name}}">{{file.name}}</h5>
-                  <div class="btn-group mt-3">
-                    <a [href]="file.downloadUrl" target="_blank" class="btn btn-sm btn-outline-success" download>
-                      <i class="bi bi-download me-1"></i> Download
-                    </a>
-                    <button class="btn btn-sm btn-outline-primary" (click)="viewFile(file.downloadUrl)">
-                      <i class="bi bi-eye me-1"></i> View
-                    </button>
+            <!-- OneDrive File Cards Section -->
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" *ngIf="oneDriveFiles.length > 0">
+              <div class="col" *ngFor="let file of oneDriveFiles">
+                <div class="card h-100 shadow-sm file-card">
+                  <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-text fs-2 text-muted mb-3"></i>
+                    <h5 class="card-title text-truncate" title="{{file.name}}">{{file.name}}</h5>
+                    <div class="btn-group mt-3">
+                      <a [href]="file.downloadUrl" target="_blank" class="btn btn-sm btn-outline-success" download>
+                        <i class="bi bi-download me-1"></i> Download
+                      </a>
+                      <button class="btn btn-sm btn-outline-primary" (click)="viewFile(file.downloadUrl)">
+                        <i class="bi bi-eye me-1"></i> View
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- OneDrive Messages -->
-          <div class="mt-4" *ngIf="oneDriveFiles.length === 0 && !loadingOneDrive && (email || folderName)">
-            <div class="alert alert-info text-center" *ngIf="!oneDriveErrorMessage">
-              No files found in "{{folderName}}" for "{{email}}".
-            </div>
-            <div class="alert alert-danger text-center" *ngIf="oneDriveErrorMessage">
-              {{oneDriveErrorMessage}}
-            </div>
-          </div>
-
-          <!-- OneDrive Loading Spinner -->
-          <div class="text-center mt-4" *ngIf="loadingOneDrive">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading...</span>
-            </div>
-          </div>
-
-          <!-- S3 Buckets Section -->
-          <h2 class="text-center mb-4 fw-bold text-primary mt-5">Bucket Explorer (AWS S3)</h2>
-
-          <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="buckets.length > 0; else noBuckets">
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Region</th>
-                  <th scope="col">Size</th>
-                  <th scope="col">Object Count</th>
-                  <th scope="col">Creation Date</th>
-                  <th scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let bucket of buckets">
-                  <td>{{ bucket.name }}</td>
-                  <td>{{ bucket.region }}</td>
-                  <td>{{ formatSize(bucket.size) }}</td>
-                  <td>{{ bucket.objectCount }}</td>
-                  <td>{{ bucket.creationDate }}</td>
-                  <td>
-                    <button class="btn btn-sm btn-outline-primary" (click)="listS3BucketContents(bucket.name)">
-                      View Contents
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- No S3 Buckets Message -->
-          <ng-template #noBuckets>
-            <div class="card shadow-sm p-4 mb-4 bg-white rounded">
-              <div class="alert alert-info text-center" *ngIf="userSessionDetails">
-                No buckets found in the AWS S3 account for "{{userSessionDetails?.username}}".
+            <!-- OneDrive Messages -->
+            <div class="mt-4" *ngIf="oneDriveFiles.length === 0 && !loadingOneDrive && (email || folderName)">
+              <div class="alert alert-info text-center" *ngIf="!oneDriveErrorMessage">
+                No files found in "{{folderName}}" for "{{email}}".
+              </div>
+              <div class="alert alert-danger text-center" *ngIf="oneDriveErrorMessage">
+                {{oneDriveErrorMessage}}
               </div>
             </div>
-          </ng-template>
 
-          <!-- S3 Bucket Contents Section -->
-          <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="s3Contents.length > 0">
-            <h3 class="mb-3">Contents of "{{selectedBucket}}"</h3>
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Size</th>
-                  <th scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let item of s3Contents">
-                  <td>{{ item.name }}</td>
-                  <td>{{ item.type }}</td>
-                  <td>{{ item.size !== undefined ? formatSize(item.size) : 'N/A' }}</td>
-                  <td>
-                    <div class="btn-group">
-                      <a *ngIf="item.downloadUrl" [href]="item.downloadUrl" target="_blank" class="btn btn-sm btn-outline-success" download>
-                        <i class="bi bi-download me-1"></i> Download
-                      </a>
-                      <button *ngIf="item.downloadUrl" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
-                        <i class="bi bi-eye me-1"></i> View
-                      </button>
-                      <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.prefix)">
-                        View Folder
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- S3 Loading Spinner -->
-          <div class="text-center mt-4" *ngIf="loadingS3">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading...</span>
+            <!-- OneDrive Loading Spinner -->
+            <div class="text-center mt-4" *ngIf="loadingOneDrive">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
             </div>
           </div>
 
-          <!-- S3 Error Message -->
-          <div class="mt-4" *ngIf="s3ErrorMessage && !loadingS3">
-            <div class="alert alert-danger text-center">
-              {{s3ErrorMessage}}
+          <!-- AWS S3 Section (shown only if cloudProvider is 'aws') -->
+          <div *ngIf="cloudProvider === 'aws'">
+            <h2 class="text-center mb-4 fw-bold text-primary">Bucket Explorer (AWS S3)</h2>
+
+            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="buckets.length > 0; else noBuckets">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Region</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Object Count</th>
+                    <th scope="col">Creation Date</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let bucket of buckets">
+                    <td>{{ bucket.name }}</td>
+                    <td>{{ bucket.region }}</td>
+                    <td>{{ formatSize(bucket.size) }}</td>
+                    <td>{{ bucket.objectCount }}</td>
+                    <td>{{ bucket.creationDate }}</td>
+                    <td>
+                      <button class="btn btn-sm btn-outline-primary" (click)="listS3BucketContents(bucket.name)">
+                        View Contents
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- No S3 Buckets Message -->
+            <ng-template #noBuckets>
+              <div class="card shadow-sm p-4 mb-4 bg-white rounded">
+                <div class="alert alert-info text-center" *ngIf="userSessionDetails">
+                  No buckets found in the AWS S3 account for "{{userSessionDetails?.username}}".
+                </div>
+              </div>
+            </ng-template>
+
+            <!-- S3 Bucket Contents Section -->
+            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="s3Contents.length > 0">
+              <h3 class="mb-3">Contents of "{{selectedBucket}}"</h3>
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th scope="col">Name</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let item of s3Contents">
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.type }}</td>
+                    <td>{{ item.size !== undefined ? formatSize(item.size) : 'N/A' }}</td>
+                    <td>
+                      <div class="btn-group">
+                        <a *ngIf="item.downloadUrl" [href]="item.downloadUrl" target="_blank" class="btn btn-sm btn-outline-success" download>
+                          <i class="bi bi-download me-1"></i> Download
+                        </a>
+                        <button *ngIf="item.downloadUrl" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
+                          <i class="bi bi-eye me-1"></i> View
+                        </button>
+                        <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.prefix)">
+                          View Folder
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- S3 Loading Spinner -->
+            <div class="text-center mt-4" *ngIf="loadingS3">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+
+            <!-- S3 Error Message -->
+            <div class="mt-4" *ngIf="s3ErrorMessage && !loadingS3">
+              <div class="alert alert-danger text-center">
+                {{s3ErrorMessage}}
+              </div>
+            </div>
+          </div>
+
+          <!-- Unsupported Cloud Provider Message -->
+          <div *ngIf="cloudProvider && cloudProvider !== 'aws' && cloudProvider !== 'onedrive'" class="mt-4">
+            <div class="alert alert-warning text-center">
+              Unsupported cloud provider "{{cloudProvider}}" for user "{{userSessionDetails?.username}}".
             </div>
           </div>
         </div>

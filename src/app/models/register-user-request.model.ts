@@ -20,7 +20,8 @@ export interface RegisterUserRequest{
     onedriveTenantId:string,
     onedriveClientId:string,
     clientSecret:string,
-    folderName:string
+    folderName:string,
+    cloudProvider: string;
 
 
 

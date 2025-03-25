@@ -32,7 +32,7 @@
           </div>
 
           <div *ngIf="selectedBucket" class="card shadow-sm p-3 mb-4">
-            <h3 class="text-muted">Current Path: {{ currentPath || '/' }}</h3>
+            <h3 class="text-muted">Current S3 Path: {{ currentPath || '/' }}</h3>
             <ul class="list-group">
               <li *ngIf="currentPath" (click)="goBack()" class="list-group-item list-group-item-action pointer">
                 <i class="bi bi-arrow-up me-2"></i>.. (Go Up)
@@ -48,8 +48,13 @@
           </div>
 
           <div class="card shadow-sm p-3 mb-4">
-            <input type="file" (change)="handleFileChange($event)" multiple class="form-control mb-3" />
-            <button (click)="handleFileUpload()" [disabled]="loading || filesToUpload.length === 0 || !selectedBucket"
+            <h3 class="text-muted mb-3">Current Local Location: {{ currentLocalLocation }}</h3>
+            <button (click)="selectFiles()" class="btn btn-secondary mb-3">Select Files</button>
+            <label for="backupTime" class="form-label fw-semibold">Backup Time (HH:mm)</label>
+            <input type="text" id="backupTime" [(ngModel)]="backupTime" placeholder="e.g., 14:30" class="form-control mb-3" />
+            <label for="retentionDays" class="form-label fw-semibold">Retention Days</label>
+            <input type="number" id="retentionDays" [(ngModel)]="retentionDays" min="1" class="form-control mb-3" placeholder="e.g., 7" />
+            <button (click)="handleFileUpload()" [disabled]="loading || filesToUpload.length === 0 || !selectedBucket || !backupTime || !retentionDays"
                     class="btn btn-primary w-100">
               {{ loading ? 'Uploading...' : 'Upload Files' }}
             </button>
