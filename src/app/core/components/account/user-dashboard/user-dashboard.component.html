@@ -82,8 +82,8 @@
 
           <!-- AWS S3 Section (shown only if cloudProvider is 'aws') -->
           <div *ngIf="cloudProvider === 'aws'">
-            <h2 class="text-center mb-4 fw-bold text-primary">Bucket Explorer (AWS S3)</h2>
-
+            <h2 class="text-center mb-4 fw-bold text-primary">Explorer</h2>
+ 
             <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="buckets.length > 0; else noBuckets">
               <table class="table table-hover">
                 <thead>

@@ -49,38 +49,32 @@ const routes: Routes = [
     path: 'personalinformation',
     component: PersonalInformationComponent,
     canActivate: [AuthGuard]
-  }
-  ,
+  },
   {
     path: 'corporateaccount',
     component: CorporateAccountListComponent,
     canActivate: [AuthGuard]
-  }
-  ,
+  },
   {
     path: 'useraccount',
     component: UserAccountListComponent,
     canActivate: [AuthGuard]
-  }
-  ,
+  },
   {
     path: 'createuseraccount',
     component: CreateUserAccountComponent,
     canActivate: [AuthGuard]
-  }
-  ,
+  },
   {
     path: 'createcorporateaccount',
     component: CreateCorporateAccountComponent,
     canActivate: [AuthGuard]
-  }
-  ,
+  },
   {
     path: 'uploaddoc',
     component: UploadDocumentComponent,
     canActivate: [AuthGuard]
-  }
-  ,
+  },
   {
     path: 'labdetails',
     component: LabDetailsComponent,

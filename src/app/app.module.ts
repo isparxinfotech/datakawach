@@ -26,10 +26,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { UploadComponent } from './core/components/account/upload/upload.component';
 import { AdminDashboardComponent } from './core/components/account/admin-dashboard/admin-dashboard.component';
-import { SocketIoModule, SocketIoConfig } from 'ngx-socket-io'; // Import WebSocket module
 
 // WebSocket configuration
-const config: SocketIoConfig = { url: 'http://localhost:8080', options: {} };
 
 @NgModule({
   declarations: [
@@ -63,7 +61,6 @@ const config: SocketIoConfig = { url: 'http://localhost:8080', options: {} };
     BrowserAnimationsModule,
     MatCardModule,
     MatIconModule,
-    SocketIoModule.forRoot(config) // Add WebSocket module with configuration
   ],
   providers: [DatePipe, DecimalPipe], // Move DatePipe and DecimalPipe to providers
   bootstrap: [AppComponent]
