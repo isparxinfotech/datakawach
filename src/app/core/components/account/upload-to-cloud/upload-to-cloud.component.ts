@@ -14,22 +14,26 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   selectedBucket: string = '';
   folders: string[] = [];
   files: string[] = [];
-  currentPath: string = ''; // S3 bucket path
+  currentPath: string = '';
   userSessionDetails: userSessionDetails | null = null;
   filesToUpload: File[] = [];
-  originalFiles: File[] = []; // Store files for retry
+  originalFiles: File[] = [];
   result: string = '';
   loading: boolean = false;
   uploadProgress: { [key: string]: number } = {};
   uploadDetails: { name: string; uploadTime: string; size: number; status: string }[] = [];
   logs: string[] = [];
-  sessionId: string = Math.random().toString(36).substring(2); // Unique session ID
+  sessionId: string = Math.random().toString(36).substring(2);
   fileDownloadUrls: { [key: string]: string } = {};
-  backupTime: string = ''; // Backup time (HH:mm)
-  retentionDays: number = 7; // Retention days, default to 7
-  localPath: string = ''; // User-provided local file or folder path
-  selectedItems: { name: string; type: 'file' | 'folder'; path: string }[] = [];
-  webSocketConnected: boolean = false; // Track WebSocket status
+  backupTime: string = '';
+  retentionDays: number = 7;
+  localPath: string = '';
+  selectedItems: { name: string; type: 'file' | 'folder'; path: string; files?: { name: string; path: string }[] }[] = [];
+  webSocketConnected: boolean = false;
+  backupFrequency: string = 'Daily'; // Default value
+  dayOfWeek: string = 'Monday'; // Default for Weekly
+  dayOfMonth: number = 1; // Default for Monthly
+  retentionEnabled: boolean = true; // Default to enabled
 
   @ViewChild('logContainer') logContainer!: ElementRef;
 
@@ -51,15 +55,15 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   ngOnInit() {
     try {
       this.userSessionDetails = this.authService.getLoggedInUserDetails();
-      if (this.userSessionDetails && this.userSessionDetails.username) {
-        this.addLog('Initializing component with user: ' + this.userSessionDetails.username);
+      if (this.userSessionDetails?.username) {
+        this.addLog(`Initializing component with user: ${this.userSessionDetails.username}`);
         this.loadBuckets();
         this.setupWebSocket();
       } else {
         this.result = 'User not logged in or email not available.';
         this.addLog('Error: User session details not available', true);
       }
-    } catch (error: unknown) { // Use unknown
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.result = `Initialization error: ${errorMessage}`;
       this.addLog(`Initialization error: ${errorMessage}`, true);
@@ -69,12 +73,12 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     try {
-      if (this.stompClient && this.stompClient.connected) {
+      if (this.stompClient?.connected) {
         this.stompClient.deactivate();
         this.addLog('STOMP client deactivated');
         this.webSocketConnected = false;
       }
-    } catch (error: unknown) { // Use unknown
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.addLog(`Error during cleanup: ${errorMessage}`, true);
       console.error('ngOnDestroy error:', error);
@@ -82,7 +86,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   }
 
   setupWebSocket() {
-    this.stompClient.onConnect = (frame) => {
+    this.stompClient.onConnect = () => {
       this.webSocketConnected = true;
       this.addLog('WebSocket connected successfully');
       this.stompClient.subscribe(`/topic/progress/${this.sessionId}`, (message) => {
@@ -91,15 +95,15 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
           const { fileName, progress } = data;
           this.uploadProgress[fileName] = progress;
           if (progress === -1) {
-            this.addLog(`Error uploading ${fileName}`, true);
+            this.addLog(`Upload failed for ${fileName}`, true);
             this.result = this.result ? `${this.result}\nError: ${fileName} failed` : `Error: ${fileName} failed`;
           } else if (progress === 100) {
             this.addLog(`Upload completed for ${fileName}`);
           } else {
-            this.addLog(`Progress for ${fileName}: ${progress}%`);
+            this.addLog(`Upload progress for ${fileName}: ${progress}%`);
           }
           this.cdr.detectChanges();
-        } catch (error: unknown) { // Use unknown
+        } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : String(error);
           this.addLog(`Error parsing WebSocket message: ${errorMessage}`, true);
           console.error('WebSocket message error:', error);
@@ -110,27 +114,35 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.stompClient.onStompError = (frame) => {
       this.webSocketConnected = false;
       this.addLog(`STOMP error: ${frame.headers['message']}`, true);
-      console.error('STOMP error:', frame);
+      this.reconnectWebSocket();
     };
 
     this.stompClient.onWebSocketError = (error) => {
       this.webSocketConnected = false;
       this.addLog(`WebSocket error: ${error.message || error}`, true);
-      console.error('WebSocket error:', error);
+      this.reconnectWebSocket();
     };
 
     this.stompClient.onDisconnect = () => {
       this.webSocketConnected = false;
       this.addLog('WebSocket disconnected', true);
+      this.reconnectWebSocket();
     };
 
     try {
       this.stompClient.activate();
       this.addLog('Attempting to connect to WebSocket...');
-    } catch (error: unknown) { // Use unknown
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.addLog(`WebSocket activation error: ${errorMessage}`, true);
       console.error('WebSocket activation error:', error);
+    }
+  }
+
+  reconnectWebSocket() {
+    if (!this.webSocketConnected) {
+      this.addLog('Reconnecting to WebSocket...');
+      setTimeout(() => this.setupWebSocket(), 2000);
     }
   }
 
@@ -140,7 +152,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.logs.push(logMessage);
     this.cdr.detectChanges();
     setTimeout(() => {
-      if (this.logContainer && this.logContainer.nativeElement) {
+      if (this.logContainer?.nativeElement) {
         this.logContainer.nativeElement.scrollTop = this.logContainer.nativeElement.scrollHeight;
       }
     }, 0);
@@ -149,6 +161,24 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   clearLogs() {
     this.logs = [];
     this.addLog('Logs cleared');
+  }
+
+  resetForm() {
+    this.filesToUpload = [];
+    this.originalFiles = [];
+    this.selectedItems = [];
+    this.uploadProgress = {};
+    this.uploadDetails = [];
+    this.result = '';
+    this.backupTime = '';
+    this.retentionDays = 7;
+    this.localPath = '';
+    this.backupFrequency = 'Daily';
+    this.dayOfWeek = 'Monday';
+    this.dayOfMonth = 1;
+    this.retentionEnabled = true;
+    this.addLog('Form reset');
+    this.cdr.detectChanges();
   }
 
   loadBuckets() {
@@ -174,7 +204,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
           this.loadFolders();
         }
       })
-      .catch((error: unknown) => { // Use unknown
+      .catch((error: unknown) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.result = `Failed to load buckets: ${errorMessage}`;
         this.addLog(`Error loading buckets: ${errorMessage}`, true);
@@ -210,7 +240,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
         this.addLog(`Loaded ${this.folders.length} folders and ${this.files.length} files`);
         this.loadFileDownloadUrls();
       })
-      .catch((error: unknown) => { // Use unknown
+      .catch((error: unknown) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.result = errorMessage;
         this.addLog(`Error loading folders: ${errorMessage}`, true);
@@ -231,14 +261,11 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
         if (!response.ok) throw new Error('Failed to fetch file URLs');
         return response.json();
       })
-      .then((data: { name: string; id: string; downloadUrl: string }[]) => {
-        this.fileDownloadUrls = {};
-        data.forEach((file) => {
-          this.fileDownloadUrls[file.name] = file.downloadUrl;
-        });
+      .then((data: { name: string; downloadUrl: string }[]) => {
+        this.fileDownloadUrls = data.reduce((acc, file) => ({ ...acc, [file.name]: file.downloadUrl }), {});
         this.addLog(`Loaded download URLs for ${data.length} files`);
       })
-      .catch((error: unknown) => { // Use unknown
+      .catch((error: unknown) => {
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.addLog(`Error loading file URLs: ${errorMessage}`, true);
         console.error('loadFileDownloadUrls error:', error);
@@ -257,9 +284,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
   goBack() {
     if (!this.currentPath) return;
-    const parts = this.currentPath.split('/');
-    parts.pop();
-    this.currentPath = parts.join('/');
+    this.currentPath = this.currentPath.split('/').slice(0, -1).join('/');
     this.addLog(`Navigated back to: ${this.currentPath || '/'}`);
     this.loadFolders();
   }
@@ -271,29 +296,39 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.selectedItems = [];
     this.uploadProgress = {};
 
-    if (input.files && input.files.length > 0) {
+    if (input.files?.length) {
       this.filesToUpload = Array.from(input.files);
       this.originalFiles = Array.from(input.files);
+      const folderMap = new Map<string, { name: string; path: string }[]>();
 
-      const folderPaths = new Set<string>();
       this.filesToUpload.forEach((file) => {
         const relativePath = (file as any).webkitRelativePath || file.name;
         const pathParts = relativePath.split('/');
         const fileName = pathParts.pop()!;
         const folderPath = pathParts.join('/');
 
-        if (pathParts.length > 0) {
-          if (!folderPaths.has(folderPath)) {
-            folderPaths.add(folderPath);
-            this.selectedItems.push({ name: folderPath, type: 'folder', path: folderPath });
+        if (folderPath) {
+          if (!folderMap.has(folderPath)) {
+            folderMap.set(folderPath, []);
           }
+          folderMap.get(folderPath)!.push({ name: fileName, path: relativePath });
+          this.uploadProgress[relativePath] = 0;
+        } else {
+          this.selectedItems.push({ name: fileName, type: 'file', path: relativePath });
+          this.uploadProgress[relativePath] = 0;
         }
-
-        this.selectedItems.push({ name: fileName, type: 'file', path: relativePath });
-        this.uploadProgress[relativePath] = 0;
       });
 
-      this.addLog(`Selected ${this.filesToUpload.length} files across ${folderPaths.size} folders`);
+      folderMap.forEach((files, folderPath) => {
+        this.selectedItems.push({
+          name: folderPath,
+          type: 'folder',
+          path: folderPath,
+          files: files
+        });
+      });
+
+      this.addLog(`Selected ${this.filesToUpload.length} files across ${folderMap.size} folders and ${this.selectedItems.filter(item => item.type === 'file').length} individual files`);
     } else {
       this.addLog('No files or folders selected', true);
     }
@@ -311,6 +346,12 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   }
 
   async handleFileUpload() {
+    if (!this.webSocketConnected) {
+      alert('WebSocket is not connected. Please wait for reconnection or refresh the page.');
+      this.addLog('WebSocket not connected', true);
+      return;
+    }
+
     if (this.filesToUpload.length === 0) {
       alert('Please select files or folders to upload.');
       this.addLog('No files selected for upload', true);
@@ -323,21 +364,35 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!this.backupTime || !this.validateBackupTime(this.backupTime)) {
-      alert('Please enter a valid backup time in HH:mm format (e.g., 14:30).');
-      this.addLog('Invalid or missing backup time: ' + this.backupTime, true);
-      return;
-    }
+    if (this.retentionEnabled) {
+      if (!this.backupTime || !this.validateBackupTime(this.backupTime)) {
+        alert('Please enter a valid backup time in HH:mm format (e.g., 14:30).');
+        this.addLog(`Invalid or missing backup time: ${this.backupTime}`, true);
+        return;
+      }
 
-    if (!this.retentionDays || this.retentionDays < 1) {
-      alert('Please enter a valid retention period (minimum 1 day).');
-      this.addLog('Invalid retention days: ' + this.retentionDays, true);
-      return;
+      if (!this.retentionDays || this.retentionDays < 1) {
+        alert('Please enter a valid retention period (minimum 1 day).');
+        this.addLog(`Invalid retention days: ${this.retentionDays}`, true);
+        return;
+      }
+
+      if (this.backupFrequency === 'Weekly' && !this.dayOfWeek) {
+        alert('Please select a day of the week for weekly backups.');
+        this.addLog('Day of week not selected for weekly backup', true);
+        return;
+      }
+
+      if (this.backupFrequency === 'Monthly' && (!this.dayOfMonth || this.dayOfMonth < 1 || this.dayOfMonth > 31)) {
+        alert('Please enter a valid day of the month (1-31) for monthly backups.');
+        this.addLog(`Invalid day of month: ${this.dayOfMonth}`, true);
+        return;
+      }
     }
 
     if (!this.localPath || !this.validateLocalPath(this.localPath)) {
       alert('Please enter a valid local file or folder path (e.g., /path/to/file or C:\\path\\to\\file).');
-      this.addLog('Invalid or missing local path: ' + this.localPath, true);
+      this.addLog(`Invalid or missing local path: ${this.localPath}`, true);
       return;
     }
 
@@ -353,14 +408,23 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.addLog(`Starting upload to ${this.selectedBucket}/${this.currentPath || ''}`);
 
     const formData = new FormData();
-    this.filesToUpload.forEach((file) => formData.append('files', file));
+    this.filesToUpload.forEach((file) => {
+      const relativePath = (file as any).webkitRelativePath || file.name;
+      formData.append('files', file, relativePath);
+    });
     formData.append('email', this.userSessionDetails.username);
     formData.append('bucketName', this.selectedBucket);
     formData.append('timestamp', new Date().toISOString());
-    formData.append('reuploadAfterDays', this.retentionDays.toString());
     formData.append('sessionId', this.sessionId);
-    formData.append('backupTime', this.backupTime);
     formData.append('localFilePath', this.localPath);
+    formData.append('retentionEnabled', this.retentionEnabled.toString());
+    if (this.retentionEnabled) {
+      formData.append('backupTime', this.backupTime);
+      formData.append('reuploadAfterDays', this.retentionDays.toString());
+      formData.append('backupFrequency', this.backupFrequency);
+      if (this.backupFrequency === 'Weekly') formData.append('dayOfWeek', this.dayOfWeek);
+      if (this.backupFrequency === 'Monthly') formData.append('dayOfMonth', this.dayOfMonth.toString());
+    }
     if (this.currentPath) formData.append('folderPath', this.currentPath);
 
     try {
@@ -383,24 +447,21 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
           status: file.status,
         }));
         const uploadedCount = this.uploadDetails.filter((d) => d.status === 'uploaded').length;
-        const skippedCount = this.uploadDetails.filter((d) => d.status === 'skipped').length;
         const failedCount = this.uploadDetails.filter((d) => d.status === 'failed').length;
-        this.result = `Processed ${this.uploadDetails.length} files:\n- Uploaded: ${uploadedCount}\n- Skipped: ${skippedCount}\n- Failed: ${failedCount}`;
-        this.addLog(`Upload complete: ${uploadedCount} uploaded, ${skippedCount} skipped, ${failedCount} failed`);
+        this.result = `Processed ${this.uploadDetails.length} files:\n- Uploaded: ${uploadedCount}\n- Failed: ${failedCount}`;
+        this.addLog(`Upload complete: ${uploadedCount} uploaded, ${failedCount} failed`);
+        this.loadFolders();
       } else {
         this.result = `Upload failed: ${data.message}`;
         this.addLog(`Upload failed: ${data.message}`, true);
       }
-      this.loadFolders();
-    } catch (error: unknown) { // Use unknown
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.result = `Failed to upload files: ${errorMessage}`;
       this.addLog(`Upload error: ${errorMessage}`, true);
       console.error('Upload error:', error);
     } finally {
       this.loading = false;
-      this.filesToUpload = [];
-      this.selectedItems = [];
       this.cdr.detectChanges();
     }
   }
@@ -420,35 +481,43 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!this.backupTime || !this.validateBackupTime(this.backupTime)) {
-      alert('Please enter a valid backup time in HH:mm format (e.g., 14:30).');
-      this.addLog('Invalid or missing backup time for retry: ' + this.backupTime, true);
-      return;
+    if (this.retentionEnabled) {
+      if (!this.validateBackupTime(this.backupTime)) {
+        alert('Please enter a valid backup time in HH:mm format (e.g., 14:30).');
+        this.addLog(`Invalid backup time for retry: ${this.backupTime}`, true);
+        return;
+      }
+
+      if (!this.retentionDays || this.retentionDays < 1) {
+        alert('Please enter a valid retention period (minimum 1 day).');
+        this.addLog(`Invalid retention days for retry: ${this.retentionDays}`, true);
+        return;
+      }
     }
 
-    if (!this.retentionDays || this.retentionDays < 1) {
-      alert('Please enter a valid retention period (minimum 1 day).');
-      this.addLog('Invalid retention days for retry: ' + this.retentionDays, true);
-      return;
-    }
-
-    if (!this.localPath || !this.validateLocalPath(this.localPath)) {
+    if (!this.validateLocalPath(this.localPath)) {
       alert('Please enter a valid local file or folder path (e.g., /path/to/file or C:\\path\\to\\file).');
-      this.addLog('Invalid or missing local path for retry: ' + this.localPath, true);
+      this.addLog(`Invalid local path for retry: ${this.localPath}`, true);
       return;
     }
 
     const relativePath = (file as any).webkitRelativePath || file.name;
     this.uploadProgress[relativePath] = 0;
     const formData = new FormData();
-    formData.append('files', file);
+    formData.append('files', file, relativePath);
     formData.append('email', this.userSessionDetails!.username);
     formData.append('bucketName', this.selectedBucket);
     formData.append('timestamp', new Date().toISOString());
-    formData.append('reuploadAfterDays', this.retentionDays.toString());
     formData.append('sessionId', this.sessionId);
-    formData.append('backupTime', this.backupTime);
     formData.append('localFilePath', this.localPath);
+    formData.append('retentionEnabled', this.retentionEnabled.toString());
+    if (this.retentionEnabled) {
+      formData.append('backupTime', this.backupTime);
+      formData.append('reuploadAfterDays', this.retentionDays.toString());
+      formData.append('backupFrequency', this.backupFrequency);
+      if (this.backupFrequency === 'Weekly') formData.append('dayOfWeek', this.dayOfWeek);
+      if (this.backupFrequency === 'Monthly') formData.append('dayOfMonth', this.dayOfMonth.toString());
+    }
     if (this.currentPath) formData.append('folderPath', this.currentPath);
 
     this.addLog(`Retrying upload for ${relativePath}`);
@@ -482,7 +551,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
         this.result = `Retry failed: ${data.message}`;
         this.addLog(`Retry failed: ${data.message}`, true);
       }
-    } catch (error: unknown) { // Use unknown
+    } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.result = `Retry failed: ${errorMessage}`;
       this.addLog(`Retry error: ${errorMessage}`, true);

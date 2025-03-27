@@ -12,8 +12,8 @@
     <div class="p-4">
       <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
         <div class="container-fluid">
-          <a class="navbar-brand" href="dashboard" style="float: right; position: absolute; right: 10px; font-size: 15px;">
-            Welcome: {{userSessionDetails?.username}}
+          <a class="navbar-brand" href="dashboard" style="position: absolute; right: 10px; font-size: 15px;">
+            Welcome: {{ userSessionDetails?.username || 'Guest' }}
           </a>
         </div>
       </nav>
@@ -25,7 +25,7 @@
 
           <div class="card shadow-sm p-3 mb-4">
             <label for="bucketSelect" class="form-label fw-semibold">Select Bucket</label>
-            <select id="bucketSelect" [(ngModel)]="selectedBucket" (change)="loadFolders()" class="form-select">
+            <select id="bucketSelect" [(ngModel)]="selectedBucket" (change)="loadFolders()" class="form-select" [disabled]="loading">
               <option value="" disabled>Select a bucket</option>
               <option *ngFor="let bucket of buckets" [value]="bucket">{{ bucket }}</option>
             </select>
@@ -40,9 +40,11 @@
               <li *ngFor="let folder of folders" (click)="navigateToFolder(folder)" class="list-group-item list-group-item-action pointer">
                 <i class="bi bi-folder me-2"></i>{{ folder }}
               </li>
-              <li *ngFor="let file of files" class="list-group-item">
-                <i class="bi bi-file-earmark me-2"></i>{{ file }}
-                <a [href]="getFileDownloadUrl(file)" target="_blank" class="float-end"><i class="bi bi-download"></i></a>
+              <li *ngFor="let file of files" class="list-group-item d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-file-earmark me-2"></i>{{ file }}</span>
+                <a [href]="getFileDownloadUrl(file)" target="_blank" class="text-primary" title="Download">
+                  <i class="bi bi-download"></i>
+                </a>
               </li>
             </ul>
           </div>
@@ -50,16 +52,38 @@
           <div class="card shadow-sm p-3 mb-4">
             <h3 class="text-muted mb-3">Select Files or Folders to Upload</h3>
             <label for="localPath" class="form-label fw-semibold">Local File/Folder Path</label>
-            <input type="text" id="localPath" [(ngModel)]="localPath" placeholder="e.g., C:/Users/YourName/Documents or /home/user/docs" class="form-control mb-3" />
+            <input type="text" id="localPath" [(ngModel)]="localPath" placeholder="e.g., C:/Users/YourName/Documents or /home/user/docs" class="form-control mb-3" [disabled]="loading" />
+            
             <label for="fileInput" class="form-label fw-semibold">Select Files or Folders</label>
-            <input type="file" id="fileInput" (change)="onFileChange($event)" multiple webkitdirectory class="form-control mb-3" />
-            <small class="text-muted mb-3 d-block">Note: Folder selection is best supported in Chrome/Edge. You can select multiple files or entire folders.</small>
+            <input type="file" id="fileInput" (change)="onFileChange($event)" multiple webkitdirectory class="form-control mb-3" [disabled]="loading" />
+            <small class="text-muted mb-3 d-block">Supports multiple files and folders. Use Ctrl (or Cmd) for multiple selections or select a folder (Chrome/Edge).</small>
+
             <div *ngIf="selectedItems.length > 0" class="mb-3">
               <h4 class="text-muted">Selected Items:</h4>
               <ul class="list-group">
                 <li *ngFor="let item of selectedItems" class="list-group-item">
                   <i [class]="item.type === 'folder' ? 'bi bi-folder me-2' : 'bi bi-file-earmark me-2'"></i>{{ item.path }}
-                  <div *ngIf="item.type === 'file'" class="progress mt-2" style="height: 15px;">
+                  <ul *ngIf="item.type === 'folder' && item.files?.length" class="list-group mt-2">
+                    <li *ngFor="let file of item.files" class="list-group-item">
+                      <i class="bi bi-file-earmark me-2"></i>{{ file.name }}
+                      <div class="progress mt-2" style="height: 20px;">
+                        <div class="progress-bar"
+                             [ngClass]="{
+                               'bg-success': uploadProgress[file.path] === 100,
+                               'bg-danger': uploadProgress[file.path] === -1,
+                               'bg-info': uploadProgress[file.path] >= 0 && uploadProgress[file.path] < 100
+                             }"
+                             [style.width.%]="uploadProgress[file.path] || 0"
+                             role="progressbar"
+                             [attr.aria-valuenow]="uploadProgress[file.path] || 0"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                          {{ uploadProgress[file.path] !== undefined ? uploadProgress[file.path] : 0 }}%
+                        </div>
+                      </div>
+                    </li>
+                  </ul>
+                  <div *ngIf="item.type === 'file'" class="progress mt-2" style="height: 20px;">
                     <div class="progress-bar"
                          [ngClass]="{
                            'bg-success': uploadProgress[item.path] === 100,
@@ -77,14 +101,54 @@
                 </li>
               </ul>
             </div>
-            <label for="backupTime" class="form-label fw-semibold">Backup Time (HH:mm)</label>
-            <input type="text" id="backupTime" [(ngModel)]="backupTime" placeholder="e.g., 14:30" class="form-control mb-3" />
-            <label for="retentionDays" class="form-label fw-semibold">Retention Days</label>
-            <input type="number" id="retentionDays" [(ngModel)]="retentionDays" min="1" class="form-control mb-3" placeholder="e.g., 7" />
-            <button (click)="handleFileUpload()" [disabled]="loading || filesToUpload.length === 0 || !selectedBucket || !backupTime || !retentionDays || !localPath"
-                    class="btn btn-primary w-100">
-              {{ loading ? 'Uploading...' : 'Upload Files' }}
-            </button>
+
+            <div class="form-check mb-3">
+              <input type="checkbox" id="retentionEnabled" [(ngModel)]="retentionEnabled" class="form-check-input" [disabled]="loading" />
+              <label for="retentionEnabled" class="form-check-label fw-semibold">Enable Retention and Scheduling</label>
+            </div>
+
+            <div *ngIf="retentionEnabled">
+              <label for="backupFrequency" class="form-label fw-semibold">Backup Frequency</label>
+              <select id="backupFrequency" [(ngModel)]="backupFrequency" class="form-select mb-3" [disabled]="loading">
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+              </select>
+
+              <div *ngIf="backupFrequency === 'Weekly'" class="mb-3">
+                <label for="dayOfWeek" class="form-label fw-semibold">Day of Week</label>
+                <select id="dayOfWeek" [(ngModel)]="dayOfWeek" class="form-select" [disabled]="loading">
+                  <option value="Monday">Monday</option>
+                  <option value="Tuesday">Tuesday</option>
+                  <option value="Wednesday">Wednesday</option>
+                  <option value="Thursday">Thursday</option>
+                  <option value="Friday">Friday</option>
+                  <option value="Saturday">Saturday</option>
+                  <option value="Sunday">Sunday</option>
+                </select>
+              </div>
+
+              <div *ngIf="backupFrequency === 'Monthly'" class="mb-3">
+                <label for="dayOfMonth" class="form-label fw-semibold">Day of Month (1-31)</label>
+                <input type="number" id="dayOfMonth" [(ngModel)]="dayOfMonth" min="1" max="31" class="form-control" [disabled]="loading" />
+              </div>
+
+              <label for="backupTime" class="form-label fw-semibold">Backup Time (HH:mm)</label>
+              <input type="text" id="backupTime" [(ngModel)]="backupTime" placeholder="e.g., 14:30" class="form-control mb-3" [disabled]="loading" />
+              
+              <label for="retentionDays" class="form-label fw-semibold">Retention Days</label>
+              <input type="number" id="retentionDays" [(ngModel)]="retentionDays" min="1" class="form-control mb-3" placeholder="e.g., 7" [disabled]="loading" />
+            </div>
+            
+            <div class="d-flex gap-2">
+              <button (click)="handleFileUpload()" 
+                      [disabled]="loading || filesToUpload.length === 0 || !selectedBucket || !localPath || (retentionEnabled && (!backupTime || !retentionDays))"
+                      class="btn btn-primary flex-fill">
+                <span *ngIf="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                {{ loading ? 'Uploading...' : 'Upload' }}
+              </button>
+              <button (click)="resetForm()" [disabled]="loading" class="btn btn-secondary flex-fill">Reset</button>
+            </div>
           </div>
 
           <div *ngIf="uploadDetails.length > 0" class="card shadow-sm p-3 mb-4">
@@ -105,7 +169,6 @@
                   <td>
                     <span [ngClass]="{
                       'badge bg-success': detail.status === 'uploaded',
-                      'badge bg-warning': detail.status === 'skipped',
                       'badge bg-danger': detail.status === 'failed'
                     }">
                       {{ detail.status }}
@@ -114,7 +177,9 @@
                   <td>{{ detail.uploadTime === 'failed' ? 'N/A' : detail.uploadTime }}</td>
                   <td>{{ detail.size | number }}</td>
                   <td>
-                    <button *ngIf="detail.status === 'failed'" (click)="retryUpload(detail)" class="btn btn-sm btn-warning">Retry</button>
+                    <button *ngIf="detail.status === 'failed'" (click)="retryUpload(detail)" class="btn btn-sm btn-warning" title="Retry Upload">
+                      Retry
+                    </button>
                     <span *ngIf="detail.status !== 'failed'" class="text-muted">N/A</span>
                   </td>
                 </tr>
@@ -131,7 +196,7 @@
         <div class="col-md-4">
           <div class="card shadow-sm p-3 h-100">
             <h2 class="text-info mb-3">Activity Logs</h2>
-            <div class="log-container" #logContainer>
+            <div class="log-container" #logContainer style="max-height: 400px; overflow-y: auto;">
               <p *ngFor="let log of logs" [ngClass]="{
                 'text-success': log.includes('successful') || log.includes('completed'),
                 'text-danger': log.includes('ERROR') || log.includes('failed'),
