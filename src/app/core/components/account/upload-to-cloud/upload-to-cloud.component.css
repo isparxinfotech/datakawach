@@ -247,3 +247,225 @@ body {
   .progress {
     border-radius: 5px;
   }
+
+  body {
+    background-color: #f4f7fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  .card {
+    border-radius: 10px;
+    transition: transform 0.2s;
+  }
+  
+  .card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .card-header {
+    border-radius: 10px 10px 0 0;
+  }
+  
+  .btn-primary {
+    background-color: #007bff;
+    border: none;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: background-color 0.3s;
+  }
+  
+  .btn-primary:hover {
+    background-color: #0056b3;
+  }
+  
+  .btn-outline-secondary {
+    padding: 10px 20px;
+    font-weight: 600;
+  }
+  
+  .btn-outline-danger {
+    padding: 10px 20px;
+    font-weight: 600;
+  }
+  
+  .list-group-item {
+    border-radius: 5px;
+    margin-bottom: 5px;
+  }
+  
+  .list-group-item-action {
+    cursor: pointer;
+  }
+  
+  .list-group-item-action:hover {
+    background-color: #e9ecef;
+  }
+  
+  .progress {
+    border-radius: 10px;
+  }
+  
+  .table {
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  
+  .table thead th {
+    background-color: #343a40;
+    color: white;
+  }
+  
+  .log-container p {
+    margin: 5px 0;
+    font-size: 14px;
+  }
+  /* Grey and Red Color Scheme */
+.bg-grey {
+  background-color: #e0e0e0; /* Light Grey */
+}
+
+.bg-grey-light {
+  background-color: #f5f5f5; /* Very Light Grey */
+}
+
+.bg-red {
+  background-color: #d32f2f; /* Red */
+}
+
+.text-grey {
+  color: #616161; /* Dark Grey */
+}
+
+.text-red {
+  color: #d32f2f; /* Red */
+}
+
+.border-grey {
+  border-color: #bdbdbd !important; /* Medium Grey */
+}
+
+.bg-grey-dark {
+  background-color: #424242; /* Dark Grey for failed status */
+}
+
+/* General Styling */
+body {
+  background-color: #e0e0e0;
+  font-family: 'Roboto', sans-serif;
+  font-size: 16px;
+}
+
+.card {
+  border-radius: 8px;
+  border: 1px solid #bdbdbd;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+  border-radius: 8px 8px 0 0;
+  padding: 15px;
+}
+
+.form-label {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.form-control, .form-select {
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 14px;
+  transition: border-color 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: #d32f2f;
+  box-shadow: 0 0 0 0.2rem rgba(211, 47, 47, 0.25);
+}
+
+.btn-red {
+  background-color: #d32f2f;
+  border: none;
+  color: white;
+  padding: 12px 24px;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: background-color 0.3s ease;
+}
+
+.btn-red:hover {
+  background-color: #b71c1c;
+  color: white;
+}
+
+.btn-outline-grey {
+  border-color: #bdbdbd;
+  color: #616161;
+  padding: 12px 24px;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: border-color 0.3s ease, color 0.3s ease;
+}
+
+.btn-outline-grey:hover {
+  border-color: #d32f2f;
+  color: #d32f2f;
+}
+
+.btn-outline-red {
+  border-color: #d32f2f;
+  color: #d32f2f;
+  padding: 12px 24px;
+  font-weight: 600;
+  border-radius: 6px;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.btn-outline-red:hover {
+  background-color: #d32f2f;
+  color: white;
+}
+
+.list-group-item {
+  border-radius: 6px;
+  margin-bottom: 8px;
+  padding: 12px;
+  transition: background-color 0.3s ease;
+}
+
+.list-group-item-action:hover {
+  background-color: #eeeeee;
+}
+
+.table {
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #bdbdbd;
+}
+
+.table thead th {
+  background-color: #424242;
+  color: white;
+  padding: 12px;
+}
+
+.table td {
+  padding: 12px;
+  vertical-align: middle;
+}
+
+.badge {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+pre {
+  border-radius: 6px;
+  font-size: 14px;
+}

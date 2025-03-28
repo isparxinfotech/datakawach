@@ -42,7 +42,8 @@ export class RegisterUserComponent implements OnDestroy{
       onedriveClientId:'',
       clientSecret:'',
       folderName:'',
-      cloudProvider: ''
+      cloudProvider: '',
+      ipAddress: ''
     };
       this.frmValidate = fv.group(
         {

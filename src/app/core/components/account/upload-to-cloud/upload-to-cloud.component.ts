@@ -28,12 +28,13 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   backupTime: string = '';
   retentionDays: number = 7;
   localPath: string = '';
-  selectedItems: { name: string; type: 'file' | 'folder'; path: string; files?: { name: string; path: string }[] }[] = [];
+  selectedItems: { name: string; type: 'file' | 'folder'; path: string; files?: { name: string; path: string; selected: boolean }[]; selected: boolean }[] = [];
   webSocketConnected: boolean = false;
   backupFrequency: string = 'Daily'; // Default value
   dayOfWeek: string = 'Monday'; // Default for Weekly
   dayOfMonth: number = 1; // Default for Monthly
   retentionEnabled: boolean = true; // Default to enabled
+  currentStep: number = 1; // Wizard step tracking
 
   @ViewChild('logContainer') logContainer!: ElementRef;
 
@@ -177,8 +178,23 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.dayOfWeek = 'Monday';
     this.dayOfMonth = 1;
     this.retentionEnabled = true;
+    this.currentStep = 1;
     this.addLog('Form reset');
     this.cdr.detectChanges();
+  }
+
+  nextStep() {
+    if (this.currentStep < 4) {
+      this.currentStep++;
+      this.addLog(`Moved to Step ${this.currentStep}`);
+    }
+  }
+
+  previousStep() {
+    if (this.currentStep > 1) {
+      this.currentStep--;
+      this.addLog(`Moved back to Step ${this.currentStep}`);
+    }
   }
 
   loadBuckets() {
@@ -199,7 +215,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
       .then((data: string[]) => {
         this.buckets = data;
         this.addLog(`Loaded ${this.buckets.length} buckets: ${this.buckets.join(', ')}`);
-        if (this.buckets.length > 0) {
+        if (this.buckets.length > 0 && !this.selectedBucket) {
           this.selectedBucket = this.buckets[0];
           this.loadFolders();
         }
@@ -297,11 +313,10 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.uploadProgress = {};
 
     if (input.files?.length) {
-      this.filesToUpload = Array.from(input.files);
       this.originalFiles = Array.from(input.files);
-      const folderMap = new Map<string, { name: string; path: string }[]>();
+      const folderMap = new Map<string, { name: string; path: string; selected: boolean }[]>();
 
-      this.filesToUpload.forEach((file) => {
+      this.originalFiles.forEach((file) => {
         const relativePath = (file as any).webkitRelativePath || file.name;
         const pathParts = relativePath.split('/');
         const fileName = pathParts.pop()!;
@@ -311,10 +326,10 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
           if (!folderMap.has(folderPath)) {
             folderMap.set(folderPath, []);
           }
-          folderMap.get(folderPath)!.push({ name: fileName, path: relativePath });
+          folderMap.get(folderPath)!.push({ name: fileName, path: relativePath, selected: true });
           this.uploadProgress[relativePath] = 0;
         } else {
-          this.selectedItems.push({ name: fileName, type: 'file', path: relativePath });
+          this.selectedItems.push({ name: fileName, type: 'file', path: relativePath, selected: true });
           this.uploadProgress[relativePath] = 0;
         }
       });
@@ -324,15 +339,52 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
           name: folderPath,
           type: 'folder',
           path: folderPath,
-          files: files
+          files: files,
+          selected: true
         });
       });
 
-      this.addLog(`Selected ${this.filesToUpload.length} files across ${folderMap.size} folders and ${this.selectedItems.filter(item => item.type === 'file').length} individual files`);
+      this.updateFilesToUpload();
+      this.addLog(`Selected ${this.originalFiles.length} files across ${folderMap.size} folders and ${this.selectedItems.filter(item => item.type === 'file').length} individual files`);
     } else {
       this.addLog('No files or folders selected', true);
     }
     this.cdr.detectChanges();
+  }
+
+  toggleItemSelection(item: { name: string; type: 'file' | 'folder'; path: string; files?: { name: string; path: string; selected: boolean }[]; selected: boolean }, event: Event) {
+    item.selected = (event.target as HTMLInputElement).checked;
+    if (item.type === 'folder' && item.files) {
+      item.files.forEach(file => file.selected = item.selected);
+    }
+    this.updateFilesToUpload();
+    this.cdr.detectChanges();
+  }
+
+  toggleFileSelection(item: { name: string; type: 'file' | 'folder'; path: string; files?: { name: string; path: string; selected: boolean }[]; selected: boolean }, file: { name: string; path: string; selected: boolean }, event: Event) {
+    file.selected = (event.target as HTMLInputElement).checked;
+    if (item.files) {
+      item.selected = item.files.every(f => f.selected);
+    }
+    this.updateFilesToUpload();
+    this.cdr.detectChanges();
+  }
+
+  updateFilesToUpload() {
+    this.filesToUpload = [];
+    this.selectedItems.forEach(item => {
+      if (item.type === 'file' && item.selected) {
+        const file = this.originalFiles.find(f => (f as any).webkitRelativePath === item.path || f.name === item.path);
+        if (file) this.filesToUpload.push(file);
+      } else if (item.type === 'folder' && item.files) {
+        item.files.forEach(file => {
+          if (file.selected) {
+            const originalFile = this.originalFiles.find(f => (f as any).webkitRelativePath === file.path);
+            if (originalFile) this.filesToUpload.push(originalFile);
+          }
+        });
+      }
+    });
   }
 
   validateLocalPath(path: string): boolean {
@@ -353,7 +405,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     }
 
     if (this.filesToUpload.length === 0) {
-      alert('Please select files or folders to upload.');
+      alert('Please select at least one file or folder to upload.');
       this.addLog('No files selected for upload', true);
       return;
     }
@@ -388,12 +440,12 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
         this.addLog(`Invalid day of month: ${this.dayOfMonth}`, true);
         return;
       }
-    }
 
-    if (!this.localPath || !this.validateLocalPath(this.localPath)) {
-      alert('Please enter a valid local file or folder path (e.g., /path/to/file or C:\\path\\to\\file).');
-      this.addLog(`Invalid or missing local path: ${this.localPath}`, true);
-      return;
+      if (!this.localPath || !this.validateLocalPath(this.localPath)) {
+        alert('Please enter a valid local file or folder path (e.g., /path/to/file or C:\\path\\to\\file).');
+        this.addLog(`Invalid or missing local path: ${this.localPath}`, true);
+        return;
+      }
     }
 
     if (!this.userSessionDetails?.username) {
@@ -416,7 +468,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     formData.append('bucketName', this.selectedBucket);
     formData.append('timestamp', new Date().toISOString());
     formData.append('sessionId', this.sessionId);
-    formData.append('localFilePath', this.localPath);
+    formData.append('localFilePath', this.retentionEnabled && this.localPath ? this.localPath : '');
     formData.append('retentionEnabled', this.retentionEnabled.toString());
     if (this.retentionEnabled) {
       formData.append('backupTime', this.backupTime);
@@ -493,12 +545,12 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
         this.addLog(`Invalid retention days for retry: ${this.retentionDays}`, true);
         return;
       }
-    }
 
-    if (!this.validateLocalPath(this.localPath)) {
-      alert('Please enter a valid local file or folder path (e.g., /path/to/file or C:\\path\\to\\file).');
-      this.addLog(`Invalid local path for retry: ${this.localPath}`, true);
-      return;
+      if (!this.localPath || !this.validateLocalPath(this.localPath)) {
+        alert('Please enter a valid local file or folder path (e.g., /path/to/file or C:\\path\\to\\file).');
+        this.addLog(`Invalid local path for retry: ${this.localPath}`, true);
+        return;
+      }
     }
 
     const relativePath = (file as any).webkitRelativePath || file.name;
@@ -509,7 +561,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     formData.append('bucketName', this.selectedBucket);
     formData.append('timestamp', new Date().toISOString());
     formData.append('sessionId', this.sessionId);
-    formData.append('localFilePath', this.localPath);
+    formData.append('localFilePath', this.retentionEnabled && this.localPath ? this.localPath : '');
     formData.append('retentionEnabled', this.retentionEnabled.toString());
     if (this.retentionEnabled) {
       formData.append('backupTime', this.backupTime);

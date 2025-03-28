@@ -6,6 +6,7 @@ import { logiApiResponce, resourcePermission } from 'src/app/models/api-resp.mod
 import { LoginUserRequest } from 'src/app/models/login-request.model';
 import { AuthService } from 'src/app/services/auth.service';
 import { AlertService } from 'src/app/services/alert.servive';
+
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
@@ -20,22 +21,17 @@ export class LoginComponent implements OnDestroy {
   private LoginUserSubscription?: Subscription;
   resourceNames: resourcePermission[] = [];
 
-  constructor(private alertService: AlertService, private authService: AuthService, private fv: FormBuilder, private router: Router)  {
-    this.model = {
-      username: '',
-      password: ''
-    };
-
+  constructor(private alertService: AlertService, private authService: AuthService, private fv: FormBuilder, private router: Router) {
+    this.model = { username: '', password: '' };
     this.apiResp = {
       statusCode: '',
       message: '',
       jwtToken: '',
       username: '',
       resourcePermission: [],
-      userType: 4, // Hardcoded for testing
-      roleid: 1 // Hardcoded for testing
+      userType: 4,
+      roleid: 1
     };
-
     this.frmValidate = fv.group({
       username: ['', [Validators.required]],
       password: ['', [Validators.required]]
@@ -49,24 +45,25 @@ export class LoginComponent implements OnDestroy {
   onLoginUser() {
     this.submitted = true;
     this.invalidMsg = '';
-  
+
     if (this.frmValidate.valid) {
       this.model = Object.assign(this.model, this.frmValidate.value);
       this.LoginUserSubscription = this.authService.loginUser(this.model).subscribe(
         (response) => {
           this.apiResp = Object.assign(this.apiResp, response);
-  
           if (this.apiResp.statusCode === '200') {
             this.alertService.showAlert('success', 'Login Successful!');
             sessionStorage.setItem("ResourcesAccess", JSON.stringify(this.apiResp.resourcePermission));
             sessionStorage.setItem("UserDetails", JSON.stringify(this.apiResp));
             this.router.navigate(['dashboard']);
           } else {
-            this.alertService.showAlert('error', 'Invalid username/Password');
+            this.invalidMsg = this.apiResp.message; // Show server message
+            this.alertService.showAlert('error', this.apiResp.message);
           }
         },
         (error) => {
-          this.alertService.showAlert('error', 'Invalid username/Password');
+          this.invalidMsg = error.error?.message || 'Invalid username/Password'; // Show server error if available
+          this.alertService.showAlert('error', this.invalidMsg);
         }
       );
     } else {

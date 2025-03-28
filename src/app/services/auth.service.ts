@@ -48,6 +48,10 @@ export class AuthService {
     console.log(this.resourcesAccess);
     return this.resourcesAccess;
   }
+
+  getClientIp(): Observable<{ ip: string }> {
+    return this.http.get<{ ip: string }>('https://api.ipify.org?format=json');
+  }
 getLoggedInUserDetails(): userSessionDetails | null {
   const jsonObj = sessionStorage.getItem("UserDetails");
   if (jsonObj) {
@@ -59,6 +63,7 @@ getLoggedInUserDetails(): userSessionDetails | null {
       userType: parsedObj.userType,
       cloudProvider:parsedObj.cloudProvider
     };
+    
     console.log("User Session Details");
     console.log(userDetails);
     return userDetails;

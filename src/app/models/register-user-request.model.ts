@@ -22,6 +22,7 @@ export interface RegisterUserRequest{
     clientSecret:string,
     folderName:string,
     cloudProvider: string;
+    ipAddress: string;
 
 
 
