@@ -34,14 +34,14 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       mobileNumber: ['', [Validators.required, Validators.minLength(10), Validators.pattern('[0-9]*')]],
       email: ['', [Validators.required, Validators.email]],
       password: ['qwerty', [Validators.minLength(3)]],
-      ipAddress: ['', [Validators.required, Validators.pattern('^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^([0-9a-fA-F]{0,4}:){7,7}[0-9a-fA-F]{0,4}$')]], // IPv4 or IPv6
-      createdBy: ['', Validators.required], // Set dynamically from session
-      folderName: [''], // Set dynamically to email
-      userType: [5], // Default to 5 for normal/end user
+      ipAddress: ['', [Validators.required, Validators.pattern('^([0-9A-Fa-f]{2}[-]){5}([0-9A-Fa-f]{2})$')]], // MAC address pattern
+      createdBy: ['', Validators.required],
+      folderName: [''],
+      userType: [5],
       corpoName: ['none'],
       branch: ['none'],
       landlineNumber: ['0000000000'],
-      cloudProvider: ['', Validators.required] // Added cloudProvider from session
+      cloudProvider: ['', Validators.required]
     });
   }
 
@@ -54,16 +54,17 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       return;
     }
     this.frmValidate.patchValue({
-      createdBy: this.userSessionDetails.username, // Creator's email
-      cloudProvider: this.userSessionDetails.cloudProvider // Creator's cloud provider
+      createdBy: this.userSessionDetails.username,
+      cloudProvider: this.userSessionDetails.cloudProvider
     });
     console.log('Logged-in user details set - createdBy:', this.userSessionDetails.username, 
                 'cloudProvider:', this.userSessionDetails.cloudProvider);
 
-    // Fetch current IP address for display
+    // Fetch current IP address from backend
     this.authService.getClientIp().subscribe({
       next: (response: { ip: string }) => {
         this.currentIp = response.ip;
+        this.frmValidate.patchValue({ ipAddress: this.currentIp }); // Auto-fill IP address
         console.log('Current IP fetched:', this.currentIp);
       },
       error: (err: any) => {
@@ -113,7 +114,8 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       userType: 5,
       corpoName: 'none',
       branch: 'none',
-      landlineNumber: '0000000000'
+      landlineNumber: '0000000000',
+      ipAddress: this.currentIp // Retain fetched IP address
     });
   }
 
