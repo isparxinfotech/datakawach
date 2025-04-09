@@ -1,7 +1,13 @@
+// src/app/models/user-session-responce.model.ts
+import { resourcePermission } from './api-resp.model';
+
 export interface userSessionDetails {
-  roleid: number;
-  username: string;
+  statusCode: string;
+  message?: string;
   jwtToken: string;
+  username: string;
+  resourcePermission: resourcePermission[];
   userType: number;
-  cloudProvider: string;
+  roleid: number;
+  cloudProvider?: string;
 }

@@ -12,50 +12,57 @@
       <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container-fluid">
           <a class="navbar-brand" href="dashboard"
-            style="float: right;position: absolute;right: 1px;padding-right: 0px;margin-right:0px;font-size: 15px;">Welcome:{{userSessionDetails?.username}}</a>
+            style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
+            Welcome: {{ userSessionDetails?.username }}
+          </a>
         </div>
       </nav>
       <hr>
       <div class="row">
         <div class="container">
-          <div class="row" style=" background-color: #f1f5fd !important; margin-top: 15px; margin-bottom: 15px;">
+          <div class="row" style="background-color: #f1f5fd !important; margin-top: 15px; margin-bottom: 15px;">
             <div class="col-lg-12">
-              <h1 style="text-align:center">User Accounts</h1><a style="float: right;" href="createuseraccount">Create User Account</a>
+              <h1 style="text-align: center">User Accounts</h1>
+              <a style="float: right;" href="createuseraccount">Create User Account</a>
             </div>
             <div class="col-lg-12">
-<table class="table">
-  <thead>
-    <tr>
-      <th>Id</th>
-      <th>First Name</th>
-      <th>Middle Name</th>
-      <th>Last Name</th>
-      <th>Gender</th>
-      <th>City</th>
-      <th>Number</th>
-      <th>Email</th>
-    </tr>
-  </thead>
-  <tbody >
-      <tr *ngFor="let row of userInfo">
-        <td>{{ row.userid }}</td>
-        <td>{{ row.firstName }}</td>
-        <td>{{ row.middleName }}</td>
-        <td>{{ row.lastName }}</td>
-        <td>{{ row.gender }}</td>
-        <td>{{ row.city }}</td>
-        <td>{{ row.mobileNumber }}</td>
-        <td>{{ row.email }}</td>
-      </tr>
-  </tbody>
-</table>
-
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Id</th>
+                    <th>First Name</th>
+                    <th>Middle Name</th>
+                    <th>Last Name</th>
+                    <th>Gender</th>
+                    <th>City</th>
+                    <th>Number</th>
+                    <th>Email</th>
+                    <th>MAC Address</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of userInfo">
+                    <td>{{ row.userid }}</td>
+                    <td>{{ row.firstName }}</td>
+                    <td>{{ row.middleName }}</td>
+                    <td>{{ row.lastName }}</td>
+                    <td>{{ row.gender }}</td>
+                    <td>{{ row.city }}</td>
+                    <td>{{ row.mobileNumber }}</td>
+                    <td>{{ row.email }}</td>
+                    <td>{{ row.ipAddress }}</td>
+                    <td>
+                      <a [routerLink]="['/edituser', row.userid]" class="btn btn-primary btn-sm">Edit</a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       </div>
     </div>
-
   </div>
 </div>
 

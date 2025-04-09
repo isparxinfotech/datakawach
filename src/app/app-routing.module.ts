@@ -16,6 +16,7 @@ import { LabDetailsComponent } from './core/components/account/lab-details/lab-d
 import { UploadComponent } from './core/components/account/upload/upload.component';
 import { UploadToCloudComponent } from './core/components/account/upload-to-cloud/upload-to-cloud.component';
 import { AdminDashboardComponent } from './core/components/account/admin-dashboard/admin-dashboard.component';
+import { UserEditComponent } from './core/components/account/user-edit/user-edit.component';
 
 const routes: Routes = [
     {
@@ -68,6 +69,12 @@ const routes: Routes = [
   {
     path: 'createcorporateaccount',
     component: CreateCorporateAccountComponent,
+    canActivate: [AuthGuard]
+  },
+
+  {
+    path: 'edituser/:userid',
+    component: UserEditComponent,
     canActivate: [AuthGuard]
   },
   {

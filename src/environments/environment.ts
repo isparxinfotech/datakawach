@@ -1,3 +1,3 @@
 export const environment = {
-    apiBaseUrl: 'https://datakavach.com/api/'
-};
+    apiBaseUrl: 'http://localhost:8080/api/'
+  };

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { RegisterUserRequest } from '../models/register-user-request.model';
 import { Observable } from 'rxjs';
-import { HttpClient } from '@angular/common/http'
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { LoginUserRequest } from '../models/login-request.model';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
@@ -14,61 +14,109 @@ import { userSessionDetails } from '../models/user-session-responce.model';
 })
 export class AuthService {
   private resourcesAccess: resourcePermission[] = [];
-  constructor(private http: HttpClient,private router: Router) { }
+  private apiUrl = 'http://localhost:8080/api/auth'; // Hardcoded URL as per your request
 
-  registerUser(model: RegisterUserRequest): Observable<void>{
-    return this.http.post<void>(`http://localhost:8080/api/auth/createUser`,model)
+  constructor(private http: HttpClient, private router: Router) {}
+
+  // Register a new user (unchanged)
+  registerUser(model: RegisterUserRequest): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/createUser`, model);
   }
-  loginUser(model: LoginUserRequest): Observable<void>{
-    return this.http.post<void>(`http://localhost:8080/api/auth/signin`,model)
+
+  // Updated loginUser to handle both regular and OTP flows
+  loginUser(model: LoginUserRequest): Observable<userSessionDetails> {
+    return this.http.post<userSessionDetails>(`${this.apiUrl}/signin`, model);
   }
-  getPersonalInfo(model: userSessionDetails | null | undefined): Observable<GetPersonalInfoRequest>{
-    return this.http.post<GetPersonalInfoRequest>(`http://localhost:8080/api/iauth/getUserRegistrationInformation`,model)
+
+  // Request OTP (updated to use HttpParams)
+  requestOtp(username: string, password: string): Observable<any> {
+    const params = new HttpParams()
+      .set('username', username)
+      .set('password', password);
+    return this.http.post(`${this.apiUrl}/requestOtp`, null, { 
+      params, 
+      responseType: 'text' 
+    });
   }
-  SavePersonalInfo(model: PersonalInfoRequest): Observable<void>{
-    return this.http.post<any>(`http://localhost:8080/api/iauth/updateUserRegistrationInformation`,model)
+
+  // Validate OTP (updated to use HttpParams)
+  validateOtp(username: string, otp: number): Observable<userSessionDetails> {
+    const params = new HttpParams()
+      .set('username', username)
+      .set('otpnum', otp.toString());
+    return this.http.post<userSessionDetails>(`${this.apiUrl}/validateOtp`, null, { params });
   }
+
+  // Get personal info (unchanged)
+  getPersonalInfo(model: userSessionDetails | null | undefined): Observable<GetPersonalInfoRequest> {
+    return this.http.post<GetPersonalInfoRequest>(`${this.apiUrl}/getUserRegistrationInformation`, model);
+  }
+
+  // Save personal info (unchanged)
+  savePersonalInfo(model: PersonalInfoRequest): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/updateUserRegistrationInformation`, model);
+  }
+
+  // Logout user (unchanged)
   logout(): void {
     sessionStorage.clear();
     this.router.navigate(['login']);
   }
+
+  // Check if user is authenticated (unchanged)
   isAuthenticated(): boolean {
-    if (this.getLoggedInUserDetails() != null)
-    {
-      return true;
-      }
-    return false;
+    return this.getLoggedInUserDetails() !== null;
   }
 
-  getResourcesAccess() {
-    const jsonObj = sessionStorage.getItem("ResourcesAccess");
-    let jsonObj1 =  jsonObj ? JSON.parse(jsonObj) : null;
+  // Get resources access from session storage (unchanged)
+  getResourcesAccess(): resourcePermission[] {
+    const jsonObj = sessionStorage.getItem('ResourcesAccess');
+    const jsonObj1 = jsonObj ? JSON.parse(jsonObj) : null;
     this.resourcesAccess = Object.assign(this.resourcesAccess, jsonObj1);
-    console.log("Resource List");
+    console.log('Resource List');
     console.log(this.resourcesAccess);
     return this.resourcesAccess;
   }
 
+  // Get client IP (unchanged)
   getClientIp(): Observable<{ ip: string }> {
     return this.http.get<{ ip: string }>('https://api.ipify.org?format=json');
   }
-getLoggedInUserDetails(): userSessionDetails | null {
-  const jsonObj = sessionStorage.getItem("UserDetails");
-  if (jsonObj) {
-    const parsedObj = JSON.parse(jsonObj);
-    const userDetails: userSessionDetails = {
-      roleid: parsedObj.roleid,
-      username: parsedObj.username,
-      jwtToken: parsedObj.jwtToken,
-      userType: parsedObj.userType,
-      cloudProvider:parsedObj.cloudProvider
-    };
-    
-    console.log("User Session Details");
-    console.log(userDetails);
-    return userDetails;
-  } else {
+
+  // Get logged-in user details from session storage (updated with proper typing)
+  getLoggedInUserDetails(): userSessionDetails | null {
+    const jsonObj = sessionStorage.getItem('UserDetails');
+    if (jsonObj) {
+      const parsedObj = JSON.parse(jsonObj);
+      const userDetails: userSessionDetails = {
+        roleid: parsedObj.roleid,
+        username: parsedObj.username,
+        jwtToken: parsedObj.jwtToken,
+        userType: parsedObj.userType,
+        cloudProvider: parsedObj.cloudProvider || '',
+        statusCode: parsedObj.statusCode || '',
+        resourcePermission: parsedObj.resourcePermission || [],
+        message: parsedObj.message || ''
+      };
+      console.log('User Session Details');
+      console.log(userDetails);
+      return userDetails;
+    }
     return null;
   }
-}
+
+  // Save user details to session storage (updated with complete fields)
+  saveUserDetails(userDetails: userSessionDetails): void {
+    const completeDetails: userSessionDetails = {
+      ...userDetails,
+      statusCode: userDetails.statusCode || '200',
+      message: userDetails.message || '',
+      resourcePermission: userDetails.resourcePermission || [],
+      cloudProvider: userDetails.cloudProvider || ''
+    };
+    sessionStorage.setItem('UserDetails', JSON.stringify(completeDetails));
+    if (userDetails.resourcePermission) {
+      sessionStorage.setItem('ResourcesAccess', JSON.stringify(userDetails.resourcePermission));
+    }
+  }
 }

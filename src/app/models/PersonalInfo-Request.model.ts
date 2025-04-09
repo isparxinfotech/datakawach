@@ -10,6 +10,8 @@ export interface PersonalInfoRequest {
   pinCode: string;
   mobileNumber: string;
   email: string;
+  ipAddress: string;
+
 }
 
 export interface GetPersonalInfoRequest {
@@ -25,5 +27,7 @@ export interface GetPersonalInfoRequest {
   pinCode: string;
   mobileNumber: string;
   email: string;
+  ipAddress: string;
+
   userInfo: PersonalInfoRequest[];
 }

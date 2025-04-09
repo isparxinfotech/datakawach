@@ -13,4 +13,8 @@ export class SuperAdminService {
     getUsersList(model: userSessionDetails | null | undefined): Observable<GetPersonalInfoRequest>{
     return this.http.post<GetPersonalInfoRequest>(`http://localhost:8080/api/auth/getUserList`,model)
   }
+
+  updateUser(username: string, user: any): Observable<any> {
+    return this.http.put(`http://localhost:8080/api/auth/users/${username}`, user);
+  }
 }

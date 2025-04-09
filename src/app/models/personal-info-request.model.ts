@@ -1,4 +1,5 @@
 export interface PersonalInfoRequest {
+  ipAddress: string;
   userid: string;
   firstName: string;
   middleName: string;
@@ -14,6 +15,7 @@ export interface PersonalInfoRequest {
   branch: string;
   landlineNumber: string;
   userType: number;
+
 }
 
 export interface GetPersonalInfoRequest {
@@ -33,5 +35,6 @@ export interface GetPersonalInfoRequest {
   branch: string;
   landlineNumber: string;
   userType: number;
+  ipAddress: string;
   userInfo: PersonalInfoRequest[];
 }

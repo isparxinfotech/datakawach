@@ -88,7 +88,7 @@ export class PersonalInformationComponent implements OnInit {
       // Form is valid, handle submission logic here
       // this.personalInfoJson = Object.assign(this.personalInfoJson, this.frmValidate.value);
       console.log('Form submitted:', this.personalInfoJson);
-      this.PersonalInfoSubscription = this.authService.SavePersonalInfo(this.personalInfoJson)
+      this.PersonalInfoSubscription = this.authService.savePersonalInfo(this.personalInfoJson)
         .subscribe(
           (responce) => {
             console.log(responce);

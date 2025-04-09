@@ -30,15 +30,16 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   localPath: string = '';
   selectedItems: { name: string; type: 'file' | 'folder'; path: string; files?: { name: string; path: string; selected: boolean }[]; selected: boolean }[] = [];
   webSocketConnected: boolean = false;
-  backupFrequency: string = 'Daily'; // Default value
-  dayOfWeek: string = 'Monday'; // Default for Weekly
-  dayOfMonth: number = 1; // Default for Monthly
-  retentionEnabled: boolean = true; // Default to enabled
-  currentStep: number = 1; // Wizard step tracking
+  backupFrequency: string = 'Daily';
+  dayOfWeek: string = 'Monday';
+  dayOfMonth: number = 1;
+  retentionEnabled: boolean = true;
+  currentStep: number = 1;
 
   @ViewChild('logContainer') logContainer!: ElementRef;
 
   private stompClient: Client;
+  private abortController: AbortController | null = null;
 
   constructor(
     private authService: AuthService,
@@ -78,6 +79,9 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
         this.stompClient.deactivate();
         this.addLog('STOMP client deactivated');
         this.webSocketConnected = false;
+      }
+      if (this.abortController) {
+        this.abortController.abort();
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -457,7 +461,12 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.result = '';
     this.uploadDetails = [];
-    this.addLog(`Starting upload to ${this.selectedBucket}/${this.currentPath || ''}`);
+    this.addLog(`Upload started for ${this.filesToUpload.length} files to ${this.selectedBucket}/${this.currentPath || ''}`);
+
+    this.filesToUpload.forEach(file => {
+      const relativePath = (file as any).webkitRelativePath || file.name;
+      this.uploadProgress[relativePath] = 0; // Reset progress to 0
+    });
 
     const formData = new FormData();
     this.filesToUpload.forEach((file) => {
@@ -479,10 +488,12 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     }
     if (this.currentPath) formData.append('folderPath', this.currentPath);
 
+    this.abortController = new AbortController();
     try {
       const response = await fetch('http://localhost:8080/api/s3/upload', {
         method: 'POST',
         body: formData,
+        signal: this.abortController.signal,
       });
 
       if (!response.ok) {
@@ -514,6 +525,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
       console.error('Upload error:', error);
     } finally {
       this.loading = false;
+      this.abortController = null;
       this.cdr.detectChanges();
     }
   }
@@ -573,10 +585,12 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     if (this.currentPath) formData.append('folderPath', this.currentPath);
 
     this.addLog(`Retrying upload for ${relativePath}`);
+    this.abortController = new AbortController();
     try {
       const response = await fetch('http://localhost:8080/api/s3/upload', {
         method: 'POST',
         body: formData,
+        signal: this.abortController.signal,
       });
 
       if (!response.ok) {
@@ -609,6 +623,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
       this.addLog(`Retry error: ${errorMessage}`, true);
       console.error('Retry error:', error);
     } finally {
+      this.abortController = null;
       this.cdr.detectChanges();
     }
   }

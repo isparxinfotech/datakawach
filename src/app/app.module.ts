@@ -26,6 +26,8 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { UploadComponent } from './core/components/account/upload/upload.component';
 import { AdminDashboardComponent } from './core/components/account/admin-dashboard/admin-dashboard.component';
+import { UserEditComponent } from './core/components/account/user-edit/user-edit.component';
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 // WebSocket configuration
 
@@ -49,7 +51,8 @@ import { AdminDashboardComponent } from './core/components/account/admin-dashboa
     LabDetailsComponent,
     UploadToCloudComponent,
     UploadComponent,
-    AdminDashboardComponent
+    AdminDashboardComponent,
+    UserEditComponent
   ],
   imports: [
     BrowserModule,
@@ -61,6 +64,7 @@ import { AdminDashboardComponent } from './core/components/account/admin-dashboa
     BrowserAnimationsModule,
     MatCardModule,
     MatIconModule,
+    NgbModule,
   ],
   providers: [DatePipe, DecimalPipe], // Move DatePipe and DecimalPipe to providers
   bootstrap: [AppComponent]

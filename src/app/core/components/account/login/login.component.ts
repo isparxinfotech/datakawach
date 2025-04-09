@@ -1,11 +1,10 @@
 import { Component, OnDestroy } from '@angular/core';
-import { AbstractControl, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { logiApiResponce, resourcePermission } from 'src/app/models/api-resp.model';
-import { LoginUserRequest } from 'src/app/models/login-request.model';
 import { AuthService } from 'src/app/services/auth.service';
 import { AlertService } from 'src/app/services/alert.servive';
+import { userSessionDetails } from 'src/app/models/api-resp.model';
 
 @Component({
   selector: 'app-login',
@@ -13,78 +12,123 @@ import { AlertService } from 'src/app/services/alert.servive';
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent implements OnDestroy {
-  submitted = false;
-  invalidMsg = '';
-  model: LoginUserRequest;
-  apiResp: logiApiResponce;
   frmValidate: FormGroup;
-  private LoginUserSubscription?: Subscription;
-  resourceNames: resourcePermission[] = [];
+  otpForm: FormGroup;
+  showOtp = false;
+  submitted = false;
+  otpSubmitted = false;
+  invalidMsg = '';
+  currentUsername = '';
+  private subscriptions: Subscription[] = [];
 
-  constructor(private alertService: AlertService, private authService: AuthService, private fv: FormBuilder, private router: Router) {
-    this.model = { username: '', password: '' };
-    this.apiResp = {
-      statusCode: '',
-      message: '',
-      jwtToken: '',
-      username: '',
-      resourcePermission: [],
-      userType: 4,
-      roleid: 1
-    };
-    this.frmValidate = fv.group({
+  constructor(
+    private authService: AuthService,
+    private alertService: AlertService,
+    private fb: FormBuilder,
+    private router: Router
+  ) {
+    this.frmValidate = this.fb.group({
       username: ['', [Validators.required]],
       password: ['', [Validators.required]]
     });
-  }
 
-  get f(): { [key: string]: AbstractControl } {
-    return this.frmValidate.controls;
+    this.otpForm = this.fb.group({
+      otp: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6)]]
+    });
   }
 
   onLoginUser() {
     this.submitted = true;
     this.invalidMsg = '';
 
-    if (this.frmValidate.valid) {
-      this.model = Object.assign(this.model, this.frmValidate.value);
-      this.LoginUserSubscription = this.authService.loginUser(this.model).subscribe(
-        (response) => {
-          this.apiResp = Object.assign(this.apiResp, response);
-          if (this.apiResp.statusCode === '200') {
-            this.alertService.showAlert('success', 'Login Successful!');
-            sessionStorage.setItem("ResourcesAccess", JSON.stringify(this.apiResp.resourcePermission));
-            sessionStorage.setItem("UserDetails", JSON.stringify(this.apiResp));
-            this.router.navigate(['dashboard']);
-          } else {
-            this.invalidMsg = this.apiResp.message; // Show server message
-            this.alertService.showAlert('error', this.apiResp.message);
-          }
-        },
-        (error) => {
-          this.invalidMsg = error.error?.message || 'Invalid username/Password'; // Show server error if available
+    if (this.frmValidate.invalid) {
+      this.alertService.showAlert('info', 'Please enter valid credentials');
+      return;
+    }
+
+    const credentials = {
+      username: this.frmValidate.value.username,
+      password: this.frmValidate.value.password
+    };
+
+    const sub = this.authService.loginUser(credentials).subscribe({
+      next: (response: userSessionDetails) => {
+        if (response.statusCode === '202') {
+          // OTP required
+          this.currentUsername = credentials.username;
+          this.showOtp = true;
+          this.requestOtp(credentials.username, credentials.password);
+        } else if (response.statusCode === '200') {
+          // Regular login successful
+          this.handleSuccessfulLogin(response);
+        } else {
+          this.invalidMsg = response.message || 'Login failed';
           this.alertService.showAlert('error', this.invalidMsg);
         }
-      );
-    } else {
-      this.alertService.showAlert('info', 'Please enter valid credentials.');
+      },
+      error: (error) => {
+        this.invalidMsg = error.error?.message || 'Login failed';
+        this.alertService.showAlert('error', this.invalidMsg);
+      }
+    });
+    this.subscriptions.push(sub);
+  }
+
+  onValidateOtp() {
+    this.otpSubmitted = true;
+    if (this.otpForm.invalid) {
+      this.alertService.showAlert('info', 'Please enter a valid 6-digit OTP');
+      return;
     }
+
+    const sub = this.authService.validateOtp(
+      this.currentUsername,
+      this.otpForm.value.otp
+    ).subscribe({
+      next: (response: userSessionDetails) => {
+        if (response.statusCode === '200') {
+          this.handleSuccessfulLogin(response);
+        } else {
+          this.invalidMsg = response.message || 'OTP validation failed';
+          this.alertService.showAlert('error', this.invalidMsg);
+        }
+      },
+      error: (error) => {
+        this.invalidMsg = error.error?.message || 'OTP validation failed';
+        this.alertService.showAlert('error', this.invalidMsg);
+      }
+    });
+    this.subscriptions.push(sub);
   }
 
-  onReset(): void {
-    this.submitted = false;
-    this.frmValidate.reset();
+  resendOtp() {
+    this.requestOtp(this.currentUsername, this.frmValidate.value.password);
   }
 
-  navigateToRegister() {
-    this.router.navigate(['/register']);
+  private requestOtp(username: string, password: string) {
+    const sub = this.authService.requestOtp(username, password).subscribe({
+      next: () => {
+        this.alertService.showAlert('success', 'OTP sent successfully');
+      },
+      error: (error) => {
+        this.alertService.showAlert('error', error.error || 'Failed to send OTP');
+      }
+    });
+    this.subscriptions.push(sub);
   }
 
-  navigateToCorporateRegister() {
-    this.router.navigate(['/registerCorporate']);
+  private handleSuccessfulLogin(response: userSessionDetails) {
+    this.authService.saveUserDetails(response);
+    this.router.navigate(['/dashboard']);
   }
 
-  ngOnDestroy(): void {
-    this.LoginUserSubscription?.unsubscribe();
+  goBackToLogin() {
+    this.showOtp = false;
+    this.otpSubmitted = false;
+    this.otpForm.reset();
+  }
+
+  ngOnDestroy() {
+    this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 }
