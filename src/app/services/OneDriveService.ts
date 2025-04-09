@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class OneDriveService {
-  private apiUrl = 'https://datakavach.com:8080/onedrive'; // Adjust to your backend URL
+  private apiUrl = 'https://datakavach.com/onedrive'; // Adjust to your backend URL
 
   constructor(private http: HttpClient) {}
 

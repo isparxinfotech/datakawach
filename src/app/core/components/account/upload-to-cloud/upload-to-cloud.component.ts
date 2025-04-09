@@ -46,7 +46,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef
   ) {
     this.stompClient = new Client({
-      webSocketFactory: () => new SockJS('https://datakavach.com:8080/ws'),
+      webSocketFactory: () => new SockJS('https://datakavach.com/ws'),
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,
@@ -210,7 +210,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.addLog('Loading buckets...');
-    const url = `https://datakavach.com:8080/api/s3/buckets?email=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `https://datakavach.com/api/s3/buckets?email=${encodeURIComponent(this.userSessionDetails.username)}`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error('Failed to fetch buckets');
@@ -245,7 +245,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.addLog(`Loading folders for bucket: ${this.selectedBucket}, path: ${this.currentPath || '/'}`);
-    const url = `https://datakavach.com:8080/api/s3/folders?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}${this.currentPath ? '&prefix=' + encodeURIComponent(this.currentPath) : ''}`;
+    const url = `https://datakavach.com/api/s3/folders?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}${this.currentPath ? '&prefix=' + encodeURIComponent(this.currentPath) : ''}`;
     fetch(url)
       .then(async (response) => {
         if (!response.ok) {
@@ -275,7 +275,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   loadFileDownloadUrls() {
     if (!this.selectedBucket || !this.userSessionDetails?.username) return;
 
-    const url = `https://datakavach.com:8080/api/s3/files?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}${this.currentPath ? '&prefix=' + encodeURIComponent(this.currentPath) : ''}`;
+    const url = `https://datakavach.com/api/s3/files?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}${this.currentPath ? '&prefix=' + encodeURIComponent(this.currentPath) : ''}`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error('Failed to fetch file URLs');
@@ -490,7 +490,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
     this.abortController = new AbortController();
     try {
-      const response = await fetch('https://datakavach.com:8080/api/s3/upload', {
+      const response = await fetch('https://datakavach.com/api/s3/upload', {
         method: 'POST',
         body: formData,
         signal: this.abortController.signal,
@@ -587,7 +587,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.addLog(`Retrying upload for ${relativePath}`);
     this.abortController = new AbortController();
     try {
-      const response = await fetch('https://datakavach.com:8080/api/s3/upload', {
+      const response = await fetch('https://datakavach.com/api/s3/upload', {
         method: 'POST',
         body: formData,
         signal: this.abortController.signal,

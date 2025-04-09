@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class S3Service {
-  private apiUrl = 'https://datakavach.com:8080/api/AWSs3/buckets';
+  private apiUrl = 'https://datakavach.com/api/AWSs3/buckets';
 
   constructor(private http: HttpClient) {}
 
