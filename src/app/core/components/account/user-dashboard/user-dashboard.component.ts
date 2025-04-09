@@ -60,7 +60,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.oneDriveErrorMessage = '';
     this.oneDriveFiles = [];
 
-    const url = `http://localhost:8080/onedrive/files?email=${encodeURIComponent(this.email)}&folderName=${encodeURIComponent(this.folderName)}`;
+    const url = `https://datakavach.com:8080/onedrive/files?email=${encodeURIComponent(this.email)}&folderName=${encodeURIComponent(this.folderName)}`;
     this.http.get<any[]>(url).subscribe({
       next: (response) => {
         this.oneDriveFiles = response;
@@ -83,7 +83,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.s3ErrorMessage = '';
     this.buckets = [];
 
-    const url = `http://localhost:8080/api/s3/buckets?email=${encodeURIComponent(this.email)}`;
+    const url = `https://datakavach.com:8080/api/s3/buckets?email=${encodeURIComponent(this.email)}`;
     this.bucketSubscription = this.http.get<any[]>(url).subscribe({
       next: (response) => {
         this.buckets = response.map(bucketName => ({
@@ -123,7 +123,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.s3ErrorMessage = '';
     this.s3Contents = [];
 
-    const url = `http://localhost:8080/api/s3/files?email=${encodeURIComponent(this.email)}&bucketName=${encodeURIComponent(bucketName)}${prefix ? '&prefix=' + encodeURIComponent(prefix) : ''}`;
+    const url = `https://datakavach.com:8080/api/s3/files?email=${encodeURIComponent(this.email)}&bucketName=${encodeURIComponent(bucketName)}${prefix ? '&prefix=' + encodeURIComponent(prefix) : ''}`;
     this.contentsSubscription = this.http.get<any[]>(url).subscribe({
       next: (response) => {
         this.s3Contents = response.map(item => ({

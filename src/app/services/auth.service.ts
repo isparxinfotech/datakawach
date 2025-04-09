@@ -14,7 +14,7 @@ import { userSessionDetails } from '../models/user-session-responce.model';
 })
 export class AuthService {
   private resourcesAccess: resourcePermission[] = [];
-  private apiUrl = 'http://localhost:8080/api/auth'; // Hardcoded URL as per your request
+  private apiUrl = 'https://datakavach.com:8080/api/auth'; // Hardcoded URL as per your request
 
   constructor(private http: HttpClient, private router: Router) {}
 

@@ -41,7 +41,7 @@ export class UploadComponent implements OnInit {
     formData.append('file', this.selectedFile);
 
     const fileName = encodeURIComponent(this.selectedFile.name);
-    const url = `http://localhost:8080/onedrive/upload/${fileName}`;
+    const url = `https://datakavach.com:8080/onedrive/upload/${fileName}`;
 
     this.uploading = true;
     this.progress = 0;
