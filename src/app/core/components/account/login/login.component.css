@@ -1,54 +1,133 @@
-.gradient-left {
-    background: linear-gradient(135deg, #DE4D3D, #0052A1); /* Gradient for background */
-    color: #c8c8c8;
-    position: relative; /* Enables pseudo-element positioning */
-    overflow: hidden; /* Ensures circle stays within the section */
-  }
-  
-  .gradient-left::before {
-    content: '';
-    position: absolute;
-    width: 500px; /* Size of the circle */
-    height: 500px;
-    background: linear-gradient(135deg, #F04D35, #0052A1); /* Gradient for the circle */
-    border-radius: 70%; /* Makes it a perfect circle */
-    top: 60%; /* Centers vertically */
-    left: 50%; /* Centers horizontally */
-    transform: translate(-50%, -50%); /* Adjusts for centering */
-    z-index: 0; /* Places behind the content */
-  }
-  
-  .content {
-    position: relative; /* Ensures content is above the circle */
-    z-index: 1;
-  }
-  
-  .carousel-item img {
-    max-height: 500px;
-    margin: 0 auto;
-  }
-  
-  .btn-primary {
-    background: linear-gradient(90deg, #F04D35, #0052A1); /* Gradient background */
-    color: #ffffff; /* White text */
-    border: none; /* Remove border */
-    transition: background 0.3s ease, box-shadow 0.3s ease;
-    padding: 10px 20px; /* Adjust padding */
-    font-size: 1rem; /* Adjust font size */
-    border-radius: 5px; /* Rounded corners */
-    cursor: pointer; /* Pointer cursor */
+.login-card {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 100%;
+  transition: background-color 0.3s;
 }
 
-.btn-primary:hover {
-    background: linear-gradient(90deg, #0052A1, #F04D35); /* Reverse gradient on hover */ 
-    box-shadow: 0 4px 10px rgba(0, 91, 187, 0.4)
+.login-card h2 {
+  font-size: 1.5rem;
+  color: #333;
 }
-    
-  
-  .bg-white {
-    background-color: #ffffff; /* White background */
-    border-radius: 0 1rem 1rem 0; /* Rounded corners for the right side */
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); /* Adds shadow for floating effect */
-    position: relative; /* Ensures proper layering */
-    z-index: 2; /* Keeps it above other elements */
-  }
+
+.login-card .text-muted {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.login-card .form-control {
+  border: 2px solid #ccc;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  transition: border-color 0.3s, background-color 0.3s;
+}
+
+.login-card .form-control:focus {
+  border-color: #007bff;
+  box-shadow: none;
+}
+
+.login-card .btn-dark {
+  background-color: #000;
+  color: #fff;
+  border: none;
+  padding: 0.75rem;
+  font-size: 1rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.3s;
+}
+
+.login-card .btn-dark:hover {
+  background-color: #333;
+}
+
+.login-card .btn-outline-secondary {
+  border: 2px solid #ccc;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.login-card .btn-outline-secondary:hover {
+  background-color: #ccc;
+  color: #000;
+}
+
+.invalid-feedback {
+  display: block;
+  font-size: 0.875rem;
+  color: #dc3545;
+}
+
+.is-invalid {
+  border-color: #dc3545 !important;
+}
+
+/* Dark Mode Styles */
+body.dark-mode .login-card {
+  background: #1a1a1a;
+}
+
+body.dark-mode .login-card h2 {
+  color: #fff;
+}
+
+body.dark-mode .login-card .text-muted {
+  color: #bbb;
+}
+
+body.dark-mode .login-card .form-control {
+  background: #2a2a2a;
+  color: #fff;
+  border-color: #444;
+}
+
+body.dark-mode .login-card .form-control:focus {
+  border-color: #007bff;
+}
+
+body.dark-mode .login-card .btn-dark {
+  background-color: #444;
+  color: #fff;
+}
+
+body.dark-mode .login-card .btn-dark:hover {
+  background-color: #666;
+}
+
+body.dark-mode .login-card .btn-outline-secondary {
+  border-color: #666;
+  color: #fff;
+}
+
+body.dark-mode .login-card .btn-outline-secondary:hover {
+  background-color: #666;
+  color: #fff;
+}
+
+body.dark-mode .invalid-feedback {
+  color: #ff5555;
+}
+
+/* Right Side Illustration Styles */
+.illustration-container {
+  padding: 2rem;
+}
+
+.illustration-container h2 {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.cloud-illustration {
+  margin-top: 1rem;
+}
+
+.cloud-illustration svg {
+  max-width: 100%;
+  height: auto;
+}

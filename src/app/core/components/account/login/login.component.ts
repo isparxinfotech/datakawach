@@ -20,6 +20,8 @@ export class LoginComponent implements OnDestroy {
   invalidMsg = '';
   currentUsername = '';
   private subscriptions: Subscription[] = [];
+  hover: boolean = false;
+  isDarkMode: boolean = false;
 
   constructor(
     private authService: AuthService,
@@ -27,6 +29,10 @@ export class LoginComponent implements OnDestroy {
     private fb: FormBuilder,
     private router: Router
   ) {
+    // Initialize dark mode based on system preference or saved setting
+    this.isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.body.classList.toggle('dark-mode', this.isDarkMode);
+
     this.frmValidate = this.fb.group({
       username: ['', [Validators.required]],
       password: ['', [Validators.required]]
@@ -35,6 +41,14 @@ export class LoginComponent implements OnDestroy {
     this.otpForm = this.fb.group({
       otp: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6)]]
     });
+  }
+
+  get f() {
+    return this.frmValidate.controls;
+  }
+
+  get otpF() {
+    return this.otpForm.controls;
   }
 
   onLoginUser() {
@@ -54,12 +68,10 @@ export class LoginComponent implements OnDestroy {
     const sub = this.authService.loginUser(credentials).subscribe({
       next: (response: userSessionDetails) => {
         if (response.statusCode === '202') {
-          // OTP required
           this.currentUsername = credentials.username;
           this.showOtp = true;
           this.requestOtp(credentials.username, credentials.password);
         } else if (response.statusCode === '200') {
-          // Regular login successful
           this.handleSuccessfulLogin(response);
         } else {
           this.invalidMsg = response.message || 'Login failed';
@@ -126,6 +138,22 @@ export class LoginComponent implements OnDestroy {
     this.showOtp = false;
     this.otpSubmitted = false;
     this.otpForm.reset();
+    this.invalidMsg = '';
+  }
+
+  onReset(): void {
+    this.submitted = false;
+    this.frmValidate.reset();
+    this.otpForm.reset();
+    this.showOtp = false;
+    this.invalidMsg = '';
+  }
+
+  toggleTheme() {
+    this.isDarkMode = !this.isDarkMode;
+    document.body.classList.toggle('dark-mode', this.isDarkMode);
+    // Optional: Save preference to localStorage
+    localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light');
   }
 
   ngOnDestroy() {

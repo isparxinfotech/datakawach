@@ -1,0 +1,192 @@
+/* General Reset */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    height: 100%;
+  }
+  
+  /* Container */
+  .container-fluid {
+    display: flex;
+  }
+  
+  /* Sidebar Wrapper */
+  .sidebar-wrapper {
+    width: 270px;
+    flex-shrink: 0;
+  }
+  
+  /* Sidebar */
+  #bdSidebar {
+    background: #1e293b;
+    color: white;
+    width: 270px;
+    min-height: 100vh;
+    padding: 20px;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+    border-radius: 0 20px 20px 0;
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  /* Main Content */
+  .bg-light {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #0f172a;
+    overflow-y: auto;
+  }
+  
+  /* Mobile Topbar */
+  .p-2.d-md-none {
+    background-color: #10b981;
+    font-weight: 600;
+  }
+  
+  /* Navbar */
+  .navbar {
+    background: #1e293b !important;
+    color: #e2e8f0;
+  }
+  
+  .navbar-brand {
+    color: #e2e8f0 !important;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  
+  /* Section Titles */
+  .section-title {
+    font-size: 1.5rem;
+    border-left: 5px solid #3b82f6;
+    padding-left: 1rem;
+  }
+  
+  /* Card Styles */
+  .card {
+    background: #1e293b;
+    border: none;
+    color: #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Table Container */
+  .table-container {
+    overflow-y: auto;
+    max-height: 70vh; /* Limit table height, scroll if needed */
+  }
+  
+  /* Table Styles */
+  .table {
+    margin-bottom: 0;
+    color: #e2e8f0;
+  }
+  
+  .table-dark {
+    background: #334155;
+  }
+  
+  .table th {
+    background: #1e293b;
+    color: #e2e8f0;
+    font-weight: 600;
+    border-bottom: 2px solid #475569;
+  }
+  
+  .table td {
+    border-top: 1px solid #475569;
+  }
+  
+  .table-hover tbody tr:hover {
+    background-color: #475569;
+  }
+  
+  /* Gradient Button */
+  .btn-gradient {
+    background: linear-gradient(45deg, #3b82f6, #60a5fa);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: background 0.3s ease, transform 0.2s ease;
+  }
+  
+  .btn-gradient:hover {
+    background: linear-gradient(45deg, #2563eb, #3b82f6);
+    transform: translateY(-2px);
+    color: white;
+  }
+  
+  /* Primary Button (Edit) */
+  .btn-primary {
+    background: linear-gradient(to right, #3b82f6, #60a5fa);
+    border: none;
+    font-weight: bold;
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .btn-primary:hover {
+    background: linear-gradient(to right, #2563eb, #3b82f6);
+  }
+  
+  /* Animations */
+  .card, .table {
+    animation: fadeIn 0.5s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Responsive Enhancements */
+  @media (max-width: 768px) {
+    .sidebar-wrapper {
+      width: 0;
+      overflow: hidden;
+    }
+    #bdSidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 270px;
+      z-index: 1050;
+    }
+    #bdSidebar.offcanvas-start {
+      transform: translateX(-100%);
+    }
+    #bdSidebar.show {
+      transform: translateX(0);
+    }
+    .bg-light {
+      width: 100%;
+    }
+    .table-container {
+      max-height: 50vh; /* Smaller height on mobile */
+    }
+    .table {
+      font-size: 0.9rem; /* Smaller text on mobile */
+    }
+  }
+  
+  @media (min-width: 769px) {
+    .sidebar-wrapper {
+      display: block;
+    }
+    #bdSidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 270px;
+    }
+  }

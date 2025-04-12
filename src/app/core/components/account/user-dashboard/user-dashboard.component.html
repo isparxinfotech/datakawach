@@ -1,14 +1,18 @@
 <div class="container-fluid p-0 d-flex h-100">
-  <app-dynamic-menus></app-dynamic-menus>
+  <!-- Sidebar (Dynamic Menus) -->
+  <div class="sidebar-wrapper">
+    <app-dynamic-menus></app-dynamic-menus>
+  </div>
 
-  <div class="bg-light flex-fill">
+  <!-- Main Content -->
+  <div class="bg-light flex-fill d-flex flex-column">
     <div class="p-2 d-md-none d-flex text-white bg-success">
       <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
         <i class="fa-solid fa-bars"></i>
       </a>
       <span class="ms-3">Data Kavach</span>
     </div>
-    <div class="p-4">
+    <div class="p-4 flex-grow-1 d-flex flex-column">
       <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
         <div class="container-fluid">
           <a class="navbar-brand" href="dashboard" style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
@@ -17,13 +21,12 @@
         </div>
       </nav>
       <hr class="my-4">
-      <div class="row">
-        <div class="col">
-          <!-- OneDrive Section (shown only if cloudProvider is 'onedrive') -->
-          <div *ngIf="cloudProvider === 'onedrive'">
+      <div class="row flex-grow-1">
+        <div class="col d-flex flex-column h-100">
+          <!-- OneDrive Section -->
+          <div *ngIf="cloudProvider === 'onedrive'" class="flex-grow-1 d-flex flex-column">
             <h2 class="text-center mb-4 fw-bold text-primary">File Explorer (OneDrive)</h2>
 
-            <!-- Input Section for OneDrive -->
             <div class="card shadow-sm p-4 mb-4 bg-white rounded">
               <div class="row g-3">
                 <div class="col-md-5">
@@ -42,8 +45,7 @@
               </div>
             </div>
 
-            <!-- OneDrive File Cards Section -->
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" *ngIf="oneDriveFiles.length > 0">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 flex-grow-1 overflow-auto" *ngIf="oneDriveFiles.length > 0">
               <div class="col" *ngFor="let file of oneDriveFiles">
                 <div class="card h-100 shadow-sm file-card">
                   <div class="card-body text-center">
@@ -62,7 +64,6 @@
               </div>
             </div>
 
-            <!-- OneDrive Messages -->
             <div class="mt-4" *ngIf="oneDriveFiles.length === 0 && !loadingOneDrive && (email || folderName)">
               <div class="alert alert-info text-center" *ngIf="!oneDriveErrorMessage">
                 No files found in "{{folderName}}" for "{{email}}".
@@ -72,7 +73,6 @@
               </div>
             </div>
 
-            <!-- OneDrive Loading Spinner -->
             <div class="text-center mt-4" *ngIf="loadingOneDrive">
               <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
@@ -80,99 +80,97 @@
             </div>
           </div>
 
-          <!-- AWS S3 Section (shown only if cloudProvider is 'aws') -->
-          <div *ngIf="cloudProvider === 'aws'">
-            <h2 class="text-center mb-4 fw-bold text-primary">Explorer</h2>
- 
-            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="buckets.length > 0; else noBuckets">
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Region</th>
-                    <th scope="col">Size</th>
-                    <th scope="col">Object Count</th>
-                    <th scope="col">Creation Date</th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let bucket of buckets">
-                    <td>{{ bucket.name }}</td>
-                    <td>{{ bucket.region }}</td>
-                    <td>{{ formatSize(bucket.size) }}</td>
-                    <td>{{ bucket.objectCount }}</td>
-                    <td>{{ bucket.creationDate }}</td>
-                    <td>
-                      <button class="btn btn-sm btn-outline-primary" (click)="listS3BucketContents(bucket.name)">
-                        View Contents
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          <!-- AWS S3 Section -->
+          <div *ngIf="cloudProvider === 'aws'" class="flex-grow-1 d-flex flex-column">
+            <h2 class="section-title mb-4 fw-bold text-primary">
+              <i class="fa-brands fa-aws me-2"></i>Folders Explorer
+            </h2>
+
+            <div class="bucket-container row g-4 flex-grow-1 overflow-auto" *ngIf="buckets.length > 0 && !loadingS3; else loadingOrNoBuckets">
+              <div class="col-md-6 col-lg-4" *ngFor="let bucket of buckets">
+                <div class="bucket-card card shadow-sm bg-dark rounded">
+                  <div class="card-body p-4">
+                    <div class="d-flex align-items-center mb-3">
+                      <i class="fa-solid fa-box me-2 text-success fa-2x"></i>
+                      <h5 class="bucket-name mb-0">{{ bucket.name }}</h5>
+                    </div>
+                    <div class="bucket-details">
+                      <p class="mb-1"><strong>Size:</strong> {{ formatSize(bucket.size) }}</p>
+                      <p class="mb-1"><strong>Objects:</strong> {{ bucket.objectCount }}</p>
+                      <p class="mb-3"><strong>Created:</strong> {{ bucket.creationDate }}</p>
+                    </div>
+                    <button class="btn btn-gradient" (click)="listS3BucketContents(bucket.name)" [disabled]="loadingS3">
+                      View Contents
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <!-- No S3 Buckets Message -->
-            <ng-template #noBuckets>
+            <ng-template #loadingOrNoBuckets>
               <div class="card shadow-sm p-4 mb-4 bg-white rounded">
-                <div class="alert alert-info text-center" *ngIf="userSessionDetails">
-                  No buckets found in the AWS S3 account for "{{userSessionDetails?.username}}".
+                <div class="text-center mt-4" *ngIf="loadingS3">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+                <div class="alert alert-info text-center" *ngIf="!loadingS3 && userSessionDetails">
+                  No buckets found in AWS S3 for "{{userSessionDetails?.username}}".
                 </div>
               </div>
             </ng-template>
 
-            <!-- S3 Bucket Contents Section -->
-            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="s3Contents.length > 0">
-              <h3 class="mb-3">Contents of "{{selectedBucket}}"</h3>
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Type</th>
-                    <th scope="col">Size</th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let item of s3Contents">
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.type }}</td>
-                    <td>{{ item.size !== undefined ? formatSize(item.size) : 'N/A' }}</td>
-                    <td>
-                      <div class="btn-group">
-                        <a *ngIf="item.downloadUrl" [href]="item.downloadUrl" target="_blank" class="btn btn-sm btn-outline-success" download>
-                          <i class="bi bi-download me-1"></i> Download
-                        </a>
-                        <button *ngIf="item.downloadUrl" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
-                          <i class="bi bi-eye me-1"></i> View
-                        </button>
-                        <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.prefix)">
-                          View Folder
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- S3 Loading Spinner -->
-            <div class="text-center mt-4" *ngIf="loadingS3">
-              <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
-            </div>
-
-            <!-- S3 Error Message -->
             <div class="mt-4" *ngIf="s3ErrorMessage && !loadingS3">
               <div class="alert alert-danger text-center">
                 {{s3ErrorMessage}}
               </div>
             </div>
+
+            <div class="modal fade" id="s3BucketModal" tabindex="-1" aria-labelledby="s3BucketModalLabel" aria-hidden="true">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content bg-dark text-white">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="s3BucketModalLabel">Contents of {{ selectedBucket }}</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body p-4" style="max-height: 60vh; overflow-y: auto;">
+                    <div *ngIf="s3Contents.length > 0; else noContents">
+                      <div class="content-item d-flex align-items-center p-2 rounded mb-2" *ngFor="let item of s3Contents">
+                        <i class="me-3" [ngClass]="{
+                          'fa-solid fa-folder text-warning': item.type === 'folder',
+                          'fa-solid fa-file text-primary': item.type === 'file'
+                        }"></i>
+                        <div class="flex-grow-1">
+                          <p class="mb-0">{{ item.name }}</p>
+                          <small class="text-muted">{{ formatSize(item.size) }}</small>
+                        </div>
+                        <div class="btn-group">
+                          <a *ngIf="item.downloadUrl" [href]="item.downloadUrl" target="_blank" class="btn btn-sm btn-outline-success" download>
+                            <i class="fa-solid fa-download me-1"></i> Download
+                          </a>
+                          <button *ngIf="item.downloadUrl" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
+                            <i class="fa-solid fa-eye me-1"></i> View
+                          </button>
+                          <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.name)">
+                            <i class="fa-solid fa-folder-open me-1"></i> View Folder
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <ng-template #noContents>
+                      <div class="alert alert-info text-center m-0">
+                        No contents found in this bucket.
+                      </div>
+                    </ng-template>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Unsupported Cloud Provider Message -->
           <div *ngIf="cloudProvider && cloudProvider !== 'aws' && cloudProvider !== 'onedrive'" class="mt-4">
             <div class="alert alert-warning text-center">
               Unsupported cloud provider "{{cloudProvider}}" for user "{{userSessionDetails?.username}}".

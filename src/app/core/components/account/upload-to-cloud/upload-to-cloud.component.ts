@@ -1,8 +1,19 @@
 import { Component, OnInit, ViewChild, ElementRef, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
-import { Client } from '@stomp/stompjs';
-import * as SockJS from 'sockjs-client';
+
+interface ScheduledBackup {
+  localPath: string;
+  bucketName: string;
+  folderPath: string;
+  fileNames: string[];
+  backupTime: string;
+  retentionDays: number;
+  backupFrequency: string;
+  dayOfWeek?: string;
+  dayOfMonth?: number;
+  intervalId?: any; // NodeJS.Timeout for interval
+}
 
 @Component({
   selector: 'app-upload-to-cloud',
@@ -21,38 +32,28 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   result: string = '';
   loading: boolean = false;
   uploadProgress: { [key: string]: number } = {};
-  uploadDetails: { name: string; uploadTime: string; size: number; status: string }[] = [];
+  uploadDetails: {
+uploadTime: any; name: string; size: number; status: string 
+}[] = [];
   logs: string[] = [];
-  sessionId: string = Math.random().toString(36).substring(2);
   fileDownloadUrls: { [key: string]: string } = {};
   backupTime: string = '';
   retentionDays: number = 7;
   localPath: string = '';
   selectedItems: { name: string; type: 'file' | 'folder'; path: string; files?: { name: string; path: string; selected: boolean }[]; selected: boolean }[] = [];
-  webSocketConnected: boolean = false;
   backupFrequency: string = 'Daily';
   dayOfWeek: string = 'Monday';
   dayOfMonth: number = 1;
   retentionEnabled: boolean = true;
   currentStep: number = 1;
+  scheduledBackups: ScheduledBackup[] = [];
 
   @ViewChild('logContainer') logContainer!: ElementRef;
-
-  private stompClient: Client;
-  private abortController: AbortController | null = null;
 
   constructor(
     private authService: AuthService,
     private cdr: ChangeDetectorRef
-  ) {
-    this.stompClient = new Client({
-      webSocketFactory: () => new SockJS('https://datakavach.com/ws'),
-      reconnectDelay: 5000,
-      heartbeatIncoming: 4000,
-      heartbeatOutgoing: 4000,
-      debug: (str) => this.addLog(`STOMP Debug: ${str}`),
-    });
-  }
+  ) {}
 
   ngOnInit() {
     try {
@@ -60,7 +61,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
       if (this.userSessionDetails?.username) {
         this.addLog(`Initializing component with user: ${this.userSessionDetails.username}`);
         this.loadBuckets();
-        this.setupWebSocket();
+        this.loadScheduledBackups();
       } else {
         this.result = 'User not logged in or email not available.';
         this.addLog('Error: User session details not available', true);
@@ -74,81 +75,10 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    try {
-      if (this.stompClient?.connected) {
-        this.stompClient.deactivate();
-        this.addLog('STOMP client deactivated');
-        this.webSocketConnected = false;
-      }
-      if (this.abortController) {
-        this.abortController.abort();
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.addLog(`Error during cleanup: ${errorMessage}`, true);
-      console.error('ngOnDestroy error:', error);
-    }
-  }
-
-  setupWebSocket() {
-    this.stompClient.onConnect = () => {
-      this.webSocketConnected = true;
-      this.addLog('WebSocket connected successfully');
-      this.stompClient.subscribe(`/topic/progress/${this.sessionId}`, (message) => {
-        try {
-          const data = JSON.parse(message.body);
-          const { fileName, progress } = data;
-          this.uploadProgress[fileName] = progress;
-          if (progress === -1) {
-            this.addLog(`Upload failed for ${fileName}`, true);
-            this.result = this.result ? `${this.result}\nError: ${fileName} failed` : `Error: ${fileName} failed`;
-          } else if (progress === 100) {
-            this.addLog(`Upload completed for ${fileName}`);
-          } else {
-            this.addLog(`Upload progress for ${fileName}: ${progress}%`);
-          }
-          this.cdr.detectChanges();
-        } catch (error: unknown) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          this.addLog(`Error parsing WebSocket message: ${errorMessage}`, true);
-          console.error('WebSocket message error:', error);
-        }
-      });
-    };
-
-    this.stompClient.onStompError = (frame) => {
-      this.webSocketConnected = false;
-      this.addLog(`STOMP error: ${frame.headers['message']}`, true);
-      this.reconnectWebSocket();
-    };
-
-    this.stompClient.onWebSocketError = (error) => {
-      this.webSocketConnected = false;
-      this.addLog(`WebSocket error: ${error.message || error}`, true);
-      this.reconnectWebSocket();
-    };
-
-    this.stompClient.onDisconnect = () => {
-      this.webSocketConnected = false;
-      this.addLog('WebSocket disconnected', true);
-      this.reconnectWebSocket();
-    };
-
-    try {
-      this.stompClient.activate();
-      this.addLog('Attempting to connect to WebSocket...');
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.addLog(`WebSocket activation error: ${errorMessage}`, true);
-      console.error('WebSocket activation error:', error);
-    }
-  }
-
-  reconnectWebSocket() {
-    if (!this.webSocketConnected) {
-      this.addLog('Reconnecting to WebSocket...');
-      setTimeout(() => this.setupWebSocket(), 2000);
-    }
+    this.scheduledBackups.forEach(backup => {
+      if (backup.intervalId) clearInterval(backup.intervalId);
+    });
+    this.addLog('Component destroyed, cleared all scheduled backups');
   }
 
   addLog(message: string, isError: boolean = false) {
@@ -281,8 +211,8 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
         if (!response.ok) throw new Error('Failed to fetch file URLs');
         return response.json();
       })
-      .then((data: { name: string; downloadUrl: string }[]) => {
-        this.fileDownloadUrls = data.reduce((acc, file) => ({ ...acc, [file.name]: file.downloadUrl }), {});
+      .then((data: { fileName: string; downloadUrl: string }[]) => {
+        this.fileDownloadUrls = data.reduce((acc, file) => ({ ...acc, [file.fileName]: file.downloadUrl }), {});
         this.addLog(`Loaded download URLs for ${data.length} files`);
       })
       .catch((error: unknown) => {
@@ -402,12 +332,6 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   }
 
   async handleFileUpload() {
-    if (!this.webSocketConnected) {
-      alert('WebSocket is not connected. Please wait for reconnection or refresh the page.');
-      this.addLog('WebSocket not connected', true);
-      return;
-    }
-
     if (this.filesToUpload.length === 0) {
       alert('Please select at least one file or folder to upload.');
       this.addLog('No files selected for upload', true);
@@ -463,60 +387,50 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     this.uploadDetails = [];
     this.addLog(`Upload started for ${this.filesToUpload.length} files to ${this.selectedBucket}/${this.currentPath || ''}`);
 
-    this.filesToUpload.forEach(file => {
-      const relativePath = (file as any).webkitRelativePath || file.name;
-      this.uploadProgress[relativePath] = 0; // Reset progress to 0
-    });
+    const fileNames = this.filesToUpload.map(file => (file as any).webkitRelativePath || file.name);
+    const fileSizes = this.filesToUpload.map(file => file.size.toString());
+    const url = `https://datakavach.com/api/s3/generate-presigned-urls?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}&fileNames=${encodeURIComponent(fileNames.join(','))}&fileSizes=${encodeURIComponent(fileSizes.join(','))}${this.currentPath ? '&folderPath=' + encodeURIComponent(this.currentPath) : ''}`;
 
-    const formData = new FormData();
-    this.filesToUpload.forEach((file) => {
-      const relativePath = (file as any).webkitRelativePath || file.name;
-      formData.append('files', file, relativePath);
-    });
-    formData.append('email', this.userSessionDetails.username);
-    formData.append('bucketName', this.selectedBucket);
-    formData.append('timestamp', new Date().toISOString());
-    formData.append('sessionId', this.sessionId);
-    formData.append('localFilePath', this.retentionEnabled && this.localPath ? this.localPath : '');
-    formData.append('retentionEnabled', this.retentionEnabled.toString());
-    if (this.retentionEnabled) {
-      formData.append('backupTime', this.backupTime);
-      formData.append('reuploadAfterDays', this.retentionDays.toString());
-      formData.append('backupFrequency', this.backupFrequency);
-      if (this.backupFrequency === 'Weekly') formData.append('dayOfWeek', this.dayOfWeek);
-      if (this.backupFrequency === 'Monthly') formData.append('dayOfMonth', this.dayOfMonth.toString());
-    }
-    if (this.currentPath) formData.append('folderPath', this.currentPath);
-
-    this.abortController = new AbortController();
     try {
-      const response = await fetch('https://datakavach.com/api/s3/upload', {
-        method: 'POST',
-        body: formData,
-        signal: this.abortController.signal,
-      });
-
+      this.addLog(`Requesting presigned URLs: ${url}`);
+      const response = await fetch(url, { method: 'POST' });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+        throw new Error(`Failed to generate presigned URLs: ${response.status} - ${errorText}`);
       }
+      const presignedData: { fileName: string; s3Key: string; url?: string; uploadId?: string; parts?: { partNumber: number; url: string; startByte: number; endByte: number }[] }[] = await response.json();
 
-      const data = await response.json();
-      if (data.success) {
-        this.uploadDetails = data.processedFiles.map((file: any) => ({
-          name: file.fileName,
-          size: file.size,
-          uploadTime: file.uploadTime,
-          status: file.status,
-        }));
-        const uploadedCount = this.uploadDetails.filter((d) => d.status === 'uploaded').length;
-        const failedCount = this.uploadDetails.filter((d) => d.status === 'failed').length;
-        this.result = `Processed ${this.uploadDetails.length} files:\n- Uploaded: ${uploadedCount}\n- Failed: ${failedCount}`;
-        this.addLog(`Upload complete: ${uploadedCount} uploaded, ${failedCount} failed`);
-        this.loadFolders();
-      } else {
-        this.result = `Upload failed: ${data.message}`;
-        this.addLog(`Upload failed: ${data.message}`, true);
+      await Promise.all(this.filesToUpload.map(async (file) => {
+        const relativePath = (file as any).webkitRelativePath || file.name;
+        const fileData = presignedData.find(d => d.fileName === relativePath);
+        if (!fileData) throw new Error(`No presigned data for ${relativePath}`);
+
+        this.uploadProgress[relativePath] = 0;
+        this.uploadDetails.push({
+          name: relativePath, size: file.size, status: 'uploading',
+          uploadTime: undefined
+        });
+
+        if (fileData.url) {
+          // Single-part upload
+          await this.uploadSinglePart(file, fileData.url, relativePath);
+        } else if (fileData.uploadId && fileData.parts) {
+          // Multipart upload
+          const uploadedParts = await this.uploadMultipart(file, fileData.parts, relativePath);
+          await this.completeMultipartUpload(fileData.s3Key, fileData.uploadId, uploadedParts, relativePath);
+        } else {
+          throw new Error(`Invalid presigned data for ${relativePath}`);
+        }
+      }));
+
+      const uploadedCount = this.uploadDetails.filter(d => d.status === 'uploaded').length;
+      const failedCount = this.uploadDetails.filter(d => d.status === 'failed').length;
+      this.result = `Processed ${this.uploadDetails.length} files:\n- Uploaded: ${uploadedCount}\n- Failed: ${failedCount}`;
+      this.addLog(`Upload complete: ${uploadedCount} uploaded, ${failedCount} failed`);
+      this.loadFolders();
+
+      if (this.retentionEnabled) {
+        this.scheduleBackup(fileNames);
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -525,106 +439,185 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
       console.error('Upload error:', error);
     } finally {
       this.loading = false;
-      this.abortController = null;
       this.cdr.detectChanges();
     }
   }
 
-  async retryUpload(detail: { name: string; uploadTime: string; size: number; status: string }) {
+  async uploadSinglePart(file: File, url: string, relativePath: string) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', url, true);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        this.uploadProgress[relativePath] = progress;
+        this.cdr.detectChanges();
+      }
+    };
+    return new Promise<void>((resolve, reject) => {
+      xhr.onload = () => {
+        const index = this.uploadDetails.findIndex(d => d.name === relativePath);
+        if (xhr.status === 200) {
+          this.uploadDetails[index].status = 'uploaded';
+          this.addLog(`Upload completed for ${relativePath}`);
+          resolve();
+        } else {
+          this.uploadDetails[index].status = 'failed';
+          this.addLog(`Upload failed for ${relativePath}: ${xhr.statusText}`, true);
+          reject(new Error(`Upload failed: ${xhr.statusText}`));
+        }
+        this.cdr.detectChanges();
+      };
+      xhr.onerror = () => {
+        const index = this.uploadDetails.findIndex(d => d.name === relativePath);
+        this.uploadDetails[index].status = 'failed';
+        this.addLog(`Upload error for ${relativePath}`, true);
+        reject(new Error('Upload error'));
+        this.cdr.detectChanges();
+      };
+      xhr.send(file);
+    });
+  }
+
+  async uploadMultipart(file: File, parts: { partNumber: number; url: string; startByte: number; endByte: number }[], relativePath: string): Promise<{ PartNumber: number; ETag: string }[]> {
+    const uploadedParts: { PartNumber: number; ETag: string }[] = [];
+    let totalUploaded = 0;
+    const totalSize = file.size;
+
+    for (const part of parts) {
+      const blob = file.slice(part.startByte, part.endByte + 1);
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', part.url, true);
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          totalUploaded = totalUploaded - (this.uploadProgress[relativePath] * totalSize / 100) + (event.loaded / totalSize * 100);
+          this.uploadProgress[relativePath] = Math.round(totalUploaded / parts.length);
+          this.cdr.detectChanges();
+        }
+      };
+      const response = await new Promise<{ PartNumber: number; ETag: string }>((resolve, reject) => {
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            const eTag = xhr.getResponseHeader('ETag')?.replace(/"/g, '');
+            if (eTag) {
+              resolve({ PartNumber: part.partNumber, ETag: eTag });
+            } else {
+              reject(new Error(`No ETag for part ${part.partNumber}`));
+            }
+          } else {
+            reject(new Error(`Upload failed for part ${part.partNumber}: ${xhr.statusText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error(`Upload error for part ${part.partNumber}`));
+        xhr.send(blob);
+      });
+      uploadedParts.push(response);
+    }
+    return uploadedParts;
+  }
+
+  async completeMultipartUpload(s3Key: string, uploadId: string, parts: { PartNumber: number; ETag: string }[], relativePath: string) {
+    const url = `https://datakavach.com/api/s3/complete-multipart-upload?email=${encodeURIComponent(this.userSessionDetails!.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}&key=${encodeURIComponent(s3Key)}&uploadId=${encodeURIComponent(uploadId)}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parts })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      this.uploadDetails.find(d => d.name === relativePath)!.status = 'failed';
+      this.addLog(`Failed to complete multipart upload for ${relativePath}: ${errorText}`, true);
+      throw new Error(`Failed to complete multipart upload: ${errorText}`);
+    }
+    this.uploadDetails.find(d => d.name === relativePath)!.status = 'uploaded';
+    this.addLog(`Multipart upload completed for ${relativePath}`);
+  }
+
+  scheduleBackup(fileNames: string[]) {
+    const backup: ScheduledBackup = {
+      localPath: this.localPath,
+      bucketName: this.selectedBucket,
+      folderPath: this.currentPath || '',
+      fileNames,
+      backupTime: this.backupTime,
+      retentionDays: this.retentionDays,
+      backupFrequency: this.backupFrequency,
+      dayOfWeek: this.backupFrequency === 'Weekly' ? this.dayOfWeek : undefined,
+      dayOfMonth: this.backupFrequency === 'Monthly' ? this.dayOfMonth : undefined,
+    };
+
+    this.scheduledBackups.push(backup);
+    this.saveScheduledBackups();
+    this.startBackupScheduler(backup);
+    this.addLog(`Scheduled backup for ${fileNames.length} files: ${backup.backupFrequency} at ${backup.backupTime}`);
+  }
+
+  loadScheduledBackups() {
+    const stored = localStorage.getItem('scheduledBackups');
+    if (stored) {
+      this.scheduledBackups = JSON.parse(stored);
+      this.scheduledBackups.forEach(backup => this.startBackupScheduler(backup));
+      this.addLog(`Loaded ${this.scheduledBackups.length} scheduled backups`);
+    }
+  }
+
+  saveScheduledBackups() {
+    localStorage.setItem('scheduledBackups', JSON.stringify(this.scheduledBackups.map(b => ({
+      ...b,
+      intervalId: undefined // Don't save interval IDs
+    }))));
+  }
+
+  startBackupScheduler(backup: ScheduledBackup) {
+    if (backup.intervalId) clearInterval(backup.intervalId);
+
+    const checkBackup = () => {
+      const now = new Date();
+      const [hours, minutes] = backup.backupTime.split(':').map(Number);
+      const backupDate = new Date(now);
+      backupDate.setHours(hours, minutes, 0, 0);
+
+      let shouldRun = now.getHours() === hours && now.getMinutes() === minutes;
+      if (shouldRun) {
+        switch (backup.backupFrequency) {
+          case 'Daily':
+            break;
+          case 'Weekly':
+            shouldRun = now.toLocaleString('en-US', { weekday: 'long' }) === backup.dayOfWeek;
+            break;
+          case 'Monthly':
+            shouldRun = now.getDate() === Math.min(backup.dayOfMonth!, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
+            break;
+        }
+      }
+
+      if (shouldRun) {
+        this.executeBackup(backup);
+      }
+    };
+
+    backup.intervalId = setInterval(checkBackup, 60 * 1000); // Check every minute
+  }
+
+  async executeBackup(backup: ScheduledBackup) {
+    this.addLog(`Executing scheduled backup for ${backup.fileNames.length} files to ${backup.bucketName}/${backup.folderPath}`);
+    await this.handleFileUpload(); // Reuse upload logic
+  }
+
+  async retryUpload(detail: { name: string; size: number; status: string }) {
     if (detail.status !== 'failed') {
       alert('Retry is only available for failed uploads.');
       this.addLog(`Cannot retry ${detail.name}: Status is ${detail.status}`, true);
       return;
     }
 
-    const filePath = detail.name;
-    const file = this.originalFiles.find((f) => (f as any).webkitRelativePath === filePath || f.name === filePath);
+    const file = this.originalFiles.find(f => ((f as any).webkitRelativePath || f.name) === detail.name);
     if (!file) {
-      alert(`Please reselect ${filePath} to retry the upload.`);
-      this.addLog(`Cannot retry ${filePath}: File not available`, true);
+      alert(`Please reselect ${detail.name} to retry the upload.`);
+      this.addLog(`Cannot retry ${detail.name}: File not available`, true);
       return;
     }
 
-    if (this.retentionEnabled) {
-      if (!this.validateBackupTime(this.backupTime)) {
-        alert('Please enter a valid backup time in HH:mm format (e.g., 14:30).');
-        this.addLog(`Invalid backup time for retry: ${this.backupTime}`, true);
-        return;
-      }
-
-      if (!this.retentionDays || this.retentionDays < 1) {
-        alert('Please enter a valid retention period (minimum 1 day).');
-        this.addLog(`Invalid retention days for retry: ${this.retentionDays}`, true);
-        return;
-      }
-
-      if (!this.localPath || !this.validateLocalPath(this.localPath)) {
-        alert('Please enter a valid local file or folder path (e.g., /path/to/file or C:\\path\\to\\file).');
-        this.addLog(`Invalid local path for retry: ${this.localPath}`, true);
-        return;
-      }
-    }
-
-    const relativePath = (file as any).webkitRelativePath || file.name;
-    this.uploadProgress[relativePath] = 0;
-    const formData = new FormData();
-    formData.append('files', file, relativePath);
-    formData.append('email', this.userSessionDetails!.username);
-    formData.append('bucketName', this.selectedBucket);
-    formData.append('timestamp', new Date().toISOString());
-    formData.append('sessionId', this.sessionId);
-    formData.append('localFilePath', this.retentionEnabled && this.localPath ? this.localPath : '');
-    formData.append('retentionEnabled', this.retentionEnabled.toString());
-    if (this.retentionEnabled) {
-      formData.append('backupTime', this.backupTime);
-      formData.append('reuploadAfterDays', this.retentionDays.toString());
-      formData.append('backupFrequency', this.backupFrequency);
-      if (this.backupFrequency === 'Weekly') formData.append('dayOfWeek', this.dayOfWeek);
-      if (this.backupFrequency === 'Monthly') formData.append('dayOfMonth', this.dayOfMonth.toString());
-    }
-    if (this.currentPath) formData.append('folderPath', this.currentPath);
-
-    this.addLog(`Retrying upload for ${relativePath}`);
-    this.abortController = new AbortController();
-    try {
-      const response = await fetch('https://datakavach.com/api/s3/upload', {
-        method: 'POST',
-        body: formData,
-        signal: this.abortController.signal,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Retry failed: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      if (data.success) {
-        const fileDetail = data.processedFiles[0];
-        const index = this.uploadDetails.findIndex((d) => d.name === detail.name);
-        if (index !== -1) {
-          this.uploadDetails[index] = {
-            name: fileDetail.fileName,
-            size: fileDetail.size,
-            uploadTime: fileDetail.uploadTime,
-            status: fileDetail.status,
-          };
-          this.addLog(`Retry successful for ${fileDetail.fileName}`);
-        }
-        this.result = `Retry successful for ${fileDetail.fileName}`;
-        this.loadFolders();
-      } else {
-        this.result = `Retry failed: ${data.message}`;
-        this.addLog(`Retry failed: ${data.message}`, true);
-      }
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.result = `Retry failed: ${errorMessage}`;
-      this.addLog(`Retry error: ${errorMessage}`, true);
-      console.error('Retry error:', error);
-    } finally {
-      this.abortController = null;
-      this.cdr.detectChanges();
-    }
+    this.filesToUpload = [file];
+    await this.handleFileUpload();
   }
 }

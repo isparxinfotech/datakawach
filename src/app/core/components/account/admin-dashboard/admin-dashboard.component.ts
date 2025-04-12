@@ -1,9 +1,9 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { AuthService } from 'src/app/services/auth.service'; // Adjust path as needed
-import { OneDriveService } from 'src/app/services/OneDriveService'; // Adjust path as needed
-import { S3Service } from 'src/app/services/S3Service';
-import { userSessionDetails } from 'src/app/models/user-session-responce.model'; // Adjust path as needed
+import { S3Service } from 'src/app/services/S3Service'; // Adjust path if needed
+import { AuthService } from 'src/app/services/auth.service'; // Adjust path if needed
+import { userSessionDetails } from 'src/app/models/user-session-responce.model'; // Adjust path if needed
+import * as bootstrap from 'bootstrap';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -11,55 +11,80 @@ import { userSessionDetails } from 'src/app/models/user-session-responce.model';
   styleUrls: ['./admin-dashboard.component.css']
 })
 export class AdminDashboardComponent implements OnInit, OnDestroy {
-  userSessionDetails: userSessionDetails | null | undefined;
-  folders: any[] = [];
+  adminSessionDetails: userSessionDetails | null | undefined;
   buckets: any[] = [];
-  folderSubscription?: Subscription;
+  contents: any[] = [];
+  selectedBucket: any = null;
+  loading: boolean = false;
+  errorMessage: string = '';
   bucketSubscription?: Subscription;
+  contentSubscription?: Subscription;
 
-  constructor(
-    private authService: AuthService,
-    private oneDriveService: OneDriveService,
-    private s3Service: S3Service // Inject the new S3 service
-  ) {}
+  constructor(private s3Service: S3Service, private authService: AuthService) {}
 
   ngOnInit(): void {
-    this.userSessionDetails = this.authService.getLoggedInUserDetails();
-    if (this.userSessionDetails && this.userSessionDetails.username) {
-      this.loadFolders();
-      this.loadBuckets();
-    }
-  }
-
-  loadFolders(): void {
-    this.folderSubscription = this.oneDriveService.getRootFolders(this.userSessionDetails!.username)
-      .subscribe(
-        (folders: any[]) => {
-          this.folders = folders;
-          console.log('OneDrive folders loaded:', this.folders);
-        },
-        (error: any) => {
-          console.error('Error loading OneDrive folders:', error);
-          this.folders = []; // Ensure folders is set even on error
-        }
-      );
+    this.adminSessionDetails = this.authService.getLoggedInUserDetails(); // Adjust method name if different
+    this.loadBuckets();
   }
 
   loadBuckets(): void {
-    this.bucketSubscription = this.s3Service.getS3Buckets()
-      .subscribe(
-        (buckets: any[]) => {
-          this.buckets = buckets;
-          console.log('S3 buckets loaded:', this.buckets);
-        },
-        (error: any) => {
-          console.error('Error loading S3 buckets:', error);
-          this.buckets = []; // Ensure buckets is set even on error
-        }
-      );
+    this.loading = true;
+    this.errorMessage = '';
+    this.buckets = [];
+
+    this.bucketSubscription = this.s3Service.getS3Buckets().subscribe({
+      next: (buckets) => {
+        this.buckets = buckets;
+        this.loading = false;
+        console.log('Admin buckets loaded:', this.buckets);
+      },
+      error: (err) => {
+        this.loading = false;
+        this.errorMessage = err.message || 'Failed to load S3 buckets.';
+        console.error('Error loading buckets:', err);
+        this.buckets = [];
+      }
+    });
   }
 
-  // Convert size from bytes to a human-readable format
+  listBucketContents(bucket: any): void {
+    this.selectedBucket = bucket;
+    this.loadContents(bucket.name, '');
+  }
+
+  listFolderContents(item: any): void {
+    this.loadContents(this.selectedBucket.name, item.name);
+  }
+
+  private loadContents(bucketName: string, prefix: string): void {
+    this.loading = true;
+    this.errorMessage = '';
+    this.contents = [];
+
+    this.contentSubscription = this.s3Service.getBucketContents(bucketName).subscribe({
+      next: (contents) => {
+        this.contents = contents;
+        this.loading = false;
+        console.log('Bucket contents loaded:', this.contents);
+        const modalElement = document.getElementById('bucketContentsModal');
+        if (modalElement) {
+          const modal = new bootstrap.Modal(modalElement);
+          modal.show();
+        }
+      },
+      error: (err) => {
+        this.loading = false;
+        this.errorMessage = err.message || 'Failed to list bucket contents.';
+        console.error('Error listing contents:', err);
+        this.contents = [];
+      }
+    });
+  }
+
+  viewFile(downloadUrl: string): void {
+    window.open(downloadUrl, '_blank');
+  }
+
   formatSize(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -68,12 +93,14 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
+  calculateUsage(size: number): string {
+    const totalBytes = 1024 * 1024 * 1024 * 1024; // 1TB
+    const percentage = (size / totalBytes) * 100;
+    return `${this.formatSize(size)} (${percentage.toFixed(2)}%)`;
+  }
+
   ngOnDestroy(): void {
-    if (this.folderSubscription) {
-      this.folderSubscription.unsubscribe();
-    }
-    if (this.bucketSubscription) {
-      this.bucketSubscription.unsubscribe();
-    }
+    this.bucketSubscription?.unsubscribe();
+    this.contentSubscription?.unsubscribe();
   }
 }

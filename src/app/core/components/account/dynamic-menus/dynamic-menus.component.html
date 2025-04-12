@@ -1,24 +1,30 @@
-<div id="bdSidebar" class="d-flex flex-column flex-shrink-0 p-3 bg-success text-white offcanvas-md offcanvas-start menu-container">
-  <a href="dashboard" class="navbar-brand">
-    <img src="/assets/images/KAVACH.png" alt="Proffers Logo" class="logo">
-  </a>
-  <hr>
-  <ul class="mynav nav nav-pills flex-column mb-auto">
-    <li class="nav-item mb-2" *ngFor="let item of resourceNames">
-      <a href='/{{ item.pageName }}'>
-        <i class="fa-regular"></i>
-        {{ item.displayName }}
-      </a>
-    </li>
-  </ul>
-  <hr>
-  <div class="d-flex">
-    <i class="fa-solid fa-book me-2"></i>
-    <span>
-      <h6 class="mt-1 mb-0">
-        DATA KAVACH
-      </h6>
-    </span>
+<button class="btn btn-primary d-md-none position-fixed top-0 start-0 m-2" type="button" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar" aria-controls="bdSidebar">
+  <i class="fas fa-bars"></i>
+</button>
 
+<div id="bdSidebar" class="offcanvas-md offcanvas-start bg-light text-dark menu-container">
+  <div class="offcanvas-header d-md-none">
+    <h5 class="offcanvas-title">Menu</h5>
+    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+
+  <div class="offcanvas-body d-flex flex-column p-3">
+    <a href="dashboard" class="navbar-brand text-center mb-4">
+      <img src="/assets/images/KAVACH.png" alt="KAVACH Logo" class="logo">
+    </a>
+
+    <ul class="mynav nav nav-pills flex-column mb-auto">
+      <li class="nav-item mb-2" *ngFor="let item of resourceNames">
+        <a href='/{{ item.pageName }}'>
+          <i class="me-2" [ngClass]="item.iconClass"></i>
+          {{ item.displayName }}
+        </a>
+      </li>
+    </ul>
+
+    <div class="mt-auto d-flex align-items-center pt-3 border-top">
+      <i class="fa-solid fa-book me-2"></i>
+      <h6 class="mb-0">DATA KAVACH</h6>
+    </div>
   </div>
 </div>

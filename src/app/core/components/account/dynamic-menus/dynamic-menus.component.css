@@ -1,66 +1,45 @@
-/* Sidebar Styling */
-#bdSidebar {
-    background: linear-gradient(to bottom, #e0e0e0, #b0b0b0); /* Soft Grey Gradient */
-    color: #333;
-    width: 270px;
-    min-height: 100vh;
-    padding: 20px;
-    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.2);
-    border-radius: 0 20px 20px 0;
-    transition: all 0.3s ease-in-out;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+.menu-container {
+  width: 270px;
+  min-height: 100vh;
+  background: linear-gradient(to bottom, #ffffff, #f1f1f1);
+  color: #333;
+  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
+  border-radius: 0 20px 20px 0;
+  transition: all 0.3s ease-in-out;
+}
+
+.logo {
+  width: 60%;
+  filter: drop-shadow(2px 2px 5px rgba(0, 0, 0, 0.2));
+}
+
+.mynav .nav-item a {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  font-size: 16px;
+  color: #333;
+  text-decoration: none;
+  transition: 0.3s;
+  border-radius: 8px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.mynav .nav-item a:hover {
+  background: linear-gradient(to right, #007bff, #00bcd4);
+  color: #fff;
+  transform: scale(1.03);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.offcanvas-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .menu-container {
+    border-radius: 0;
+    min-height: auto;
   }
-  
-  /* Logo Styling */
-  #bdSidebar .logo {
-    width: 40%;
-    display: block;
-    margin: 0 auto 20px;
-    filter: drop-shadow(2px 2px 5px rgba(0, 0, 0, 0.2));
-  }
-  
-  /* Navigation Links */
-  .mynav .nav-item a {
-    display: flex;
-    align-items: center;
-    padding: 12px 15px;
-    font-size: 16px;
-    color: #333;
-    text-decoration: none;
-    transition: all 0.3s ease-in-out;
-    border-radius: 8px;
-    font-weight: 600;
-    background: rgba(255, 255, 255, 0.2);
-    margin-bottom: 8px;
-  }
-  
-  .mynav .nav-item a:hover {
-    background: linear-gradient(to right, #0052a1, #eb1318);
-    color: #fff;
-    transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  }
-  
-  /* Sidebar Footer */
-  #bdSidebar .d-flex {
-    display: flex;
-    align-items: center;
-    padding: 12px;
-    font-size: 14px;
-    border-top: 1px solid rgba(0, 0, 0, 0.2);
-  }
-  
-  #bdSidebar .d-flex i {
-    font-size: 18px;
-    color: #4a4a4a;
-    margin-right: 10px;
-  }
-  
-  #bdSidebar h6 {
-    font-size: 15px;
-    font-weight: bold;
-    color: #222;
-  }
-  
+}

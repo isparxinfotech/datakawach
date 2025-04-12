@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { resourcePermission } from 'src/app/models/api-resp.model';
 import { AuthService } from 'src/app/services/auth.service';
 
@@ -7,10 +7,11 @@ import { AuthService } from 'src/app/services/auth.service';
   templateUrl: './dynamic-menus.component.html',
   styleUrls: ['./dynamic-menus.component.css']
 })
-export class DynamicMenusComponent {
+export class DynamicMenusComponent implements OnInit {
   resourceNames: resourcePermission[] = [];
-    constructor(private authService: AuthService) {
-  }
+
+  constructor(private authService: AuthService) {}
+
   ngOnInit(): void {
     this.resourceNames = this.authService.getResourcesAccess();
     console.log(this.resourceNames);

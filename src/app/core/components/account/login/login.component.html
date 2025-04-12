@@ -1,85 +1,50 @@
-<section class="d-flex align-items-center justify-content-center" style="min-height: 100vh;">
-  <div class="container">
-    <div class="row">
-      <!-- Left Section with Gradient Background -->
-      <div class="col-md-6 d-flex align-items-center justify-content-center gradient-left position-relative p-4"
-           style="border-radius: 1rem 0 0 1rem;">
-        <div class="text-center content">
-          <h4 class="fw-bold text-light mb-4" style="font-family: Narnia;">
-            Backup Smart Recovery Fast
-          </h4>
-          <div id="illustrationCarousel" class="carousel slide" data-bs-ride="carousel">
-            <div class="carousel-inner">
-              <div class="carousel-item active">
-                <img src="/assets/images/1.png" class="d-block w-400" alt="Illustration 1" style="max-width: auto;">
-              </div>
-              <div class="carousel-item">
-                <img src="/assets/images/2.png" class="d-block w-400" alt="Illustration 2" style="max-width: auto;">
-              </div>
-              <div class="carousel-item">
-                <img src="/assets/images/3.png" class="d-block w-400" alt="Illustration 3" style="max-width: auto;">
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Section with Login/OTP Form -->
-      <div class="col-md-6 d-flex align-items-center justify-content-center bg-white p-4"
-           style="border-radius: 0 1rem 1rem 0;">
-        <div class="w-100" style="max-width: 400px;">
-          <img src="/assets/images/KAVACH.png" alt="Data Kavach Logo" 
-               class="img-fluid mb-4 mx-auto d-block" style="max-width: 150px;">
+<section class="d-flex align-items-center" style="min-height: 100vh; background: #fff;">
+  <div class="container" style="background-color: #f1f5fd00 !important;">
+    <div class="row align-items-center">
+      <!-- Left Side - Login Form -->
+      <div class="col-md-6">
+        <div class="login-card text-center">
+          <img src="/assets/images/KAVACH.png" alt="Data Kavach Logo" class="img-fluid mb-4" style="max-width: 150px;">
+          <h2 class="fw-bold mb-4">Sign in with email</h2>
+          <p class="text-muted mb-4">Make a new doc to bring your words, data, and teams together. For free</p>
 
           <!-- Login Form (shown when OTP is not required) -->
           <div *ngIf="!showOtp">
-            <h2 class="fw-bold text-center text-uppercase mb-4">Login</h2>
             <form [formGroup]="frmValidate" (ngSubmit)="onLoginUser()" novalidate>
-              <p class="text-danger text-center" *ngIf="invalidMsg">
-                {{ invalidMsg }}
-              </p>
+              <p class="text-danger text-center" *ngIf="invalidMsg">{{ invalidMsg }}</p>
               <div class="mb-4">
-                <label class="form-label" for="username">E-mail/Mobile</label>
-                <input type="text" id="username" class="form-control" formControlName="username"
+                <input type="email" id="username" class="form-control form-control-lg" placeholder="Email" formControlName="username"
                        [ngClass]="{'is-invalid': submitted && frmValidate.get('username')?.errors}">
                 <div *ngIf="submitted && frmValidate.get('username')?.errors" class="invalid-feedback">
-                  <div *ngIf="frmValidate.get('username')?.errors?.['required']">
-                    Please enter Email/Mobile
-                  </div>
+                  <div *ngIf="frmValidate.get('username')?.errors?.['required']">Please enter Email</div>
                 </div>
               </div>
               <div class="mb-4">
-                <label class="form-label" for="password">Password</label>
-                <input type="password" id="password" class="form-control" formControlName="password"
+                <input type="password" id="password" class="form-control form-control-lg" placeholder="Password" formControlName="password"
                        [ngClass]="{'is-invalid': submitted && frmValidate.get('password')?.errors}">
                 <div *ngIf="submitted && frmValidate.get('password')?.errors" class="invalid-feedback">
-                  <div *ngIf="frmValidate.get('password')?.errors?.['required']">
-                    Please enter Password
-                  </div>
+                  <div *ngIf="frmValidate.get('password')?.errors?.['required']">Please enter Password</div>
                 </div>
               </div>
               <div class="mb-3 text-end">
-                <a href="#!" class="text-decoration-none">Forgot password?</a>
+                <a href="#!" class="text-decoration-none text-muted">Forgot password?</a>
               </div>
-              <button class="btn btn-primary btn-lg w-100" type="submit">
-                Log in
-              </button>
+              <button type="submit" class="btn btn-dark btn-lg w-100 mb-3">Get Started</button>
             </form>
+            <div class="text-center mt-4">
+              <p class="text-muted">Don't have an account? <a href="/register" class="fw-bold text-decoration-none">Register</a></p>
+            </div>
           </div>
 
           <!-- OTP Form (shown when OTP is required) -->
           <div *ngIf="showOtp">
-            <h2 class="fw-bold text-center text-uppercase mb-4">Verify OTP</h2>
-            <p class="text-center mb-3">Enter the 6-digit code sent to your registered email</p>
-            <p class="text-danger text-center mb-3" *ngIf="invalidMsg">
-              {{ invalidMsg }}
-            </p>
-            
+            <h2 class="fw-bold mb-4">Verify OTP</h2>
+            <p class="text-center text-muted mb-3">Enter the 6-digit code sent to your registered email</p>
+            <p class="text-danger text-center mb-3" *ngIf="invalidMsg">{{ invalidMsg }}</p>
             <form [formGroup]="otpForm" (ngSubmit)="onValidateOtp()" novalidate>
               <div class="mb-4">
-                <input type="text" id="otp" class="form-control text-center" formControlName="otp"
-                       placeholder="Enter 6-digit OTP" maxlength="6"
-                       [ngClass]="{'is-invalid': otpSubmitted && otpForm.get('otp')?.errors}">
+                <input type="text" id="otp" class="form-control form-control-lg text-center" placeholder="Enter 6-digit OTP" maxlength="6"
+                       formControlName="otp" [ngClass]="{'is-invalid': otpSubmitted && otpForm.get('otp')?.errors}">
                 <div *ngIf="otpSubmitted && otpForm.get('otp')?.errors" class="invalid-feedback">
                   <div *ngIf="otpForm.get('otp')?.errors?.['required']">OTP is required</div>
                   <div *ngIf="otpForm.get('otp')?.errors?.['minlength'] || otpForm.get('otp')?.errors?.['maxlength']">
@@ -87,28 +52,57 @@
                   </div>
                 </div>
               </div>
-              
-              <button class="btn btn-primary btn-lg w-100 mb-3" type="submit">
-                Verify OTP
-              </button>
-              
+              <button class="btn btn-dark btn-lg w-100 mb-3" type="submit">Verify OTP</button>
               <div class="text-center">
-                <a href="javascript:void(0)" (click)="resendOtp()" class="text-decoration-none fw-bold">
-                  Resend OTP
-                </a>
-                <span class="mx-2">|</span>
-                <a href="javascript:void(0)" (click)="goBackToLogin()" class="text-decoration-none fw-bold">
-                  Back to Login
-                </a>
+                <a href="javascript:void(0)" (click)="resendOtp()" class="text-decoration-none fw-bold text-muted me-2">Resend OTP</a>
+                <span>|</span>
+                <a href="javascript:void(0)" (click)="goBackToLogin()" class="text-decoration-none fw-bold text-muted ms-2">Back to Login</a>
               </div>
             </form>
           </div>
 
-          <div class="text-center mt-4" *ngIf="!showOtp">
-            <p>
-              Don't have an account?
-              <a href="/register" class="fw-bold text-decoration-none">Register</a>
-            </p>
+          <!-- Theme Toggle Button -->
+          <div class="text-center mt-3">
+            <button class="btn btn-outline-secondary btn-sm" (click)="toggleTheme()">
+              Toggle {{ isDarkMode ? 'Light' : 'Dark' }} Mode
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side - Illustration and Text -->
+      <div class="col-md-6 text-center">
+        <div class="illustration-container">
+          <h2 class="fw-bold mb-3" style="color: #2c3e50;">Securely Upload And Store</h2>
+          <h2 class="fw-bold mb-4" style="color: #2980b9;">Your Important Documents</h2>
+          <h2 class="fw-bold mb-5" style="color: #2c3e50;">With Airspace!</h2>
+          <!-- SVG Illustration -->
+          <div class="cloud-illustration">
+            <svg width="300" height="400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400">
+              <defs>
+                <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:#6D9DC5;" />
+                  <stop offset="100%" style="stop-color:#A3BFFA;" />
+                </linearGradient>
+              </defs>
+              <path d="M50 150 Q40 100 70 80 Q120 50 170 80 Q200 100 190 150 Q180 200 150 220 Q120 200 100 180 Q80 160 50 150 Z" 
+                    fill="url(#cloudGradient)" stroke="none" />
+              <path d="M100 120 Q90 80 130 60 Q180 40 220 60 Q240 80 230 120 Q220 160 190 180 Q160 160 140 140 Q120 120 100 120 Z" 
+                    fill="url(#cloudGradient)" stroke="none" />
+              <circle cx="150" cy="130" r="30" fill="white" />
+              <circle cx="140" cy="120" r="5" fill="black" />
+              <circle cx="160" cy="120" r="5" fill="black" />
+              <path d="M145 140 Q150 150 155 140" fill="none" stroke="black" stroke-width="2" />
+              <path d="M120 160 Q100 140 90 180" fill="none" stroke="black" stroke-width="5" />
+              <path d="M180 160 Q200 140 210 180" fill="none" stroke="black" stroke-width="5" />
+              <rect x="135" y="180" width="70" height="40" fill="#E0E7FF" rx="5" />
+              <rect x="150" y="195" width="40" height="20" fill="white" rx="2" />
+              <path d="M150 195 L150 215" stroke="#D1D5DB" stroke-width="2" />
+              <text x="155" y="208" font-size="10" fill="#4B5563">Apple</text>
+              <line x1="140" y1="250" x2="140" y2="300" stroke="black" stroke-width="5" />
+              <line x1="160" y1="250" x2="160" y2="300" stroke="black" stroke-width="5" />
+              <line x1="120" y1="300" x2="180" y2="300" stroke="black" stroke-width="2" />
+            </svg>
           </div>
         </div>
       </div>

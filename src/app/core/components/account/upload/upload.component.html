@@ -13,45 +13,46 @@
         <div class="container-fluid">
           <a class="navbar-brand" href="dashboard"
             style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
-            Welcome: {{userSessionDetails?.username}}
+            Welcome: {{ userSessionDetails?.username }}
           </a>
         </div>
       </nav>
       <hr>
       <div class="row">
         <div class="container">
-          <!-- Original Upload Form Content Starts Here -->
           <div class="upload-container">
             <h2>Add Backup</h2>
-          
+
             <div class="form-group">
-              <label for="email">User Email:</label>
-              <input type="email" id="email" [(ngModel)]="userEmail" placeholder="e.g., user@example.com" required>
+              <label>User Email:</label>
+              <input type="text" [value]="userSessionDetails?.username || 'Not logged in'" disabled>
             </div>
-          
+
             <div class="form-group">
               <label for="folder">Folder Name:</label>
               <input type="text" id="folder" [(ngModel)]="folderName" placeholder="e.g., demo" required>
             </div>
-          
+
             <div class="form-group">
               <label for="file">Select File:</label>
-              <input type="file" id="file" (change)="onFileSelected($event)" accept=".jpg,.png,.pdf,.webp" required>
+              <input type="file" id="file" (change)="onFileSelected($event)" required>
             </div>
-          
-            <button (click)="onUpload()" [disabled]="!userEmail || !folderName || !selectedFile || uploading">
+
+            <button (click)="onUpload()" [disabled]="!folderName || !selectedFile || uploading">
               {{ uploading ? 'Uploading...' : 'Upload File' }}
             </button>
-          
-            <div *ngIf="progress > 0" class="progress-bar">
-              <div class="progress" [style.width]="progress + '%'">{{ progress }}%</div>
+
+            <div *ngIf="overallProgress > 0" class="progress-bar">
+              <div class="progress" [style.width]="overallProgress + '%'">Overall: {{ overallProgress }}%</div>
             </div>
-          
+            <div *ngIf="chunkProgress > 0 && uploading" class="progress-bar">
+              <div class="progress" [ngStyle]="{'width': chunkProgress + '%'}">Chunk: {{ chunkProgress }}%</div>
+            </div>
+
             <div *ngIf="message" class="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}">
               {{ message }}
             </div>
           </div>
-          <!-- Original Upload Form Content Ends Here -->
         </div>
       </div>
     </div>

@@ -28,7 +28,8 @@ export class resourcePermission {
     public accessLevel: string,
     public active: boolean,
     public displayName: string,
-    public pageName: string
+    public pageName: string,
+   public iconClass?: string
   ) {}
 }
 

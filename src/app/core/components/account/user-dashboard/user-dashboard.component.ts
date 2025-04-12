@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
+import * as bootstrap from 'bootstrap'; // Add this import
 
 @Component({
   selector: 'app-user-dashboard',
@@ -135,6 +136,12 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         this.loadingS3 = false;
         if (this.s3Contents.length === 0) {
           this.s3ErrorMessage = `No contents found in "${bucketName}/${prefix || ''}".`;
+        }
+        // Minimal addition to open modal
+        const modalElement = document.getElementById('s3BucketModal');
+        if (modalElement) {
+          const modal = new bootstrap.Modal(modalElement);
+          modal.show();
         }
       },
       error: (err) => {
