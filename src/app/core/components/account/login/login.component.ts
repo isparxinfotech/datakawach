@@ -1,4 +1,4 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -11,7 +11,7 @@ import { userSessionDetails } from 'src/app/models/api-resp.model';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
-export class LoginComponent implements OnDestroy {
+export class LoginComponent implements OnInit, OnDestroy {
   frmValidate: FormGroup;
   otpForm: FormGroup;
   showOtp = false;
@@ -20,27 +20,36 @@ export class LoginComponent implements OnDestroy {
   invalidMsg = '';
   currentUsername = '';
   private subscriptions: Subscription[] = [];
-  hover: boolean = false;
   isDarkMode: boolean = false;
 
   constructor(
     private authService: AuthService,
     private alertService: AlertService,
     private fb: FormBuilder,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
-    // Initialize dark mode based on system preference or saved setting
-    this.isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.body.classList.toggle('dark-mode', this.isDarkMode);
-
     this.frmValidate = this.fb.group({
-      username: ['', [Validators.required]],
+      username: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required]]
     });
 
     this.otpForm = this.fb.group({
       otp: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6)]]
     });
+  }
+
+  ngOnInit(): void {
+    // Safely initialize theme
+    try {
+      const savedTheme = localStorage.getItem('theme');
+      this.isDarkMode = savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.applyTheme();
+    } catch (e) {
+      console.error('Error accessing localStorage:', e);
+      this.isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.applyTheme();
+    }
   }
 
   get f() {
@@ -123,7 +132,7 @@ export class LoginComponent implements OnDestroy {
         this.alertService.showAlert('success', 'OTP sent successfully');
       },
       error: (error) => {
-        this.alertService.showAlert('error', error.error || 'Failed to send OTP');
+        this.alertService.showAlert('error', error.error?.message || 'Failed to send OTP');
       }
     });
     this.subscriptions.push(sub);
@@ -150,10 +159,21 @@ export class LoginComponent implements OnDestroy {
   }
 
   toggleTheme() {
+    console.log('Toggling theme, current state:', this.isDarkMode);
     this.isDarkMode = !this.isDarkMode;
+    this.applyTheme();
+    try {
+      localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light');
+    } catch (e) {
+      console.error('Error saving to localStorage:', e);
+    }
+    this.cdr.detectChanges();
+    console.log('Theme toggled to:', this.isDarkMode ? 'dark' : 'light');
+  }
+
+  private applyTheme() {
     document.body.classList.toggle('dark-mode', this.isDarkMode);
-    // Optional: Save preference to localStorage
-    localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light');
+    console.log('Applied theme:', this.isDarkMode ? 'dark' : 'light');
   }
 
   ngOnDestroy() {

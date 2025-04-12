@@ -1,14 +1,26 @@
-<section class="d-flex align-items-center" style="min-height: 100vh; background: #fff;">
-  <div class="container" style="background-color: #f1f5fd00 !important;">
+<section class="d-flex align-items-center">
+  <div class="container">
     <div class="row align-items-center">
-      <!-- Left Side - Login Form -->
-      <div class="col-md-6">
+      <!-- Left Side - Illustration and Text -->
+      <div class="col-md-6 order-md-1 order-2 text-center">
+        <div class="illustration-container">
+          <h2 class="fw-bold mb-3">Securely Upload And Store</h2>
+          <h2 class="fw-bold mb-4">Your Important Documents</h2>
+          <h2 class="fw-bold mb-5">With Datakavach!</h2>
+          <div class="cloud-illustration">
+            <img src="/assets/images/loginpage.png" alt="Illustration" class="img-fluid" style="max-width: 400px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side - Login Form -->
+      <div class="col-md-6 order-md-2 order-1">
         <div class="login-card text-center">
           <img src="/assets/images/KAVACH.png" alt="Data Kavach Logo" class="img-fluid mb-4" style="max-width: 150px;">
           <h2 class="fw-bold mb-4">Sign in with email</h2>
           <p class="text-muted mb-4">Make a new doc to bring your words, data, and teams together. For free</p>
 
-          <!-- Login Form (shown when OTP is not required) -->
+          <!-- Login Form -->
           <div *ngIf="!showOtp">
             <form [formGroup]="frmValidate" (ngSubmit)="onLoginUser()" novalidate>
               <p class="text-danger text-center" *ngIf="invalidMsg">{{ invalidMsg }}</p>
@@ -17,6 +29,7 @@
                        [ngClass]="{'is-invalid': submitted && frmValidate.get('username')?.errors}">
                 <div *ngIf="submitted && frmValidate.get('username')?.errors" class="invalid-feedback">
                   <div *ngIf="frmValidate.get('username')?.errors?.['required']">Please enter Email</div>
+                  <div *ngIf="frmValidate.get('username')?.errors?.['email']">Please enter a valid Email</div>
                 </div>
               </div>
               <div class="mb-4">
@@ -36,7 +49,7 @@
             </div>
           </div>
 
-          <!-- OTP Form (shown when OTP is required) -->
+          <!-- OTP Form -->
           <div *ngIf="showOtp">
             <h2 class="fw-bold mb-4">Verify OTP</h2>
             <p class="text-center text-muted mb-3">Enter the 6-digit code sent to your registered email</p>
@@ -66,43 +79,6 @@
             <button class="btn btn-outline-secondary btn-sm" (click)="toggleTheme()">
               Toggle {{ isDarkMode ? 'Light' : 'Dark' }} Mode
             </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Side - Illustration and Text -->
-      <div class="col-md-6 text-center">
-        <div class="illustration-container">
-          <h2 class="fw-bold mb-3" style="color: #2c3e50;">Securely Upload And Store</h2>
-          <h2 class="fw-bold mb-4" style="color: #2980b9;">Your Important Documents</h2>
-          <h2 class="fw-bold mb-5" style="color: #2c3e50;">With Airspace!</h2>
-          <!-- SVG Illustration -->
-          <div class="cloud-illustration">
-            <svg width="300" height="400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400">
-              <defs>
-                <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#6D9DC5;" />
-                  <stop offset="100%" style="stop-color:#A3BFFA;" />
-                </linearGradient>
-              </defs>
-              <path d="M50 150 Q40 100 70 80 Q120 50 170 80 Q200 100 190 150 Q180 200 150 220 Q120 200 100 180 Q80 160 50 150 Z" 
-                    fill="url(#cloudGradient)" stroke="none" />
-              <path d="M100 120 Q90 80 130 60 Q180 40 220 60 Q240 80 230 120 Q220 160 190 180 Q160 160 140 140 Q120 120 100 120 Z" 
-                    fill="url(#cloudGradient)" stroke="none" />
-              <circle cx="150" cy="130" r="30" fill="white" />
-              <circle cx="140" cy="120" r="5" fill="black" />
-              <circle cx="160" cy="120" r="5" fill="black" />
-              <path d="M145 140 Q150 150 155 140" fill="none" stroke="black" stroke-width="2" />
-              <path d="M120 160 Q100 140 90 180" fill="none" stroke="black" stroke-width="5" />
-              <path d="M180 160 Q200 140 210 180" fill="none" stroke="black" stroke-width="5" />
-              <rect x="135" y="180" width="70" height="40" fill="#E0E7FF" rx="5" />
-              <rect x="150" y="195" width="40" height="20" fill="white" rx="2" />
-              <path d="M150 195 L150 215" stroke="#D1D5DB" stroke-width="2" />
-              <text x="155" y="208" font-size="10" fill="#4B5563">Apple</text>
-              <line x1="140" y1="250" x2="140" y2="300" stroke="black" stroke-width="5" />
-              <line x1="160" y1="250" x2="160" y2="300" stroke="black" stroke-width="5" />
-              <line x1="120" y1="300" x2="180" y2="300" stroke="black" stroke-width="2" />
-            </svg>
           </div>
         </div>
       </div>
