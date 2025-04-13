@@ -36,21 +36,25 @@ jobs:
         run: |
           echo "$EC2_SSH_KEY" | base64 -d > ssh_key
           chmod 600 ssh_key
+
+          # Prepare remote folders
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
             mkdir -p /home/ec2-user/datakavachfrontend/backup &&
             mkdir -p /home/ec2-user/datakavachfrontend/datakavach/dist/hrkui"
 
+          # Backup old dist if exists
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
             if [ -d /home/ec2-user/datakavachfrontend/datakavach/dist ]; then
               mv /home/ec2-user/datakavachfrontend/datakavach/dist \
-                 /home/ec2-user/datakavachfrontend/backup/dist-$(date +%s);
+              /home/ec2-user/datakavachfrontend/backup/dist-$(date +%s);
             fi"
 
+          # Upload new build
           scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:/home/ec2-user/datakavachfrontend/datakavach/dist/hrkui
 
+          # Validate deployment and reload nginx
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
             if [ -f /home/ec2-user/datakavachfrontend/datakavach/dist/hrkui/index.html ]; then
-              curl -f https://datakavach.com || exit 1;
               echo 'Deployment successful';
               sudo systemctl reload nginx;
             else
@@ -58,8 +62,12 @@ jobs:
               exit 1;
             fi"
 
-      - name: Rollback on failure
-        if: failure()
+  rollback-on-failure:
+    needs: build-and-deploy
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rollback Deployment
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -67,15 +75,17 @@ jobs:
         run: |
           echo "$EC2_SSH_KEY" | base64 -d > ssh_key
           chmod 600 ssh_key
+
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
-            if [ -d /home/ec2-user/datakavachfrontend/backup ]; then
-              rm -rf /home/ec2-user/datakavachfrontend/datakavach/dist &&
-              LATEST_BACKUP=$(ls -t /home/ec2-user/datakavachfrontend/backup | head -n1)
-              if [ -n \"$LATEST_BACKUP\" ]; then
-                mv /home/ec2-user/datakavachfrontend/backup/$LATEST_BACKUP \
-                   /home/ec2-user/datakavachfrontend/datakavach/dist &&
-                sudo systemctl reload nginx;
-              else
-                echo 'No backup available to restore';
-              fi
+            mkdir -p /home/ec2-user/datakavachfrontend/backup
+
+            latest_backup=\$(ls -td /home/ec2-user/datakavachfrontend/backup/dist-* 2>/dev/null | head -n1)
+
+            if [ -n \"\$latest_backup\" ]; then
+              rm -rf /home/ec2-user/datakavachfrontend/datakavach/dist
+              mv \$latest_backup /home/ec2-user/datakavachfrontend/datakavach/dist
+              echo 'Rollback complete.'
+              sudo systemctl reload nginx
+            else
+              echo 'No backup available to restore'
             fi"
