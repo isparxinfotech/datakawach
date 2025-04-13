@@ -40,21 +40,21 @@ jobs:
           # Prepare remote folders
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
             mkdir -p /home/ec2-user/datakavachfrontend/backup &&
-            mkdir -p /home/ec2-user/datakavachfrontend/datakavach/dist/hrkui"
+            mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui"
 
           # Backup old dist if exists
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
-            if [ -d /home/ec2-user/datakavachfrontend/datakavach/dist ]; then
-              mv /home/ec2-user/datakavachfrontend/datakavach/dist \
+            if [ -d /home/ec2-user/datakavachfrontend/datakawach/dist ]; then
+              mv /home/ec2-user/datakavachfrontend/datakawach/dist \
               /home/ec2-user/datakavachfrontend/backup/dist-$(date +%s);
             fi"
 
           # Upload new build
-          scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:/home/ec2-user/datakavachfrontend/datakavach/dist/hrkui
+          scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:/home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
 
           # Validate deployment and reload nginx
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
-            if [ -f /home/ec2-user/datakavachfrontend/datakavach/dist/hrkui/index.html ]; then
+            if [ -f /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui/index.html ]; then
               echo 'Deployment successful';
               sudo systemctl reload nginx;
             else
@@ -82,8 +82,8 @@ jobs:
             latest_backup=\$(ls -td /home/ec2-user/datakavachfrontend/backup/dist-* 2>/dev/null | head -n1)
 
             if [ -n \"\$latest_backup\" ]; then
-              rm -rf /home/ec2-user/datakavachfrontend/datakavach/dist
-              mv \$latest_backup /home/ec2-user/datakavachfrontend/datakavach/dist
+              rm -rf /home/ec2-user/datakavachfrontend/datakawach/dist
+              mv \$latest_backup /home/ec2-user/datakavachfrontend/datakawach/dist
               echo 'Rollback complete.'
               sudo systemctl reload nginx
             else
