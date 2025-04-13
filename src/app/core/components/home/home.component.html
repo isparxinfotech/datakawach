@@ -1,80 +1,107 @@
 <div class="home-container">
-    <header class="navbar">
-      <div class="logo">DATA KAVACH</div>
-      <nav>
+  <header class="navbar">
+    <div class="logo">Datakavach</div>
+    <nav [ngClass]="{'open': isMenuOpen}">
+      <ul>
+        <li><a href="#">About</a></li>
+        <li><a href="#">Features</a></li>
+        <li><a href="#">Enterprise</a></li>
+        <li><a href="#">Pricing</a></li>
+      </ul>
+    </nav>
+    <button class="menu-toggle" (click)="toggleMenu()">
+      <i class="fas" [ngClass]="isMenuOpen ? 'fa-times' : 'fa-bars'"></i>
+    </button>
+    <button class="login-btn" routerLink="/login">Login</button>
+  </header>
+
+  <section class="hero" @fadeIn>
+    <div class="hero-text">
+      <div class="tagline">Smarter Storage, powered by Isparxinfotech</div>
+      <h1>Secure Data Storage & <br>Backup Solutions</h1>
+      <button class="cta-button">Get Started for free</button>
+      <p class="sub-text">Let's start today storing data and reduce your personal space</p>
+    </div>
+    <div class="particles">
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+    </div>
+  </section>
+
+  <section class="features-section">
+    <h2>Our Features</h2>
+    <div class="features-container">
+      <div class="feature-card" *ngFor="let feature of features" @cardAnimation>
+        <i [class]="feature.icon"></i>
+        <h3>{{ feature.title }}</h3>
+        <p>{{ feature.description }}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing-section">
+    <h2>Pricing Plans</h2>
+    <div class="pricing-container">
+      <div class="pricing-card" *ngFor="let plan of pricingPlans" @priceAnimation>
+        <h3>{{ plan.name }}</h3>
+        <p class="price">{{ plan.price }}</p>
         <ul>
-          <li><a href="#">Home</a></li>
-          <li><a href="#">Features</a></li>
-          <li><a href="#">Community</a></li>
-          <li><a href="#">Blog</a></li>
-          <li><a href="#">Pricing</a></li>
+          <li *ngFor="let feature of plan.features">{{ feature }}</li>
         </ul>
-      </nav>
-      <button class="register-btn" [routerLink]="'/login'">Login</button>
-      <!-- <button class="register-btn">Register Now</button> -->
-    </header>
-  
-    <section class="hero">
-      <div class="hero-text">
-        <h1>Lessons and insights <span>from 8 years</span></h1>
-        <p>Where to grow your business as a photographer: site or social media?</p>
-        <button class="cta-button">Register</button>
+        <button class="cta-button">Choose Plan</button>
       </div>
-      <div class="hero-image">
-        <!-- Add your SVG/image here -->
-        <img src="assets/images/Illustration.png" alt="Business growth illustration">
-        </div>
-    </section>
-  
-    <!-- Clients Section -->
-    <section class="clients-section">
-        <h2 class="section-title">Our Clients</h2>
-        <p class="section-subtitle">We have been working with some Fortune 500+ clients</p>
-        <div class="client-logos">
-            <!-- Add client logos here -->
-            <img src="assets/images/logo.png" alt="">
-            <img src="assets/images/logo.png" alt="">
-            <img src="assets/images/logo.png" alt="">
-            <img src="assets/images/logo.png" alt="">
-        </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- Features Section -->
-    <section class="features-section">
-        <h2 class="section-title">Manage your entire community in a single system</h2>
-        <p class="section-subtitle">Who is Narcourt athletic for?</p>
-        
-        <div class="features-grid">
-            <div class="feature-card">
-                <h3 class="feature-title">Membership Organisations</h3>
-                <p class="feature-description">Our membership management software provides full automation of membership renewals and payments</p>
-            </div>
-            
-            <div class="feature-card">
-                <h3 class="feature-title">National Associations</h3>
-                <p class="feature-description">Our membership management software provides full automation of membership renewals and payments</p>
-            </div>
-            
-            <div class="feature-card">
-                <h3 class="feature-title">Clubs And Groups</h3>
-                <p class="feature-description">Our membership management software provides full automation of membership renewals and payments</p>
-            </div>
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-logo">Datakavach</div>
+      <div class="footer-links">
+        <h4>Company</h4>
+        <a href="#">About Us</a>
+        <a href="#">Careers</a>
+        <a href="#">Blog</a>
+      </div>
+      <div class="footer-links">
+        <h4>Support</h4>
+        <a href="#">Help Center</a>
+        <a href="#">Contact Us</a>
+        <a href="#">Privacy Policy</a>
+      </div>
+      <div class="footer-subscribe">
+        <h4>Subscribe</h4>
+        <input type="email" placeholder="Your email address" />
+        <button class="subscribe-btn">Subscribe</button>
+      </div>
+      <div class="footer-social">
+        <h4>Follow Us</h4>
+        <div class="social-icons">
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-linkedin"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
         </div>
-    </section>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2025 isparxinfotech. All rights reserved.</p>
+    </div>
+  </footer>
 </div>
-
-    <footer>
-      <div class="footer-container">
-        <div class="footer-logo">Nexcent</div>
-        <div class="footer-links">
-          <a href="#">About Us</a>
-          <a href="#">Contact</a>
-          <a href="#">Privacy Policy</a>
-        </div>
-        <div class="subscribe">
-          <input type="email" placeholder="Your email address" />
-          <button>Subscribe</button>
-        </div>
-      </div>
-    </footer>
-  

@@ -26,7 +26,7 @@ import { trigger, transition, style, animate } from '@angular/animations';
     ])
   ]
 })
-export class HomeComponent  implements OnInit {
+export class HomeComponent implements OnInit {
   isMenuOpen = false;
 
   features = [
@@ -67,8 +67,7 @@ export class HomeComponent  implements OnInit {
 
   constructor() { }
 
-  ngOnInit(): void {
-  }
+  ngOnInit(): void { }
 
   toggleMenu(): void {
     this.isMenuOpen = !this.isMenuOpen;
