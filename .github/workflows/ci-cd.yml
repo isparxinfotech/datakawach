@@ -34,27 +34,29 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "$EC2_SSH_KEY" | tr -d '\r' > ssh_key
+          echo "$EC2_SSH_KEY" | base64 -d > ssh_key
           chmod 600 ssh_key
-          ls -la ssh_key
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST \
-            "mkdir -p /home/ec2-user/datakavachfrontend/backup && \
-             mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui"
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST \
-            "if [ -d /home/ec2-user/datakavachfrontend/datakawach/dist ]; then \
-               mv /home/ec2-user/datakavachfrontend/datakawach/dist \
-               /home/ec2-user/datakavachfrontend/backup/dist-$(date +%s); \
-             fi"
-          scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:/home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST \
-            "if [ -f /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui/index.html ]; then \
-               curl -f https://datakavach.com || exit 1; \
-               echo 'Deployment successful'; \
-               sudo systemctl reload nginx; \
-             else \
-               echo 'Deployment failed'; \
-               exit 1; \
-             fi"
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+            mkdir -p /home/ec2-user/datakavachfrontend/backup &&
+            mkdir -p /home/ec2-user/datakavachfrontend/datakavach/dist/hrkui"
+
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+            if [ -d /home/ec2-user/datakavachfrontend/datakavach/dist ]; then
+              mv /home/ec2-user/datakavachfrontend/datakavach/dist \
+                 /home/ec2-user/datakavachfrontend/backup/dist-$(date +%s);
+            fi"
+
+          scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:/home/ec2-user/datakavachfrontend/datakavach/dist/hrkui
+
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+            if [ -f /home/ec2-user/datakavachfrontend/datakavach/dist/hrkui/index.html ]; then
+              curl -f https://datakavach.com || exit 1;
+              echo 'Deployment successful';
+              sudo systemctl reload nginx;
+            else
+              echo 'Deployment failed';
+              exit 1;
+            fi"
 
       - name: Rollback on failure
         if: failure()
@@ -63,15 +65,17 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "$EC2_SSH_KEY" | tr -d '\r' > ssh_key
+          echo "$EC2_SSH_KEY" | base64 -d > ssh_key
           chmod 600 ssh_key
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST \
-            "mkdir -p /home/ec2-user/datakavachfrontend/backup && \
-             rm -rf /home/ec2-user/datakavachfrontend/datakawach/dist && \
-             if [ -n \"\$(ls -t /home/ec2-user/datakavachfrontend/backup | head -n1)\" ]; then \
-               mv /home/ec2-user/datakavachfrontend/backup/dist-\$(ls -t /home/ec2-user/datakavachfrontend/backup | head -n1) \
-               /home/ec2-user/datakavachfrontend/datakawach/dist && \
-               sudo systemctl reload nginx; \
-             else \
-               echo 'No backup available to restore'; \
-             fi"
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+            if [ -d /home/ec2-user/datakavachfrontend/backup ]; then
+              rm -rf /home/ec2-user/datakavachfrontend/datakavach/dist &&
+              LATEST_BACKUP=$(ls -t /home/ec2-user/datakavachfrontend/backup | head -n1)
+              if [ -n \"$LATEST_BACKUP\" ]; then
+                mv /home/ec2-user/datakavachfrontend/backup/$LATEST_BACKUP \
+                   /home/ec2-user/datakavachfrontend/datakavach/dist &&
+                sudo systemctl reload nginx;
+              else
+                echo 'No backup available to restore';
+              fi
+            fi"
