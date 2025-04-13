@@ -1,50 +1,98 @@
-name: 🚀 Deploy Angular App to EC2
+name: 🚀 CI/CD Pipeline for Angular App
 
 on:
   push:
     branches:
-      - main # Change this to your main branch name
+      - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ⬇️ Checkout Code
+      - name: ⬇️ Checkout code
         uses: actions/checkout@v3
 
-      - name: 🛠️ Setup Node.js
+      - name: 🛠️ Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: 📦 Install Dependencies
+      - name: 📦 Install dependencies
         run: npm install
 
-      - name: 🏗️ Build Angular Project
+      - name: 🧪 Run tests
+        run: npm run test -- --watch=false --browsers=ChromeHeadless
+        continue-on-error: true
+
+      - name: 🏗️ Build Angular app
         run: npm run build -- --configuration production
 
+      - name: 🚀 Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          # 🔐 Decode and prepare SSH key
+          echo "$EC2_SSH_KEY" | base64 -d > ssh_key
+          chmod 600 ssh_key
+
+          echo "📁 Creating necessary directories on EC2..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
+            mkdir -p /home/ec2-user/datakavachfrontend/backup &&
+            mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist &&
+            echo "✅ Directories ready."'
+
+          echo "🗃️ Backing up old build if it exists..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
+            if [ -d /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui ]; then
+              timestamp=$(date +%s)
+              mv /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui /home/ec2-user/datakavachfrontend/backup/hrkui-$timestamp
+              echo "✅ Backup created: hrkui-$timestamp"
+            fi'
+
+          echo "📤 Uploading new build to EC2..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST 'mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui'
+          scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:/home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
+
+          echo "🔁 Validating and restarting NGINX..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
+            if [ -f /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui/index.html ]; then
+              echo "✅ Deployment successful"
+              sudo systemctl reload nginx
+            else
+              echo "❌ Deployment failed - index.html missing"
+              exit 1
+            fi'
+
+  rollback-if-failed:
+    needs: build-and-deploy
+    if: failure()
+    runs-on: ubuntu-latest
+
+    steps:
       - name: 🔐 Setup SSH Key
         run: |
-          echo "$EC2_SSH_KEY" | tr -d '\r' > ssh_key
+          echo "$EC2_SSH_KEY" | base64 -d > ssh_key
           chmod 600 ssh_key
         env:
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: 📂 Create Folders and Backup Old Build
+      - name: ♻️ Rollback to previous backup
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
         run: |
-          echo "🟢 Connecting to EC2 to prepare directories..."
-          ssh -i ssh_key -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "\
-            mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist && \
-            if [ -d /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui ]; then \
-              mkdir -p /home/ec2-user/datakavachfrontend/datakawach/backup && \
-              mv /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui /home/ec2-user/datakavachfrontend/datakawach/backup/hrkui-$(date +%s); \
-            fi"
-
-      - name: 📤 Deploy New Build to EC2
-        run: |
-          echo "🚀 Uploading new build files..."
-          scp -i ssh_key -o StrictHostKeyChecking=no -r dist/hrkui/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
-
-      - name: ✅ Done
-        run: echo "🎉 Deployment Successful!"
+          echo "🛑 Deploy failed, starting rollback..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
+            latest_backup=$(ls -td /home/ec2-user/datakavachfrontend/backup/hrkui-* 2>/dev/null | head -n1)
+            if [ -n "$latest_backup" ]; then
+              rm -rf /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
+              cp -r $latest_backup /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
+              sudo systemctl reload nginx
+              echo "✅ Rollback successful: restored from $latest_backup"
+            else
+              echo "❌ No backup found to rollback."
+              exit 1
+            fi'
