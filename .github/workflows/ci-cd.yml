@@ -34,58 +34,66 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
+          # Decode SSH key
           echo "$EC2_SSH_KEY" | base64 -d > ssh_key
           chmod 600 ssh_key
 
-          # Prepare remote folders
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
-            mkdir -p /home/ec2-user/datakavachfrontend/backup &&
-            mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui"
+          # Ensure necessary directories are created
+          echo "Creating necessary directories on EC2..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
+            mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui &&
+            echo "✅ Directories created or already exist."'
 
-          # Backup old dist if exists
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+          # Backup old build if it exists
+          echo "Backing up old build if exists..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
             if [ -d /home/ec2-user/datakavachfrontend/datakawach/dist ]; then
-              mv /home/ec2-user/datakavachfrontend/datakawach/dist \
-              /home/ec2-user/datakavachfrontend/backup/dist-$(date +%s);
-            fi"
+              mv /home/ec2-user/datakavachfrontend/datakawach/dist /home/ec2-user/datakavachfrontend/backup/dist-$(date +%s)
+            fi'
 
-          # Upload new build
+          # Upload the new build
+          echo "Uploading new build..."
           scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:/home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
 
-          # Validate deployment and reload nginx
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
+          # Validate deployment and reload nginx if successful
+          echo "Validating deployment..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
             if [ -f /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui/index.html ]; then
-              echo 'Deployment successful';
-              sudo systemctl reload nginx;
+              echo "✅ Deployment successful"
+              sudo systemctl reload nginx
             else
-              echo 'Deployment failed';
-              exit 1;
-            fi"
+              echo "❌ Deployment failed - index.html not found"
+              exit 1
+            fi'
 
-  rollback-on-failure:
-    needs: build-and-deploy
-    if: failure()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Rollback Deployment
+      - name: Rollback on failure
+        if: failure()
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
+          # Decode SSH key
           echo "$EC2_SSH_KEY" | base64 -d > ssh_key
           chmod 600 ssh_key
 
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
-            mkdir -p /home/ec2-user/datakavachfrontend/backup
+          # Ensure backup directory exists
+          echo "Ensuring backup directory exists..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
+            mkdir -p /home/ec2-user/datakavachfrontend/backup &&
+            echo "✅ Backup directory exists."'
 
-            latest_backup=\$(ls -td /home/ec2-user/datakavachfrontend/backup/dist-* 2>/dev/null | head -n1)
-
-            if [ -n \"\$latest_backup\" ]; then
-              rm -rf /home/ec2-user/datakavachfrontend/datakawach/dist
-              mv \$latest_backup /home/ec2-user/datakavachfrontend/datakawach/dist
-              echo 'Rollback complete.'
-              sudo systemctl reload nginx
-            else
-              echo 'No backup available to restore'
-            fi"
+          # Rollback to previous build if available
+          echo "Rolling back to previous build if any..."
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
+            if [ -d /home/ec2-user/datakavachfrontend/backup ]; then
+              last_backup=$(ls -t /home/ec2-user/datakavachfrontend/backup | head -n1)
+              if [ -n "$last_backup" ]; then
+                mv /home/ec2-user/datakavachfrontend/backup/$last_backup /home/ec2-user/datakavachfrontend/datakawach/dist &&
+                sudo systemctl reload nginx &&
+                echo "✅ Rollback successful."
+              else
+                echo "❌ No backup available to restore."
+                exit 1
+              fi
+            fi'
