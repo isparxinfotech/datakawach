@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -11,7 +11,7 @@ import { userSessionDetails } from 'src/app/models/api-resp.model';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
-export class LoginComponent implements OnInit, OnDestroy {
+export class LoginComponent implements OnDestroy {
   frmValidate: FormGroup;
   otpForm: FormGroup;
   showOtp = false;
@@ -19,45 +19,23 @@ export class LoginComponent implements OnInit, OnDestroy {
   otpSubmitted = false;
   invalidMsg = '';
   currentUsername = '';
+  currentPassword = ''; // Store password for OTP validation
   private subscriptions: Subscription[] = [];
-  isDarkMode: boolean = false;
 
   constructor(
     private authService: AuthService,
     private alertService: AlertService,
     private fb: FormBuilder,
-    private router: Router,
-    private cdr: ChangeDetectorRef
+    private router: Router
   ) {
     this.frmValidate = this.fb.group({
-      username: ['', [Validators.required, Validators.email]],
+      username: ['', [Validators.required]],
       password: ['', [Validators.required]]
     });
 
     this.otpForm = this.fb.group({
       otp: ['', [Validators.required, Validators.minLength(6), Validators.maxLength(6)]]
     });
-  }
-
-  ngOnInit(): void {
-    // Safely initialize theme
-    try {
-      const savedTheme = localStorage.getItem('theme');
-      this.isDarkMode = savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
-      this.applyTheme();
-    } catch (e) {
-      console.error('Error accessing localStorage:', e);
-      this.isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      this.applyTheme();
-    }
-  }
-
-  get f() {
-    return this.frmValidate.controls;
-  }
-
-  get otpF() {
-    return this.otpForm.controls;
   }
 
   onLoginUser() {
@@ -77,10 +55,13 @@ export class LoginComponent implements OnInit, OnDestroy {
     const sub = this.authService.loginUser(credentials).subscribe({
       next: (response: userSessionDetails) => {
         if (response.statusCode === '202') {
+          // OTP required
           this.currentUsername = credentials.username;
+          this.currentPassword = credentials.password; // Store password
           this.showOtp = true;
           this.requestOtp(credentials.username, credentials.password);
         } else if (response.statusCode === '200') {
+          // Regular login successful
           this.handleSuccessfulLogin(response);
         } else {
           this.invalidMsg = response.message || 'Login failed';
@@ -104,10 +85,12 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     const sub = this.authService.validateOtp(
       this.currentUsername,
-      this.otpForm.value.otp
+      this.otpForm.value.otp,
+      this.currentPassword // Pass stored password
     ).subscribe({
       next: (response: userSessionDetails) => {
         if (response.statusCode === '200') {
+          // OTP validation and login successful
           this.handleSuccessfulLogin(response);
         } else {
           this.invalidMsg = response.message || 'OTP validation failed';
@@ -123,7 +106,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   }
 
   resendOtp() {
-    this.requestOtp(this.currentUsername, this.frmValidate.value.password);
+    this.requestOtp(this.currentUsername, this.currentPassword);
   }
 
   private requestOtp(username: string, password: string) {
@@ -132,7 +115,7 @@ export class LoginComponent implements OnInit, OnDestroy {
         this.alertService.showAlert('success', 'OTP sent successfully');
       },
       error: (error) => {
-        this.alertService.showAlert('error', error.error?.message || 'Failed to send OTP');
+        this.alertService.showAlert('error', error.error || 'Failed to send OTP');
       }
     });
     this.subscriptions.push(sub);
@@ -147,33 +130,7 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.showOtp = false;
     this.otpSubmitted = false;
     this.otpForm.reset();
-    this.invalidMsg = '';
-  }
-
-  onReset(): void {
-    this.submitted = false;
-    this.frmValidate.reset();
-    this.otpForm.reset();
-    this.showOtp = false;
-    this.invalidMsg = '';
-  }
-
-  toggleTheme() {
-    console.log('Toggling theme, current state:', this.isDarkMode);
-    this.isDarkMode = !this.isDarkMode;
-    this.applyTheme();
-    try {
-      localStorage.setItem('theme', this.isDarkMode ? 'dark' : 'light');
-    } catch (e) {
-      console.error('Error saving to localStorage:', e);
-    }
-    this.cdr.detectChanges();
-    console.log('Theme toggled to:', this.isDarkMode ? 'dark' : 'light');
-  }
-
-  private applyTheme() {
-    document.body.classList.toggle('dark-mode', this.isDarkMode);
-    console.log('Applied theme:', this.isDarkMode ? 'dark' : 'light');
+    this.currentPassword = ''; // Clear stored password
   }
 
   ngOnDestroy() {
