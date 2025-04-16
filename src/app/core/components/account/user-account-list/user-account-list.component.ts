@@ -52,7 +52,6 @@ export class UserAccountListComponent {
             branch: item.branch || '',
             landlineNumber: item.landlineNumber || '',
             userType: Number(item.userType) || 0,
-            ipAddress: item.ip_address || item.ipAddress || ''
           }));
           console.log("Mapped userInfo:", this.userInfo);
           if (this.userInfo.length > 0) {

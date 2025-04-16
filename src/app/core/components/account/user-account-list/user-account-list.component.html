@@ -1,42 +1,32 @@
 <div class="container-fluid p-0 d-flex h-100">
-  <!-- Sidebar (Dynamic Menus) -->
-  <div class="sidebar-wrapper">
-    <app-dynamic-menus></app-dynamic-menus>
-  </div>
+  <app-dynamic-menus></app-dynamic-menus>
 
-  <!-- Main Content -->
-  <div class="bg-light flex-fill d-flex flex-column">
-    <!-- Mobile Topbar -->
+  <div class="bg-light flex-fill">
     <div class="p-2 d-md-none d-flex text-white bg-success">
-      <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar" aria-controls="bdSidebar">
+      <a href="dashboard" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
         <i class="fa-solid fa-bars"></i>
       </a>
       <span class="ms-3">Data Kavach</span>
     </div>
-
-    <!-- Content Area -->
-    <div class="p-4 flex-grow-1 d-flex flex-column">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
+    <div class="p-4">
+      <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container-fluid">
-          <a class="navbar-brand" href="dashboard" style="position: absolute; right: 10px; font-size: 15px; font-weight: 600;">
+          <a class="navbar-brand" href="dashboard"
+            style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
             Welcome: {{ userSessionDetails?.username }}
           </a>
         </div>
       </nav>
-      <hr class="my-4">
-
-      <!-- User Accounts Section -->
-      <div class="row flex-grow-1">
-        <div class="col d-flex flex-column">
-          <div class="card shadow-sm p-4 bg-dark rounded flex-grow-1">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-              <h1 class="section-title fw-bold text-primary m-0">User Accounts</h1>
-              <a href="createuseraccount" class="btn btn-gradient">Create User Account</a>
+      <hr>
+      <div class="row">
+        <div class="container">
+          <div class="row" style="background-color: #f1f5fd !important; margin-top: 15px; margin-bottom: 15px;">
+            <div class="col-lg-12">
+              <h1 style="text-align: center">User Accounts</h1>
+              <a style="float: right;" href="createuseraccount">Create User Account</a>
             </div>
-
-            <!-- Table -->
-            <div class="table-container overflow-auto">
-              <table class="table table-dark table-hover">
+            <div class="col-lg-12">
+              <table class="table">
                 <thead>
                   <tr>
                     <th>Id</th>
@@ -47,7 +37,6 @@
                     <th>City</th>
                     <th>Number</th>
                     <th>Email</th>
-                    <th>MAC Address</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -61,7 +50,6 @@
                     <td>{{ row.city }}</td>
                     <td>{{ row.mobileNumber }}</td>
                     <td>{{ row.email }}</td>
-                    <td>{{ row.ipAddress }}</td>
                     <td>
                       <a [routerLink]="['/edituser', row.userid]" class="btn btn-primary btn-sm">Edit</a>
                     </td>
@@ -75,3 +63,5 @@
     </div>
   </div>
 </div>
+
+<app-footer></app-footer>

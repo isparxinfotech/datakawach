@@ -142,19 +142,6 @@
                       </div>
                     </div>
                   </div>
-                  <div class="row mb-3">
-                    <div class="col-lg-6">
-                      <label for="ipAddress">MAC Address <span class="mandatory">*</span></label>
-                      <input type="text" class="form-control" id="ipAddress" formControlName="ipAddress" aria-describedby="ipAddress"
-                        placeholder="e.g., 00-1A-2B-3C-4D-5E" maxlength="17"
-                        [ngClass]="{ 'is-invalid': submitted && f['ipAddress'].errors }">
-                      <small class="form-text text-muted">Current IP: {{ currentIp || 'Fetching...' }}</small>
-                      <div *ngIf="submitted && f['ipAddress'].errors" class="invalid-feedback">
-                        <div *ngIf="f['ipAddress'].errors['required']">MAC address is required</div>
-                        <div *ngIf="f['ipAddress'].errors['pattern']">Enter a valid MAC address (e.g., 00-1A-2B-3C-4D-5E)</div>
-                      </div>
-                    </div>
-                  </div>
                 </fieldset>
                 <div class="row">
                   <div class="col-lg-12">

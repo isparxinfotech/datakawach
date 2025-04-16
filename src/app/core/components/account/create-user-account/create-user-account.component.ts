@@ -34,7 +34,6 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       mobileNumber: ['', [Validators.required, Validators.minLength(10), Validators.pattern('[0-9]*')]],
       email: ['', [Validators.required, Validators.email]],
       password: ['qwerty', [Validators.minLength(3)]],
-      ipAddress: ['', [Validators.required, Validators.pattern('^([0-9A-Fa-f]{2}[-]){5}([0-9A-Fa-f]{2})$')]], // MAC address pattern
       createdBy: ['', Validators.required],
       folderName: [''],
       userType: [5],
@@ -57,7 +56,7 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       createdBy: this.userSessionDetails.username,
       cloudProvider: this.userSessionDetails.cloudProvider
     });
-    console.log('Logged-in user details set - createdBy:', this.userSessionDetails.username, 
+    console.log('Logged-in user details set - createdBy:', this.userSessionDetails.username,
                 'cloudProvider:', this.userSessionDetails.cloudProvider);
 
     // Fetch current IP address from backend

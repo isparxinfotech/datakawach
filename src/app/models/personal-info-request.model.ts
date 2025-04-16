@@ -1,5 +1,4 @@
 export interface PersonalInfoRequest {
-  ipAddress: string;
   userid: string;
   firstName: string;
   middleName: string;
