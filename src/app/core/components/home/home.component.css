@@ -2,13 +2,12 @@
   font-family: Arial, sans-serif;
   color: #fff;
   background: #1a1a1a;
-  overflow-x: hidden;
 }
 
 .navbar {
   display: flex;
   justify-content: space-between;
-  padding: 20px;
+  padding: 15px;
   align-items: center;
   position: relative;
   z-index: 10;
@@ -68,6 +67,23 @@
   margin: 0 auto;
   position: relative;
   z-index: 1;
+  overflow: hidden; /* Prevent overflow from glow */
+}
+
+.hero-glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+  z-index: 1;
+  animation: glowShift 6s infinite alternate;
+}
+
+.hero-text {
+  position: relative;
+  z-index: 3;
 }
 
 .tagline {
@@ -254,6 +270,11 @@
   100% { transform: translateX(calc(50vw - 50%)); opacity: 0; box-shadow: 0 0 6px 1.5px rgba(255, 255, 255, 0.1); }
 }
 
+@keyframes glowShift {
+  100% { background: linear-gradient(to right, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 30%, transparent 70%); }
+  80% { background: linear-gradient(to right, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.3) 40%, transparent 80%); }
+}
+
 /* Footer Styles */
 .footer {
   background: #222;
@@ -343,6 +364,9 @@
     width: 2px;
     height: 1px;
     box-shadow: 0 0 4px 1px rgba(255, 255, 255, 0.4);
+  }
+  .hero-glow {
+    width: 70%;
   }
   @keyframes moveParticle {
     0% { transform: translateX(0); opacity: 0.6; box-shadow: 0 0 4px 1px rgba(255, 255, 255, 0.4); }

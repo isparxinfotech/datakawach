@@ -28,6 +28,7 @@ import { UploadComponent } from './core/components/account/upload/upload.compone
 import { AdminDashboardComponent } from './core/components/account/admin-dashboard/admin-dashboard.component';
 import { UserEditComponent } from './core/components/account/user-edit/user-edit.component';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { CoadminDashboardComponent } from './core/components/account/coadmin-dashboard/coadmin-dashboard.component';
 
 // WebSocket configuration
 
@@ -52,7 +53,8 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
     UploadToCloudComponent,
     UploadComponent,
     AdminDashboardComponent,
-    UserEditComponent
+    UserEditComponent,
+    CoadminDashboardComponent
   ],
   imports: [
     BrowserModule,

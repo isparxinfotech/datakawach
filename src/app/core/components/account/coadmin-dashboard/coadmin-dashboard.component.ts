@@ -6,12 +6,12 @@ import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import * as bootstrap from 'bootstrap';
 
 @Component({
-  selector: 'app-user-dashboard',
-  templateUrl: './user-dashboard.component.html',
-  styleUrls: ['./user-dashboard.component.css']
+  selector: 'app-coadmin-dashboard',
+  templateUrl: './coadmin-dashboard.component.html',
+  styleUrls: ['./coadmin-dashboard.component.css']
 })
-export class UserDashboardComponent implements OnInit, OnDestroy {
-  userSessionDetails: userSessionDetails | null | undefined;
+export class CoadminDashboardComponent {
+ userSessionDetails: userSessionDetails | null | undefined;
   email: string = '';
   folderName: string = '';
   cloudProvider: string = '';

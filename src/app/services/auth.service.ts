@@ -14,7 +14,7 @@ import { userSessionDetails } from '../models/user-session-responce.model';
 })
 export class AuthService {
   private resourcesAccess: resourcePermission[] = [];
-  private apiUrl = 'https://datakavach.com/api/auth'; // Hardcoded URL as per your request
+  private apiUrl = 'https://datakavach.com/api/auth';
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -33,17 +33,18 @@ export class AuthService {
     const params = new HttpParams()
       .set('username', username)
       .set('password', password);
-    return this.http.post(`${this.apiUrl}/requestOtp`, null, { 
-      params, 
-      responseType: 'text' 
+    return this.http.post(`${this.apiUrl}/requestOtp`, null, {
+      params,
+      responseType: 'text'
     });
   }
 
-  // Validate OTP (updated to use HttpParams)
-  validateOtp(username: string, otp: number): Observable<userSessionDetails> {
+  // Validate OTP (updated to include currentPassword in HttpParams)
+  validateOtp(username: string, otp: number, currentPassword: string): Observable<userSessionDetails> {
     const params = new HttpParams()
       .set('username', username)
-      .set('otpnum', otp.toString());
+      .set('otpnum', otp.toString())
+      .set('password', currentPassword);
     return this.http.post<userSessionDetails>(`${this.apiUrl}/validateOtp`, null, { params });
   }
 

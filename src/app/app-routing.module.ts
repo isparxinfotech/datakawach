@@ -47,6 +47,11 @@ const routes: Routes = [
     canActivate: [AuthGuard]
   },
   {
+    path: 'coadmindashboard',
+    component: AdminDashboardComponent,
+    canActivate: [AuthGuard]
+  },
+  {
     path: 'personalinformation',
     component: PersonalInformationComponent,
     canActivate: [AuthGuard]
