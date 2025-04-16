@@ -87,8 +87,6 @@ export class UserEditComponent implements OnInit {
       city: this.user.city,
       mobileNumber: this.user.mobileNumber,
       email: this.user.email,
-      ipAddress: this.user.ipAddress,
-      ip_address: this.user.ipAddress,
       createdBy: this.userSessionDetails.username || '',
       dateOfBirth: this.user.dateOfBirth,
       address: this.user.address,
