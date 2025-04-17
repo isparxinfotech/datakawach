@@ -59,7 +59,7 @@
                 <thead>
                   <tr>
                     <th scope="col">Name</th>
-                    <th scope="col">ID</th>
+                    <!-- <th scope="col">ID</th> -->
                     <th scope="col">Type</th>
                     <th scope="col">Size</th>
                     <th scope="col">Actions</th>
@@ -73,7 +73,7 @@
                       </a>
                       <span *ngIf="item.type === 'file'">{{ item.name }}</span>
                     </td>
-                    <td>{{ item.id }}</td>
+                    <!-- <td>{{ item.id }}</td> -->
                     <td>{{ item.type | titlecase }}</td>
                     <td>{{ formatSize(item.size) }}</td>
                     <td>
