@@ -67,14 +67,17 @@
               </div>
               <button class="btn btn-dark btn-lg w-100 mb-3" type="submit">Verify OTP</button>
               <div class="text-center">
-                <a href="javascript:void(0)" (click)="resendOtp()" class="text-decoration-none fw-bold text-muted me-2">Resend OTP</a>
+                <a href="javascript:void(0)" (click)="resendOtp()" class="text-decoration-none fw-bold text-muted me-2"
+                   [ngClass]="{'disabled': timerRunning}">Resend OTP</a>
                 <span>|</span>
-                <a href="javascript:void(0)" (click)="goBackToLogin()" class="text-decoration-none fw-bold text-muted ms-2">Back to Login</a>
+                <a href="javascript:void(0)" (click)="goBackToLogin()" class="text-decoration-none fw-bold text-muted ms-2 me-2">Back to Login</a>
+                <div class="timer-container d-inline-block">
+                  <span class="timer-text" [ngClass]="{'countdown-active': timerRunning}">{{ timerDisplay }}</span>
+                </div>
               </div>
             </form>
           </div>
-
-                </div>
+        </div>
       </div>
     </div>
   </div>

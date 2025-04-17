@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
-import * as bootstrap from 'bootstrap';
 
 @Component({
   selector: 'app-user-dashboard',
@@ -18,7 +17,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   oneDriveFiles: { name: string, id: string, downloadUrl: string }[] = [];
   loadingOneDrive: boolean = false;
   oneDriveErrorMessage: string = '';
-  
+ 
   buckets: any[] = [];
   s3Contents: any[] = [];
   selectedBucket: string = '';
@@ -26,6 +25,13 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   s3ErrorMessage: string = '';
   bucketSubscription?: Subscription;
   contentsSubscription?: Subscription;
+
+  // OTP-related properties
+  showOtpModal: boolean = false;
+  otpInput: string = '';
+  otpErrorMessage: string = '';
+  selectedFileDownloadUrl: string = '';
+  selectedFileName: string = '';
 
   constructor(private authService: AuthService, private http: HttpClient) {}
 
@@ -122,19 +128,14 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.contentsSubscription = this.http.get<any[]>(url).subscribe({
       next: (response) => {
         this.s3Contents = response.map(item => ({
-          name: item.fileName, // Map fileName to name
-          type: item.key.endsWith('/') ? 'folder' : 'file',
-          size: item.size || 0, // Use size from backend
+          name: item.name,
+          type: 'file',
+          size: item.size || 0,
           downloadUrl: item.downloadUrl
         }));
         this.loadingS3 = false;
         if (this.s3Contents.length === 0) {
           this.s3ErrorMessage = `No contents found in "${bucketName}/${prefix || ''}".`;
-        }
-        const modalElement = document.getElementById('s3BucketModal');
-        if (modalElement) {
-          const modal = new bootstrap.Modal(modalElement);
-          modal.show();
         }
       },
       error: (err) => {
@@ -145,8 +146,20 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  toggleSidebar(): void {
+    const sidebar = document.querySelector('#bdSidebar');
+    if (sidebar) {
+      sidebar.classList.toggle('show');
+    }
+  }
+
   viewFile(downloadUrl: string): void {
-    window.open(downloadUrl, '_blank');
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = '';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   formatSize(bytes: number): string {
@@ -155,6 +168,71 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // OTP-related methods
+  requestOtpForDownload(downloadUrl: string, fileName: string): void {
+    this.selectedFileDownloadUrl = downloadUrl;
+    this.selectedFileName = fileName;
+    this.otpInput = '';
+    this.otpErrorMessage = '';
+
+    const url = `https://datakavach.com/onedrive/generate-otp?email=${encodeURIComponent(this.email)}`;
+    this.http.post<any>(url, {}).subscribe({
+      next: (response) => {
+        this.showOtpModal = true;
+        // Focus OTP input after modal is rendered
+        setTimeout(() => {
+          const otpInput = document.getElementById('otpInput') as HTMLInputElement;
+          if (otpInput) {
+            otpInput.focus();
+          }
+        }, 100);
+        console.log('OTP sent to email:', this.email);
+      },
+      error: (err) => {
+        this.otpErrorMessage = err.error?.message || 'Failed to send OTP. Please try again.';
+        console.error('Error requesting OTP:', err);
+      }
+    });
+  }
+
+  verifyOtpAndDownload(): void {
+    if (!this.otpInput) {
+      this.otpErrorMessage = 'Please enter the OTP.';
+      return;
+    }
+
+    const url = `https://datakavach.com/onedrive/verify-otp?email=${encodeURIComponent(this.email)}&otp=${encodeURIComponent(this.otpInput)}`;
+    this.http.post<any>(url, {}).subscribe({
+      next: (response) => {
+        if (response.valid) {
+          this.showOtpModal = false;
+          this.otpInput = '';
+          this.otpErrorMessage = '';
+          const link = document.createElement('a');
+          link.href = this.selectedFileDownloadUrl;
+          link.download = this.selectedFileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          this.otpErrorMessage = 'Invalid or expired OTP. Please try again.';
+        }
+      },
+      error: (err) => {
+        this.otpErrorMessage = err.error?.message || 'Failed to verify OTP. Please try again.';
+        console.error('Error verifying OTP:', err);
+      }
+    });
+  }
+
+  closeOtpModal(): void {
+    this.showOtpModal = false;
+    this.otpInput = '';
+    this.otpErrorMessage = '';
+    this.selectedFileDownloadUrl = '';
+    this.selectedFileName = '';
   }
 
   ngOnDestroy(): void {

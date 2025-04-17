@@ -100,6 +100,18 @@ section {
   height: auto;
 }
 
+/* Timer Display */
+.timer-text {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Disabled Link */
+.disabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
 /* Dark Mode Styles */
 body.dark-mode {
   background: #121212;
@@ -159,6 +171,10 @@ body.dark-mode .invalid-feedback {
 
 body.dark-mode .illustration-container h2 {
   color: #ffffff;
+}
+
+body.dark-mode .timer-text {
+  color: #adb5bd;
 }
 
 /* Responsive */
