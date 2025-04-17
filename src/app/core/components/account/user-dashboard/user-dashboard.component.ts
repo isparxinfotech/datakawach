@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewChecked, ViewChild, ElementRef, Renderer2 } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
@@ -9,7 +9,7 @@ import { userSessionDetails } from 'src/app/models/user-session-responce.model';
   templateUrl: './user-dashboard.component.html',
   styleUrls: ['./user-dashboard.component.css']
 })
-export class UserDashboardComponent implements OnInit, OnDestroy {
+export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   userSessionDetails: userSessionDetails | null | undefined;
   email: string = '';
   folderName: string = '';
@@ -17,7 +17,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   oneDriveFiles: { name: string, id: string, downloadUrl: string }[] = [];
   loadingOneDrive: boolean = false;
   oneDriveErrorMessage: string = '';
- 
+
   buckets: any[] = [];
   s3Contents: any[] = [];
   selectedBucket: string = '';
@@ -26,38 +26,55 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   bucketSubscription?: Subscription;
   contentsSubscription?: Subscription;
 
-  // OTP-related properties
   showOtpModal: boolean = false;
   otpInput: string = '';
   otpErrorMessage: string = '';
   selectedFileDownloadUrl: string = '';
   selectedFileName: string = '';
+  loadingOtp: boolean = false;
 
-  constructor(private authService: AuthService, private http: HttpClient) {}
+  @ViewChild('otpInputElement') otpInputRef: ElementRef | undefined;
+
+  constructor(private authService: AuthService, private http: HttpClient, private renderer: Renderer2) {}
 
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
-    if (this.userSessionDetails?.username && this.userSessionDetails?.cloudProvider) {
-      this.email = this.userSessionDetails.username;
-      this.cloudProvider = this.userSessionDetails.cloudProvider.toLowerCase();
-      console.log('Cloud provider from session:', this.cloudProvider);
 
-      if (this.cloudProvider === 'aws') {
-        this.loadS3Buckets();
-      } else if (this.cloudProvider === 'onedrive') {
-        this.folderName = this.email;
-        this.listOneDriveFiles();
-      } else {
-        console.error('Unsupported cloud provider:', this.cloudProvider);
-      }
-    } else {
+    if (!this.userSessionDetails) {
+      console.warn('No user session found. Skipping dashboard load.');
+      return;
+    }
+
+    const { username, cloudProvider } = this.userSessionDetails;
+
+    if (!username || !cloudProvider) {
       console.error('User session details incomplete:', this.userSessionDetails);
+      return;
+    }
+
+    this.email = username;
+    this.cloudProvider = cloudProvider.toLowerCase();
+
+    if (this.cloudProvider === 'aws') {
+      this.loadS3Buckets();
+    } else if (this.cloudProvider === 'onedrive') {
+      this.folderName = this.email;
+      this.listOneDriveFiles();
+    } else {
+      console.warn('Unsupported cloud provider:', this.cloudProvider);
+    }
+  }
+
+  ngAfterViewChecked(): void {
+    if (this.showOtpModal && this.otpInputRef) {
+      console.log('Modal rendered, focusing OTP input');
+      this.renderer.selectRootElement(this.otpInputRef.nativeElement).focus();
     }
   }
 
   listOneDriveFiles(): void {
     if (!this.email || !this.folderName) {
-      this.oneDriveErrorMessage = 'Please provide both email and folder name.';
+      this.oneDriveErrorMessage = 'Email or folder name missing.';
       return;
     }
 
@@ -71,13 +88,13 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         this.oneDriveFiles = response;
         this.loadingOneDrive = false;
         if (this.oneDriveFiles.length === 0) {
-          this.oneDriveErrorMessage = 'No files found in the specified folder.';
+          this.oneDriveErrorMessage = 'No files found.';
         }
       },
       error: (err) => {
         this.loadingOneDrive = false;
-        this.oneDriveErrorMessage = err.error?.message || 'Failed to list files. Please try again.';
-        console.error('Error listing OneDrive files:', err);
+        this.oneDriveErrorMessage = err.error?.message || 'Failed to fetch OneDrive files. Check CORS or network.';
+        console.error('OneDrive error:', err);
       }
     });
   }
@@ -98,12 +115,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           creationDate: 'N/A'
         }));
         this.loadingS3 = false;
-        console.log('S3 buckets loaded:', this.buckets);
       },
       error: (err) => {
         this.loadingS3 = false;
-        this.s3ErrorMessage = err.error?.message || 'Failed to load S3 buckets.';
-        console.error('Error loading S3 buckets:', err);
+        this.s3ErrorMessage = err.error?.message || 'Error fetching buckets. Check CORS or network.';
+        console.error('S3 bucket error:', err);
         this.buckets = [];
       }
     });
@@ -140,8 +156,8 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.loadingS3 = false;
-        this.s3ErrorMessage = err.error?.message || 'Failed to list bucket contents.';
-        console.error('Error listing S3 contents:', err);
+        this.s3ErrorMessage = err.error?.message || 'Error fetching contents. Check CORS or network.';
+        console.error('S3 content error:', err);
       }
     });
   }
@@ -154,6 +170,10 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   }
 
   viewFile(downloadUrl: string): void {
+    if (!downloadUrl) {
+      console.error('Invalid download URL');
+      return;
+    }
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = '';
@@ -170,29 +190,40 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
-  // OTP-related methods
   requestOtpForDownload(downloadUrl: string, fileName: string): void {
+    if (!downloadUrl || !fileName || !this.email) {
+      this.otpErrorMessage = 'Invalid file or user details.';
+      console.error('Invalid parameters:', { downloadUrl, fileName, email: this.email });
+      return;
+    }
+
+    this.loadingOtp = true;
     this.selectedFileDownloadUrl = downloadUrl;
     this.selectedFileName = fileName;
     this.otpInput = '';
     this.otpErrorMessage = '';
 
+    console.log('Requesting OTP for:', { email: this.email, fileName });
+
+    // Blur active element to prevent focus conflicts
+    if (document.activeElement) {
+      (document.activeElement as HTMLElement).blur();
+    }
+
     const url = `https://datakavach.com/onedrive/generate-otp?email=${encodeURIComponent(this.email)}`;
     this.http.post<any>(url, {}).subscribe({
-      next: (response) => {
-        this.showOtpModal = true;
-        // Focus OTP input after modal is rendered
+      next: () => {
+        this.loadingOtp = false;
+        // Delay modal opening to ensure DOM is ready
         setTimeout(() => {
-          const otpInput = document.getElementById('otpInput') as HTMLInputElement;
-          if (otpInput) {
-            otpInput.focus();
-          }
-        }, 100);
-        console.log('OTP sent to email:', this.email);
+          this.showOtpModal = true;
+          console.log('OTP modal opened for:', this.email);
+        }, 0);
       },
       error: (err) => {
-        this.otpErrorMessage = err.error?.message || 'Failed to send OTP. Please try again.';
-        console.error('Error requesting OTP:', err);
+        this.loadingOtp = false;
+        this.otpErrorMessage = err.error?.message || 'Failed to request OTP. Check CORS or network.';
+        console.error('OTP request error:', err);
       }
     });
   }
@@ -203,26 +234,40 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (!this.selectedFileDownloadUrl || !this.selectedFileName) {
+      this.otpErrorMessage = 'No file selected for download.';
+      this.showOtpModal = false;
+      console.error('No file selected for download');
+      return;
+    }
+
+    this.loadingOtp = true;
+    this.otpErrorMessage = '';
+
+    console.log('Verifying OTP:', { email: this.email, otp: this.otpInput });
+
     const url = `https://datakavach.com/onedrive/verify-otp?email=${encodeURIComponent(this.email)}&otp=${encodeURIComponent(this.otpInput)}`;
     this.http.post<any>(url, {}).subscribe({
       next: (response) => {
+        this.loadingOtp = false;
         if (response.valid) {
-          this.showOtpModal = false;
-          this.otpInput = '';
-          this.otpErrorMessage = '';
+          console.log('OTP verified successfully, downloading:', this.selectedFileName);
           const link = document.createElement('a');
           link.href = this.selectedFileDownloadUrl;
           link.download = this.selectedFileName;
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
+          this.closeOtpModal();
         } else {
-          this.otpErrorMessage = 'Invalid or expired OTP. Please try again.';
+          this.otpErrorMessage = 'Invalid or expired OTP.';
+          console.warn('OTP verification failed: Invalid OTP');
         }
       },
       error: (err) => {
-        this.otpErrorMessage = err.error?.message || 'Failed to verify OTP. Please try again.';
-        console.error('Error verifying OTP:', err);
+        this.loadingOtp = false;
+        this.otpErrorMessage = err.error?.message || 'OTP verification failed. Check CORS or network.';
+        console.error('OTP verify error:', err);
       }
     });
   }
@@ -233,14 +278,12 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.otpErrorMessage = '';
     this.selectedFileDownloadUrl = '';
     this.selectedFileName = '';
+    this.loadingOtp = false;
+    console.log('OTP modal closed');
   }
 
   ngOnDestroy(): void {
-    if (this.bucketSubscription) {
-      this.bucketSubscription.unsubscribe();
-    }
-    if (this.contentsSubscription) {
-      this.contentsSubscription.unsubscribe();
-    }
+    this.bucketSubscription?.unsubscribe();
+    this.contentsSubscription?.unsubscribe();
   }
 }

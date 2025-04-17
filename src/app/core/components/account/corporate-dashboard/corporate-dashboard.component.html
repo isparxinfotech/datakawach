@@ -69,9 +69,9 @@
                   <tr *ngFor="let item of oneDriveContents">
                     <td>
                       <a *ngIf="item.type === 'folder'" href="javascript:void(0)" (click)="listFolderContents(item.name)" class="text-blue">
-                        [Folder] {{ item.name }}
+                        📁 {{ item.name }}
                       </a>
-                      <span *ngIf="item.type === 'file'">{{ item.name }}</span>
+                      <span *ngIf="item.type === 'file'"> 📁{{ item.name }}</span>
                     </td>
                     <!-- <td>{{ item.id }}</td> -->
                     <td>{{ item.type | titlecase }}</td>

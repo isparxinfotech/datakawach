@@ -134,7 +134,17 @@ export class LoginComponent implements OnDestroy {
 
   private handleSuccessfulLogin(response: userSessionDetails) {
     this.authService.saveUserDetails(response);
-    this.router.navigate(['/dashboard']);
+    const userType = response.userType; // Assuming userType is a property in userSessionDetails
+    if (userType === 3) {
+      this.router.navigate(['/corporatedashboard']);
+    } else if (userType === 1) {
+      this.router.navigate(['/admindashboard']);
+    } else if (userType === 5) {
+      this.router.navigate(['/dashboard']);
+    } else {
+      // Fallback navigation if userType is unexpected
+      this.router.navigate(['/dashboard']);
+    }
   }
 
   goBackToLogin() {
