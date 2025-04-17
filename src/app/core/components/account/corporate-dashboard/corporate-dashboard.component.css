@@ -1,0 +1,166 @@
+/* General Reset */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    height: 100%;
+}
+
+/* Container */
+.container-fluid {
+    display: flex;
+    height: 0;
+}
+
+/* Sidebar Wrapper */
+.sidebar-wrapper {
+    width: 270px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease-in-out;
+}
+
+@media (max-width: 767.98px) {
+    .sidebar-wrapper {
+        position: fixed;
+        z-index: 1000;
+        transform: translateX(-100%);
+    }
+    .sidebar-wrapper.active {
+        transform: translateX(0);
+    }
+}
+
+/* Sidebar */
+#bdSidebar {
+    background: #1e3a8a;
+    color: white;
+    width: 0;
+    min-height: 0;
+    padding: 20px;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+    border-radius: 0 20px 20px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Main Content */
+.bg-light {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+    overflow-y: auto;
+}
+
+/* Mobile Topbar */
+.p-2.d-md-none {
+    background-color: #1e40af;
+    font-weight: 600;
+}
+
+/* Navbar */
+.navbar {
+    background: #1e3a8a !important;
+    color: #ffffff;
+    padding: 10px 20px;
+}
+
+.navbar-brand {
+    color: #ffffff !important;
+    font-size: 15px;
+    font-weight: 600;
+    position: relative;
+    right: 0;
+}
+
+/* Blue Color Scheme */
+.bg-blue {
+    background-color: #1e40af !important;
+}
+.text-blue {
+    color: #1e40af !important;
+}
+.btn-blue {
+    background-color: #1e40af;
+    border-color: #1e40af;
+    color: white;
+}
+.btn-blue:hover {
+    background-color: #1e3a8a;
+    border-color: #1e3a8a;
+}
+
+/* Card and Table */
+.card {
+    border: none;
+    border-radius: 10px;
+    overflow-x: auto;
+}
+
+.table {
+    margin-bottom: 0;
+    width: 100%;
+}
+
+.table th, .table td {
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.table a {
+    text-decoration: none;
+}
+
+.table a:hover {
+    text-decoration: underline;
+}
+
+.btn-sm {
+    padding: 5px 15px;
+    font-size: 0.875rem;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    background-color: #e0e7ff;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+}
+
+/* Spinner */
+.spinner-border {
+    margin: 20px auto;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 991.98px) {
+    .navbar-brand {
+        font-size: 14px;
+    }
+    .table {
+        font-size: 0.9rem;
+    }
+    .btn-sm {
+        padding: 4px 10px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .p-2.d-md-none {
+        display: flex !important;
+    }
+    .card {
+        padding: 1rem;
+    }
+    .table th, .table td {
+        font-size: 0.85rem;
+    }
+    .p-4 {
+        padding: 1.5rem !important;
+    }
+}
