@@ -1,103 +1,122 @@
 <div class="container-fluid p-0 d-flex h-100">
-    <app-dynamic-menus></app-dynamic-menus>
-  
-    <div class="bg-light flex-fill">
-      <div class="p-2 d-md-none d-flex text-white bg-blue">
-        <a href="#" class="text-white" (click)="toggleSidebar()">
-          <i class="fa-solid fa-bars"></i>
-        </a>
-        <span class="ms-3">Data Kavach</span>
-      </div>
-      <div class="p-4">
-        <nav class="navbar navbar-expand-lg bg-blue shadow-sm">
-          <div class="container-fluid">
-            <a class="navbar-brand text-white" href="dashboard" style="font-size: 15px;">
-              Welcome: {{userSessionDetails?.username}}
-            </a>
+  <app-dynamic-menus></app-dynamic-menus>
+
+  <div class="bg-light flex-fill">
+    <div class="p-2 d-md-none d-flex text-white bg-blue">
+      <a href="#" class="text-white" (click)="toggleSidebar()">
+        <i class="fa-solid fa-bars"></i>
+      </a>
+      <span class="ms-3">Data Kavach</span>
+    </div>
+    <div class="p-4">
+      <nav class="navbar navbar-expand-lg bg-blue shadow-sm">
+        <div class="container-fluid">
+          <a class="navbar-brand text-white" href="dashboard" style="font-size: 15px;">
+            Welcome: {{userSessionDetails?.username}}
+          </a>
+        </div>
+      </nav>
+
+      <hr class="my-4">
+
+      <div class="row">
+        <div class="col">
+          <!-- Company Stats Section -->
+          <h2 class="text-center mb-4 fw-bold text-blue">Company Storage Overview</h2>
+
+          <div class="card shadow-sm p-4 mb-4 bg-white rounded">
+            <div class="row text-center">
+              <div class="col-md-6 mb-3">
+                <h5>Total Users</h5>
+                <p class="fw-bold">{{ userCount }}</p>
+              </div>
+              <div class="col-md-6 mb-3">
+                <h5>Storage Used</h5>
+                <p class="fw-bold">{{ formatSize(totalStorageUsed) }} / {{ formatSize(totalStorageLimit) }}</p>
+                <div class="progress">
+                  <div class="progress-bar bg-blue" role="progressbar" [style.width]="getStoragePercentage() + '%'" 
+                       [attr.aria-valuenow]="getStoragePercentage()" aria-valuemin="0" aria-valuemax="100">
+                    {{ getStoragePercentage() | number:'1.0-2' }}%
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </nav>
- 
-        <hr class="my-4">
- 
-        <div class="row">
-          <div class="col">
-            <!-- OneDrive Folders Section -->
-            <h2 class="text-center mb-4 fw-bold text-blue">Folder Explorer</h2>
- 
-            <!-- Error Message -->
-            <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
-              {{ errorMessage }}
+
+          <!-- OneDrive Folders Section -->
+          <h2 class="text-center mb-4 fw-bold text-blue">Folder Explorer</h2>
+
+          <!-- Error Message -->
+          <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+            {{ errorMessage }}
+          </div>
+
+          <!-- Breadcrumbs and Navigation -->
+          <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+              <li class="breadcrumb-item">
+                <a href="javascript:void(0)" (click)="listRootFolders()">Root</a>
+              </li>
+              <li *ngFor="let pathSegment of currentPath.split('/'); let i = index" class="breadcrumb-item">
+                <a href="javascript:void(0)" (click)="navigateToPathSegment(i)">{{ pathSegment }}</a>
+              </li>
+            </ol>
+          </nav>
+
+          <!-- Back Button -->
+          <button *ngIf="pathHistory.length > 0" class="btn btn-blue mb-3" (click)="navigateBack()">
+            Back
+          </button>
+
+          <!-- Loading Spinner -->
+          <div class="text-center mt-4" *ngIf="loading">
+            <div class="spinner-border text-blue" role="status">
+              <span class="visually-hidden">Loading...</span>
             </div>
- 
-            <!-- Breadcrumbs and Navigation -->
-            <nav aria-label="breadcrumb" class="mb-3">
-              <ol class="breadcrumb">
-                <li class="breadcrumb-item">
-                  <a href="javascript:void(0)" (click)="listRootFolders()">Root</a>
-                </li>
-                <li *ngFor="let pathSegment of currentPath.split('/'); let i = index" class="breadcrumb-item">
-                  <a href="javascript:void(0)" (click)="navigateToPathSegment(i)">{{ pathSegment }}</a>
-                </li>
-              </ol>
-            </nav>
- 
-            <!-- Back Button -->
-            <button *ngIf="pathHistory.length > 0" class="btn btn-blue mb-3" (click)="navigateBack()">
-              Back
-            </button>
- 
-            <!-- Loading Spinner -->
-            <div class="text-center mt-4" *ngIf="loading">
-              <div class="spinner-border text-blue" role="status">
-                <span class="visually-hidden">Loading...</span>
-              </div>
+          </div>
+
+          <!-- Contents Table -->
+          <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!loading && oneDriveContents.length > 0">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Size</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of oneDriveContents">
+                  <td>
+                    <a *ngIf="item.type === 'folder'" href="javascript:void(0)" (click)="listFolderContents(item.name)" class="text-blue">
+                      📁 {{ item.name }}
+                    </a>
+                    <span *ngIf="item.type === 'file'">📄 {{ item.name }}</span>
+                  </td>
+                  <td>{{ item.type | titlecase }}</td>
+                  <td>{{ formatSize(item.size) }}</td>
+                  <td>
+                    <a *ngIf="item.type === 'file' && item.downloadUrl" [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm">
+                      Download
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- No Folders Message -->
+          <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!loading && oneDriveContents.length === 0 && !errorMessage">
+            <div class="alert alert-info text-center" *ngIf="userSessionDetails">
+              No items found in the OneDrive account for "{{userSessionDetails?.username}}" in the current folder.
             </div>
- 
-            <!-- Contents Table -->
-            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!loading && oneDriveContents.length > 0">
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th scope="col">Name</th>
-                    <!-- <th scope="col">ID</th> -->
-                    <th scope="col">Type</th>
-                    <th scope="col">Size</th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let item of oneDriveContents">
-                    <td>
-                      <a *ngIf="item.type === 'folder'" href="javascript:void(0)" (click)="listFolderContents(item.name)" class="text-blue">
-                        📁 {{ item.name }}
-                      </a>
-                      <span *ngIf="item.type === 'file'"> 📁{{ item.name }}</span>
-                    </td>
-                    <!-- <td>{{ item.id }}</td> -->
-                    <td>{{ item.type | titlecase }}</td>
-                    <td>{{ formatSize(item.size) }}</td>
-                    <td>
-                      <a *ngIf="item.type === 'file' && item.downloadUrl" [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm">
-                        Download
-                      </a>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
- 
-            <!-- No Folders Message -->
-            <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!loading && oneDriveContents.length === 0 && !errorMessage">
-              <div class="alert alert-info text-center" *ngIf="userSessionDetails">
-                No items found in the OneDrive account for "{{userSessionDetails?.username}}" in the current folder.
-              </div>
-              <div class="alert alert-warning text-center" *ngIf="!userSessionDetails">
-                Please log in to view OneDrive folders.
-              </div>
+            <div class="alert alert-warning text-center" *ngIf="!userSessionDetails">
+              Please log in to view OneDrive folders.
             </div>
           </div>
         </div>
       </div>
     </div>
+  </div>
 </div>
-

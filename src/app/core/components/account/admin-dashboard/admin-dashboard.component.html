@@ -2,13 +2,16 @@
   <app-dynamic-menus></app-dynamic-menus>
 
   <div class="bg-light flex-fill">
+    <!-- Mobile Sidebar Toggle -->
     <div class="p-2 d-md-none d-flex text-white bg-success">
       <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
         <i class="fa-solid fa-bars"></i>
       </a>
       <span class="ms-3">Data Kavach - Admin</span>
     </div>
+
     <div class="p-4">
+      <!-- Navbar with Admin Username -->
       <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
         <div class="container-fluid">
           <a class="navbar-brand" href="dashboard" style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
@@ -16,46 +19,65 @@
           </a>
         </div>
       </nav>
+
       <hr class="my-4">
+
+      <!-- Metrics Section -->
       <div class="row">
         <div class="col">
           <h2 class="section-title mb-4 fw-bold text-primary">
-            <i class="fa-brands fa-aws me-2"></i>Admin Bucket Explorer
+            <i class="fa-solid fa-chart-line me-2"></i> Admin Dashboard
           </h2>
 
-          <!-- S3 Buckets Cards -->
-          <div class="bucket-container row g-4" *ngIf="buckets.length > 0 && !loading; else loadingOrNoBuckets">
-            <div class="col-md-6 col-lg-4" *ngFor="let bucket of buckets">
-              <div class="bucket-card card shadow-sm bg-dark rounded">
+          <!-- Metrics Cards -->
+          <div class="metrics-container row g-4" *ngIf="!loading; else loadingTemplate">
+            <!-- Total Corporates -->
+            <div class="col-md-4">
+              <div class="metric-card card shadow-sm bg-dark rounded">
                 <div class="card-body p-4">
                   <div class="d-flex align-items-center mb-3">
-                    <i class="fa-solid fa-box me-2 text-success fa-2x"></i>
-                    <h5 class="bucket-name mb-0">{{ bucket.name }}</h5>
+                    <i class="fa-solid fa-building me-2 text-success fa-2x"></i>
+                    <h5 class="metric-name mb-0">Total Corporates</h5>
                   </div>
-                  <div class="bucket-details">
-                    <p class="mb-1"><strong>Size:</strong> {{ formatSize(bucket.size) }}</p>
-                    <p class="mb-1"><strong>Objects:</strong> {{ bucket.objectCount }}</p>
-                    <p class="mb-1"><strong>Usage:</strong> {{ calculateUsage(bucket.size) }} of 1TB</p>
-                    <p class="mb-3"><strong>Last Modified:</strong> {{ bucket.lastModified | date:'medium' }}</p>
+                  <p class="display-6 mb-0">{{ metrics.totalCorporates }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total Users -->
+            <div class="col-md-4">
+              <div class="metric-card card shadow-sm bg-dark rounded">
+                <div class="card-body p-4">
+                  <div class="d-flex align-items-center mb-3">
+                    <i class="fa-solid fa-users me-2 text-success fa-2x"></i>
+                    <h5 class="metric-name mb-0">Total Users</h5>
                   </div>
-                  <button class="btn btn-gradient" (click)="listBucketContents(bucket)" [disabled]="loading">
-                    View Contents
-                  </button>
+                  <p class="display-6 mb-0">{{ metrics.totalUsers }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Data Storage -->
+            <div class="col-md-4">
+              <div class="metric-card card shadow-sm bg-dark rounded">
+                <div class="card-body p-4">
+                  <div class="d-flex align-items-center mb-3">
+                    <i class="fa-solid fa-database me-2 text-success fa-2x"></i>
+                    <h5 class="metric-name mb-0">Data Storage</h5>
+                  </div>
+                  <p class="display-6 mb-0">{{ formatSize(metrics.totalStorage) }}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Loading or No Buckets Template -->
-          <ng-template #loadingOrNoBuckets>
-            <div class="card shadow-sm p-4 mb-4 bg-white rounded">
-              <div class="text-center mt-4" *ngIf="loading">
+          <!-- Loading Template -->
+          <ng-template #loadingTemplate>
+            <div class="card shadow-sm p-4 mb-4 bg-dark rounded">
+              <div class="text-center mt-4">
                 <div class="spinner-border text-primary" role="status">
                   <span class="visually-hidden">Loading...</span>
                 </div>
-              </div>
-              <div class="alert alert-info text-center" *ngIf="!loading && adminSessionDetails">
-                No buckets found in AWS S3.
               </div>
             </div>
           </ng-template>
@@ -64,51 +86,6 @@
           <div class="mt-4" *ngIf="errorMessage && !loading">
             <div class="alert alert-danger text-center">
               {{errorMessage}}
-            </div>
-          </div>
-
-          <!-- Modal for Bucket Contents -->
-          <div class="modal fade" id="bucketContentsModal" tabindex="-1" aria-labelledby="bucketContentsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-              <div class="modal-content bg-dark text-white">
-                <div class="modal-header">
-                  <h5 class="modal-title" id="bucketContentsModalLabel">Contents of {{ selectedBucket?.name }}</h5>
-                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body p-4" style="max-height: 60vh; overflow-y: auto;">
-                  <div *ngIf="contents.length > 0; else noContents">
-                    <div class="content-item d-flex align-items-center p-2 rounded mb-2" *ngFor="let item of contents">
-                      <i class="me-3" [ngClass]="{
-                        'fa-solid fa-folder text-warning': item.type === 'folder',
-                        'fa-solid fa-file text-primary': item.type === 'file'
-                      }"></i>
-                      <div class="flex-grow-1">
-                        <p class="mb-0">{{ item.name }}</p>
-                        <small class="text-muted">{{ formatSize(item.size) }} • {{ item.lastModified | date:'medium' }}</small>
-                      </div>
-                      <div class="btn-group">
-                        <a *ngIf="item.downloadUrl" [href]="item.downloadUrl" target="_blank" class="btn btn-sm btn-outline-success" download>
-                          <i class="fa-solid fa-download me-1"></i> Download
-                        </a>
-                        <button *ngIf="item.downloadUrl" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
-                          <i class="fa-solid fa-eye me-1"></i> View
-                        </button>
-                        <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listFolderContents(item)">
-                          <i class="fa-solid fa-folder-open me-1"></i> View Folder
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <ng-template #noContents>
-                    <div class="alert alert-info text-center m-0">
-                      No contents found in this bucket.
-                    </div>
-                  </ng-template>
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-              </div>
             </div>
           </div>
         </div>

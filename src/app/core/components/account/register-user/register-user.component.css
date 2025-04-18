@@ -17,7 +17,7 @@ body {
     text-align: center;
     font-size: 30px;
     margin-bottom: 20px;
-    color: #F04D35;
+    color: #006ed5;
   }
   
   label {
@@ -28,7 +28,7 @@ body {
   }
   
   .mandatory {
-    color: #F04D35;
+    color: #006ed5;
   }
   
   input[type="text"],
@@ -55,13 +55,13 @@ body {
   }
   
   .invalid-feedback {
-    color: red;
+    color: rgb(0, 98, 255);
     font-size: 12px;
   }
   
   /* Buttons */
   .btn-primary {
-    background: linear-gradient(45deg, #0052A1, #F04D35);
+    background: linear-gradient(45deg, #0052A1, #006ed5);
     color: white;
     padding: 10px 20px;
     border: none;
@@ -82,7 +82,7 @@ body {
   }
   
   fieldset.scheduler-border {
-    border: 1px solid #F04D35 !important;
+    border: 1px solid #006ed5 !important;
     padding: 10px 15px;
     border-radius: 8px;
     margin-bottom: 20px;
@@ -94,7 +94,7 @@ body {
     color: #ffffff;
     width: auto;
     padding: 0 10px;
-    background: #F04D35;
+    background: #006ed5;
   }
   
   .row {
@@ -110,7 +110,7 @@ body {
   }
   
   span a {
-    color: #F04D35;
+    color: #006ed5;
     text-decoration: none;
     font-weight: 600;
   }

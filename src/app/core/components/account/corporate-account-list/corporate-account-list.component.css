@@ -1,0 +1,155 @@
+/* Reset and Base Styles */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+    height: 100%;
+  }
+  
+  /* Container */
+  .container-fluid {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  /* Sidebar */
+  #bdSidebar {
+    background: #1e293b;
+    color: white;
+    width: 270px;
+    min-height: 100vh;
+    padding: 20px;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
+    border-radius: 0 20px 20px 0;
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  
+  /* Main Content */
+  .bg-light {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #0f172a;
+  }
+  
+  /* Mobile Topbar */
+  .p-2.d-md-none {
+    background-color: #10b981;
+    font-weight: 600;
+  }
+  
+  /* Navbar */
+  .navbar {
+    background: #1e293b !important;
+    color: #e2e8f0;
+  }
+  
+  .navbar-brand {
+    color: #e2e8f0 !important;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  
+  /* Section Titles */
+  .section-title {
+    font-size: 1.5rem;
+    border-left: 5px solid #3b82f6;
+    padding-left: 1rem;
+  }
+  
+  /* Card Styles */
+  .card {
+    background: #1e293b;
+    border: none;
+    color: #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Table Styling */
+  .table-dark {
+    background: #1e293b;
+    color: #e2e8f0;
+  }
+  
+  .table-striped tbody tr:nth-of-type(odd) {
+    background-color: #334155;
+  }
+  
+  .table-responsive {
+    border-radius: 8px;
+  }
+  
+  .table th, .table td {
+    border-color: #334155;
+    padding: 0.75rem;
+    vertical-align: middle;
+  }
+  
+  .table tbody tr:hover {
+    background-color: #475569;
+    transition: background-color 0.3s ease;
+  }
+  
+  /* Gradient Button */
+  .btn-gradient {
+    background: linear-gradient(45deg, #3b82f6, #60a5fa);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.3s ease, transform 0.2s ease;
+  }
+  
+  .btn-gradient:hover {
+    background: linear-gradient(45deg, #2563eb, #3b82f6);
+    transform: translateY(-2px);
+    color: white;
+    text-decoration: none;
+  }
+  
+  /* Icons */
+  i.fa-building, i.fa-plus, i.fa-bars {
+    color: #34d399;
+  }
+  
+  /* Animations */
+  .card, .table, .btn-gradient {
+    animation: fadeIn 0.5s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Responsive Enhancements */
+  @media (max-width: 768px) {
+    #bdSidebar {
+      display: none;
+    }
+    .bg-light {
+      width: 100%;
+    }
+    .table-responsive {
+      font-size: 0.9rem;
+    }
+    .section-title {
+      font-size: 1.25rem;
+    }
+    .btn-gradient {
+      padding: 6px 12px;
+      font-size: 0.9rem;
+    }
+  }

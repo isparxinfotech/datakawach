@@ -10,7 +10,7 @@ body, html {
 /* Container */
 .container-fluid {
   display: flex;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -72,79 +72,56 @@ body, html {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Bucket Card Styling */
-.bucket-container {
+/* Metric Card Styling */
+.metrics-container {
   margin-bottom: 2rem;
 }
 
-.bucket-card {
+.metric-card {
   background: #1e293b;
   border-radius: 12px;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.bucket-card:hover {
+.metric-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
-.bucket-name {
+.metric-name {
   font-size: 1.25rem;
   font-weight: 600;
   color: #e2e8f0;
 }
 
-.bucket-details p {
-  font-size: 0.9rem;
-  color: #94a3b8;
-}
-
-.bucket-details strong {
+.display-6 {
+  font-size: 2.5rem;
+  font-weight: bold;
   color: #e2e8f0;
 }
 
-/* Gradient Button */
-.btn-gradient {
-  background: linear-gradient(45deg, #3b82f6, #60a5fa);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  transition: background 0.3s ease, transform 0.2s ease;
-}
-
-.btn-gradient:hover {
-  background: linear-gradient(45deg, #2563eb, #3b82f6);
-  transform: translateY(-2px);
-}
-
-/* Modal Styling */
-.modal-content {
+/* Table Styling */
+.table-dark {
   background: #1e293b;
-  border-radius: 12px;
   color: #e2e8f0;
 }
 
-.modal-header, .modal-footer {
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: #334155;
+}
+
+.table-responsive {
+  border-radius: 8px;
+}
+
+.table th, .table td {
   border-color: #334155;
+  padding: 0.75rem;
 }
 
-.modal-title {
-  font-weight: 600;
-}
-
-.content-item {
-  background: #334155;
-  transition: background 0.3s ease;
-}
-
-.content-item:hover {
-  background: #475569;
-}
-
-.content-item i {
-  font-size: 1.5rem;
+/* Chart Styling */
+canvas {
+  max-width: 100%;
 }
 
 /* Alerts */
@@ -169,20 +146,12 @@ body, html {
 }
 
 /* Icons */
-i.fa-folder {
-  color: #fbbf24;
-}
-
-i.fa-box {
+i.fa-building, i.fa-users, i.fa-database, i.fa-chart-line {
   color: #34d399;
 }
 
-i.fa-file {
-  color: #60a5fa;
-}
-
 /* Animations */
-.card, .alert, .bucket-card {
+.card, .alert, .metric-card {
   animation: fadeIn 0.5s ease-in;
 }
 
@@ -199,11 +168,11 @@ i.fa-file {
   .bg-light {
     width: 100%;
   }
-  .bucket-container .col-md-6 {
+  .metrics-container .col-md-4 {
     flex: 0 0 100%;
     max-width: 100%;
   }
-  .modal-dialog {
-    margin: 1rem;
+  .table-responsive {
+    font-size: 0.9rem;
   }
 }
