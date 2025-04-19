@@ -32,13 +32,17 @@
               </div>
               <div class="col-md-6 mb-3">
                 <h5>Storage Used</h5>
-                <p class="fw-bold">{{ formatSize(totalStorageUsed) }} / {{ formatSize(totalStorageLimit) }}</p>
-                <div class="progress">
-                  <div class="progress-bar bg-blue" role="progressbar" [style.width]="getStoragePercentage() + '%'" 
-                       [attr.aria-valuenow]="getStoragePercentage()" aria-valuemin="0" aria-valuemax="100">
-                    {{ getStoragePercentage() | number:'1.0-2' }}%
+                <div *ngIf="!storageCalculationFailed; else storageError">
+                  <div class="progress mb-2">
+                    <div class="progress-bar" role="progressbar" [style.width]="getStoragePercentage() + '%'" 
+                         [attr.aria-valuenow]="getStoragePercentage()" aria-valuemin="0" aria-valuemax="100">
+                    </div>
                   </div>
+                  <p class="fw-bold">{{ formatSize(totalStorageUsed) }} / {{ formatSize(totalStorageLimit) }}</p>
                 </div>
+                <ng-template #storageError>
+                  <p class="fw-bold text-danger">Error calculating storage</p>
+                </ng-template>
               </div>
             </div>
           </div>
@@ -90,7 +94,7 @@
                 <tr *ngFor="let item of oneDriveContents">
                   <td>
                     <a *ngIf="item.type === 'folder'" href="javascript:void(0)" (click)="listFolderContents(item.name)" class="text-blue">
-                      📁 {{ item.name }}
+                      <span class="folder-icon">📁</span> {{ item.name }}
                     </a>
                     <span *ngIf="item.type === 'file'">📄 {{ item.name }}</span>
                   </td>

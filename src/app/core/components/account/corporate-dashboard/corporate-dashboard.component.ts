@@ -1,7 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Subscription } from 'rxjs';
+import { forkJoin, Observable, Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
+import { SuperAdminService } from 'src/app/services/super-admin.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 
 @Component({
@@ -19,12 +20,17 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy {
   loading: boolean = false;
   errorMessage: string = '';
   userCount: number = 0;
-  totalStorageUsed: number = 0; // in bytes
-  totalStorageLimit: number = 1 * 1024 * 1024 * 1024 * 1024; // 1TB in bytes
+  totalStorageUsed: number = 0;
+  totalStorageLimit: number = 1 * 1024 * 1024 * 1024 * 1024; // 1TB
+  storageCalculationFailed: boolean = false;
 
   private subscriptions: Subscription[] = [];
 
-  constructor(private authService: AuthService, private http: HttpClient) {}
+  constructor(
+    private authService: AuthService,
+    private http: HttpClient,
+    private superAdminService: SuperAdminService
+  ) {}
 
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
@@ -32,7 +38,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy {
       this.email = this.userSessionDetails.username;
       this.cloudProvider = this.userSessionDetails.cloudProvider.toLowerCase();
       if (this.cloudProvider === 'onedrive') {
-        this.fetchCompanyStats();
+        this.fetchUserCount();
+        this.calculateTotalStorage();
         this.listRootFolders();
       } else {
         this.errorMessage = 'Only OneDrive is supported for corporate dashboard.';
@@ -42,27 +49,129 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Fetch company stats (user count and total storage)
-  private fetchCompanyStats(): void {
+  private fetchUserCount(): void {
     this.loading = true;
-    const url = `https://datakavach.com/onedrive/company-stats?email=${encodeURIComponent(this.email)}`;
+    if (!this.userSessionDetails) {
+      this.errorMessage = 'User session details are missing.';
+      this.loading = false;
+      return;
+    }
+    this.userSessionDetails.userType = 5;
     this.subscriptions.push(
-      this.http.get<{ userCount: number, totalStorageUsed: number }>(url).subscribe({
+      this.superAdminService.getUsersList(this.userSessionDetails).subscribe({
         next: (response) => {
-          this.userCount = response.userCount || 0;
-          this.totalStorageUsed = response.totalStorageUsed || 0;
+          const userInfo = (response.userInfo as any[]).map(item => ({
+            userid: item.userid || '',
+            firstName: item.firstName || '',
+            middleName: item.middleName || '',
+            lastName: item.lastName || '',
+            gender: item.gender || '',
+            dateOfBirth: item.dateOfBirth ? new Date(item.dateOfBirth) : null,
+            address: item.address || '',
+            city: item.city || '',
+            pinCode: item.pinCode || '',
+            mobileNumber: item.mobileNumber || '',
+            email: item.email || '',
+            corpoName: item.corpoName || '',
+            branch: item.branch || '',
+            landlineNumber: item.landlineNumber || '',
+            userType: Number(item.userType) || 0,
+          }));
+          this.userCount = userInfo.length;
           this.loading = false;
         },
         error: (err) => {
-          this.errorMessage = err.error?.message || 'Failed to fetch company stats.';
+          this.errorMessage = err.error?.message || 'Failed to fetch user count.';
           this.loading = false;
         }
       })
     );
   }
 
+  calculateTotalStorage(): void {
+    this.totalStorageUsed = 0;
+    this.storageCalculationFailed = false;
+    this.loading = true;
+
+    this.fetchFolderContentsRecursively('').subscribe({
+      next: (totalSize: number) => {
+        this.totalStorageUsed = totalSize;
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Storage calculation error:', err);
+        this.errorMessage = err.message || 'Failed to calculate total storage. Please try again later.';
+        this.storageCalculationFailed = true;
+        this.loading = false;
+      }
+    });
+  }
+
+  private fetchFolderContentsRecursively(folderPath: string): Observable<number> {
+    return new Observable<number>((observer) => {
+      let totalSize = 0;
+      const url = folderPath
+        ? `https://datakavach.com/onedrive/folder-contents?email=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`
+        : `https://datakavach.com/onedrive/folders?email=${encodeURIComponent(this.email)}`;
+
+      this.subscriptions.push(
+        this.http.get<any[]>(url).subscribe({
+          next: (response) => {
+            if (!response || !Array.isArray(response)) {
+              console.warn(`Empty or invalid response from ${url}:`, response);
+              observer.next(totalSize);
+              observer.complete();
+              return;
+            }
+
+            const contents = response
+              .map(item => ({
+                name: item.name || 'Unknown',
+                id: item.id || 'N/A',
+                size: item.size !== undefined ? Number(item.size) : 0,
+                type: item.type || 'folder',
+                downloadUrl: item.downloadUrl
+              }))
+              .filter(item => item.size >= 0);
+
+            totalSize += contents.reduce((sum, item) => sum + item.size, 0);
+
+            const folderObservables = contents
+              .filter(item => item.type === 'folder')
+              .map(item => {
+                const newPath = folderPath ? `${folderPath}/${item.name}` : item.name;
+                return this.fetchFolderContentsRecursively(newPath);
+              });
+
+            if (folderObservables.length > 0) {
+              forkJoin(folderObservables).subscribe({
+                next: (subfolderSizes: number[]) => {
+                  totalSize += subfolderSizes.reduce((sum, size) => sum + size, 0);
+                  observer.next(totalSize);
+                  observer.complete();
+                },
+                error: (err) => {
+                  console.error(`Error fetching subfolder contents for ${folderPath}:`, err);
+                  observer.next(totalSize);
+                  observer.complete();
+                }
+              });
+            } else {
+              observer.next(totalSize);
+              observer.complete();
+            }
+          },
+          error: (err) => {
+            console.error(`HTTP error for ${url}:`, err);
+            observer.next(totalSize);
+            observer.complete();
+          }
+        })
+      );
+    });
+  }
+
   toggleSidebar(): void {
-    // Assuming sidebar toggle logic is handled elsewhere, e.g., via a service or DOM manipulation
     const sidebar = document.querySelector('.sidebar-wrapper');
     if (sidebar) {
       sidebar.classList.toggle('active');
@@ -123,23 +232,28 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy {
       this.http.get<any[]>(url).subscribe({
         next: (response) => {
           if (!response || !Array.isArray(response)) {
-            this.errorMessage = 'Invalid response from server.';
+            this.errorMessage = 'No items found in the current folder.';
             this.loading = false;
             return;
           }
-          this.oneDriveContents = response.map(item => ({
-            name: item.name || 'Unknown',
-            id: item.id || 'N/A',
-            size: item.size || 0,
-            type: item.type || 'folder',
-            downloadUrl: item.downloadUrl
-          }));
+          this.oneDriveContents = response
+            .map(item => ({
+              name: item.name || 'Unknown',
+              id: item.id || 'N/A',
+              size: item.size !== undefined ? Number(item.size) : 0,
+              type: item.type || 'folder',
+              downloadUrl: item.downloadUrl
+            }))
+            .filter(item => item.size >= 0);
+
+          this.calculateTotalStorage();
           this.loading = false;
           if (this.oneDriveContents.length === 0) {
             this.errorMessage = `No items found in ${folderPath || 'root'}.`;
           }
         },
         error: (err) => {
+          console.error('Error loading folder contents:', err);
           this.loading = false;
           this.errorMessage = err.error?.message || 'Failed to list contents. Please try again.';
         }
@@ -156,7 +270,10 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy {
   }
 
   getStoragePercentage(): number {
-    return (this.totalStorageUsed / this.totalStorageLimit) * 100;
+    if (this.totalStorageLimit === 0 || this.storageCalculationFailed) {
+      return 0;
+    }
+    return Math.min((this.totalStorageUsed / this.totalStorageLimit) * 100, 100);
   }
 
   ngOnDestroy(): void {
