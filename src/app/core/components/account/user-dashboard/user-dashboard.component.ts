@@ -93,7 +93,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
       },
       error: (err) => {
         this.loadingOneDrive = false;
-        this.oneDriveErrorMessage = err.error?.message || 'Failed to fetch OneDrive files. Check CORS or network.';
+        this.oneDriveErrorMessage = err.error?.message || 'Failed to fetch files. Check CORS or network.';
         console.error('OneDrive error:', err);
       }
     });

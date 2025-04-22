@@ -151,6 +151,10 @@ body, html {
     font-size: 1.2rem;
     margin-bottom: 0.5rem;
 }
+.folder-icon {
+    color: blue;
+    font-size: 24px;
+  }
 
 /* Responsive Adjustments */
 @media (max-width: 767.98px) {

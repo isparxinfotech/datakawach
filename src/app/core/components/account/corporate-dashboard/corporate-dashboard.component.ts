@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { forkJoin, Observable, Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
@@ -10,7 +10,11 @@ import { userSessionDetails } from 'src/app/models/user-session-responce.model';
   templateUrl: './corporate-dashboard.component.html',
   styleUrls: ['./corporate-dashboard.component.css']
 })
-export class CorporateDashboardComponent implements OnInit, OnDestroy {
+export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterViewInit {
+logout() {
+throw new Error('Method not implemented.');
+}
+  @ViewChild('storagePieChart') pieChartCanvas!: ElementRef<HTMLCanvasElement>;
   userSessionDetails: userSessionDetails | null | undefined;
   email: string = '';
   cloudProvider: string = '';
@@ -47,6 +51,57 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy {
     } else {
       this.errorMessage = 'User session details are incomplete. Please log in again.';
     }
+  }
+
+  ngAfterViewInit(): void {
+    // Draw the pie chart after the view is initialized
+    this.drawPieChart();
+  }
+
+  private drawPieChart(): void {
+    if (!this.pieChartCanvas || this.storageCalculationFailed) {
+      return;
+    }
+
+    const canvas = this.pieChartCanvas.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('Failed to get canvas context');
+      return;
+    }
+
+    const percentage = this.getStoragePercentage();
+    const usedAngle = (percentage / 100) * 2 * Math.PI;
+    const remainingAngle = 2 * Math.PI - usedAngle;
+
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Center and radius
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = Math.min(canvas.width, canvas.height) / 2 - 10;
+
+    // Draw used storage (dark blue)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, usedAngle);
+    ctx.lineTo(centerX, centerY);
+    ctx.fillStyle = '#1f1f1f'; // Match the .bg-blue color
+    ctx.fill();
+
+    // Draw remaining storage (light blue)
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, usedAngle, 2 * Math.PI);
+    ctx.lineTo(centerX, centerY);
+    ctx.fillStyle = '#88c6fc'; // Match the previous progress background
+    ctx.fill();
+
+    // Add a stroke to separate segments
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
   private fetchUserCount(): void {
@@ -97,6 +152,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy {
       next: (totalSize: number) => {
         this.totalStorageUsed = totalSize;
         this.loading = false;
+        this.drawPieChart(); // Redraw the pie chart when storage is updated
       },
       error: (err) => {
         console.error('Storage calculation error:', err);
@@ -260,6 +316,38 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy {
       })
     );
   }
+  getFileIconClass(item: { name: string; type: string }): string {
+    if (item.type === 'folder') return 'fa fa-folder text-warning';
+  
+    const ext = item.name.split('.').pop()?.toLowerCase() || '';
+    const iconMap: { [key: string]: string } = {
+      'jpg': 'fa fa-file-image text-primary',
+      'jpeg': 'fa fa-file-image text-primary',
+      'png': 'fa fa-file-image text-primary',
+      'gif': 'fa fa-file-image text-primary',
+      'mp4': 'fa fa-file-video text-danger',
+      'mov': 'fa fa-file-video text-danger',
+      'avi': 'fa fa-file-video text-danger',
+      'mp3': 'fa fa-file-audio text-success',
+      'wav': 'fa fa-file-audio text-success',
+      'pdf': 'fa fa-file-pdf text-danger',
+      'doc': 'fa fa-file-word text-info',
+      'docx': 'fa fa-file-word text-info',
+      'xls': 'fa fa-file-excel text-success',
+      'xlsx': 'fa fa-file-excel text-success',
+      'zip': 'fa fa-file-archive text-secondary',
+      'rar': 'fa fa-file-archive text-secondary',
+      'psd': 'fa fa-file text-info',
+      'ai': 'fa fa-file text-warning',
+      'txt': 'fa fa-file-lines text-muted',
+      'json': 'fa fa-file-code text-warning',
+      'csv': 'fa fa-file-csv text-success'
+    };
+  
+    return iconMap[ext] || 'fa fa-file text-secondary';
+  }
+  
+  
 
   formatSize(bytes: number): string {
     if (bytes === 0) return '0 Bytes';

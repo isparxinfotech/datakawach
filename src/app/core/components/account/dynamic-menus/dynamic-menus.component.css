@@ -1,9 +1,9 @@
 .menu-container {
   width: 270px;
   min-height: 100vh;
-  background: linear-gradient(to bottom, #ffffff, #f1f1f1);
-  color: #333;
-  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(to bottom, #c7f9ff, #24b9f4);
+  color: #ffffff;
+  box-shadow: 4px 0 12px rgb(175, 175, 174);
   border-radius: 0 20px 20px 0;
   transition: all 0.3s ease-in-out;
 }
@@ -18,7 +18,7 @@
   align-items: center;
   padding: 10px 15px;
   font-size: 16px;
-  color: #333;
+  color: #000000;
   text-decoration: none;
   transition: 0.3s;
   border-radius: 8px;
@@ -28,13 +28,13 @@
 
 .mynav .nav-item a:hover {
   background: linear-gradient(to right, #007bff, #00bcd4);
-  color: #fff;
+  color: #ffffff;
   transform: scale(1.03);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .offcanvas-header {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 @media (max-width: 768px) {

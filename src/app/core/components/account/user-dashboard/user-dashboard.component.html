@@ -21,7 +21,7 @@
         <div class="col">
           <!-- OneDrive Section -->
           <div *ngIf="cloudProvider === 'onedrive'">
-            <h2 class="text-center mb-4 fw-bold text-primary">File Explorer (OneDrive)</h2>
+            <h2 class="text-center mb-4 fw-bold text-primary">File Explorer</h2>
 
             <!-- Input Section -->
             <div class="card shadow-sm p-4 mb-4 bg-white rounded">
@@ -114,7 +114,7 @@
             <ng-template #noBuckets>
               <div class="card shadow-sm p-4 mb-4 bg-white rounded">
                 <div class="alert alert-info text-center" *ngIf="userSessionDetails">
-                  No buckets found in the AWS S3 account for "{{userSessionDetails?.username}}".
+                  No buckets found in account for "{{userSessionDetails?.username}}".
                 </div>
               </div>
             </ng-template>
