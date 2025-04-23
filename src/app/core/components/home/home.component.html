@@ -16,11 +16,10 @@
   </header>
 
   <section class="hero" @fadeIn>
-    
     <div class="hero-text">
       <div class="tagline">Smarter Storage, powered by Isparxinfotech</div>
       <h1>Secure Data Storage & <br>Backup Solutions</h1>
-      <button class="cta-button">Get Started for free</button>
+      <button class="cta-button" (click)="openContactForm()">Get in Touch</button>
       <p class="sub-text">Let's start today storing data and reduce your personal space</p>
     </div>
     <div class="particles">
@@ -44,6 +43,190 @@
       <div class="particle"></div>
       <div class="particle"></div>
       <div class="particle"></div>
+    </div>
+
+    <!-- Contact Form Popup -->
+    <div class="contact-overlay" *ngIf="isContactFormOpen" @popupAnimation>
+      <div class="form-container">
+        <button class="close-btn" (click)="closeContactForm()">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="form-scroll">
+          <h2 class="heading">Get in Touch</h2>
+          <form class="form" (ngSubmit)="submitContactForm()" #contactForm="ngForm">
+            <!-- Hidden input for formType -->
+            <input type="hidden" name="formType" [(ngModel)]="contactData.formType">
+            <!-- Company or Personal Selection -->
+            <label class="c1">I am representing:</label>
+            <div class="flex gap-4 mb-6">
+              <label class="flex items-center c2">
+                <input
+                  type="radio"
+                  name="formTypeRadio"
+                  value="company"
+                  [(ngModel)]="contactData.formType"
+                  (change)="resetFormFields()"
+                  required
+                  class="mr-2 input"
+                />
+                Company
+              </label>
+              <label class="flex items-center c2">
+                <input
+                  type="radio"
+                  name="formTypeRadio"
+                  value="personal"
+                  [(ngModel)]="contactData.formType"
+                  (change)="resetFormFields()"
+                  required
+                  class="mr-2 input"
+                />
+                Personal
+              </label>
+            </div>
+
+            <!-- Company Form Fields -->
+            <div *ngIf="contactData.formType === 'company'" @fadeIn>
+              <label for="companyName" class="c2">Company Name</label>
+              <input
+                type="text"
+                id="companyName"
+                name="companyName"
+                [(ngModel)]="contactData.companyName"
+                required
+                class="input"
+              />
+              <label for="panNumber" class="c2">PAN Number</label>
+              <input
+                type="text"
+                id="panNumber"
+                name="panNumber"
+                [(ngModel)]="contactData.panNumber"
+                required
+                class="input"
+              />
+              <label for="totalUsers" class="c2">Total Users</label>
+              <input
+                type="number"
+                id="totalUsers"
+                name="totalUsers"
+                [(ngModel)]="contactData.totalUsers"
+                required
+                min="1"
+                class="input"
+              />
+              <label for="contactNumber" class="c2">Contact Number</label>
+              <input
+                type="tel"
+                id="contactNumber"
+                name="contactNumber"
+                [(ngModel)]="contactData.contactNumber"
+                required
+                pattern="[0-9]{10}"
+                class="input"
+              />
+              <label for="contactPerson" class="c2">Contact Person Name</label>
+              <input
+                type="text"
+                id="contactPerson"
+                name="contactPerson"
+                [(ngModel)]="contactData.contactPerson"
+                required
+                class="input"
+              />
+              <label for="companyAddress" class="c2">Address</label>
+              <textarea
+                id="companyAddress"
+                name="companyAddress"
+                [(ngModel)]="contactData.companyAddress"
+                required
+                class="textarea"
+              ></textarea>
+              <label for="companyEmail" class="c2">Email ID</label>
+              <input
+                type="email"
+                id="companyEmail"
+                name="companyEmail"
+                [(ngModel)]="contactData.companyEmail"
+                required
+                email
+                class="input"
+              />
+            </div>
+
+            <!-- Personal Form Fields -->
+            <div *ngIf="contactData.formType === 'personal'" @fadeIn>
+              <label for="fullName" class="c2">Full Name</label>
+              <input
+                type="text"
+                id="fullName"
+                name="fullName"
+                [(ngModel)]="contactData.fullName"
+                required
+                class="input"
+              />
+              <label for="occupation" class="c2">Occupation/Work</label>
+              <input
+                type="text"
+                id="occupation"
+                name="occupation"
+                [(ngModel)]="contactData.occupation"
+                required
+                class="input"
+              />
+              <label for="storageNeeded" class="c2">Storage Needed (GB)</label>
+              <input
+                type="number"
+                id="storageNeeded"
+                name="storageNeeded"
+                [(ngModel)]="contactData.storageNeeded"
+                required
+                min="1"
+                class="input"
+              />
+              <label for="personalAddress" class="c2">Address</label>
+              <textarea
+                id="personalAddress"
+                name="personalAddress"
+                [(ngModel)]="contactData.personalAddress"
+                required
+                class="textarea"
+              ></textarea>
+              <label for="personalPhone" class="c2">Phone Number</label>
+              <input
+                type="tel"
+                id="personalPhone"
+                name="personalPhone"
+                [(ngModel)]="contactData.personalPhone"
+                required
+                pattern="[0-9]{10}"
+                class="input"
+              />
+              <label for="personalEmail" class="c2">Email ID</label>
+              <input
+                type="email"
+                id="personalEmail"
+                name="personalEmail"
+                [(ngModel)]="contactData.personalEmail"
+                required
+                email
+                class="input"
+              />
+            </div>
+
+            <div class="button-container">
+              <button type="submit" class="send-button" [disabled]="!contactForm.valid || isSubmitting">
+                {{ isSubmitting ? 'Sending...' : 'Send Message' }}
+              </button>
+              <div class="reset-button-container">
+                <button type="button" class="reset-button" (click)="resetFormFields()" [disabled]="isSubmitting">
+                  Reset
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   </section>
 
