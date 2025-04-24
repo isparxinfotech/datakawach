@@ -34,11 +34,64 @@
             </div>
 
             <div class="form-group">
-              <label for="file">Select File:</label>
-              <input type="file" id="file" (change)="onFileSelected($event)" required>
+              <label for="fileName">File Name:</label>
+              <input type="text" id="fileName" [(ngModel)]="fileName" placeholder="e.g., myfile.txt" required
+                     (input)="validateFileNameInput()">
+              <div *ngIf="fileNameError" class="error-message">{{ fileNameError }}</div>
             </div>
 
-            <button (click)="onUpload()" [disabled]="!folderName || !selectedFile || uploading">
+            <div class="form-group">
+              <label for="localPath">Local File Path:</label>
+              <input type="text" id="localPath" [(ngModel)]="localPath" placeholder="e.g., C:\path\to\file" required>
+            </div>
+
+            <div class="form-group">
+              <label for="backupTime">Backup Time (HH:mm):</label>
+              <input type="time" id="backupTime" [(ngModel)]="backupTime" required>
+            </div>
+
+            <div class="form-group">
+              <label for="retentionDays">Retention Days:</label>
+              <input type="number" id="retentionDays" [(ngModel)]="retentionDays" min="1" value="7" required>
+            </div>
+
+            <div class="form-group">
+              <label for="backupFrequency">Backup Frequency:</label>
+              <select id="backupFrequency" [(ngModel)]="backupFrequency" (change)="onFrequencyChange()">
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+              </select>
+            </div>
+
+            <div class="form-group" *ngIf="backupFrequency === 'Weekly'">
+              <label for="dayOfWeek">Day of Week:</label>
+              <select id="dayOfWeek" [(ngModel)]="dayOfWeek">
+                <option value="MONDAY">Monday</option>
+                <option value="TUESDAY">Tuesday</option>
+                <option value="WEDNESDAY">Wednesday</option>
+                <option value="THURSDAY">Thursday</option>
+                <option value="FRIDAY">Friday</option>
+                <option value="SATURDAY">Saturday</option>
+                <option value="SUNDAY">Sunday</option>
+              </select>
+            </div>
+
+            <div class="form-group" *ngIf="backupFrequency === 'Monthly'">
+              <label for="dayOfMonth">Day of Month:</label>
+              <input type="number" id="dayOfMonth" [(ngModel)]="dayOfMonth" min="1" max="31" placeholder="e.g., 1">
+            </div>
+
+            <div class="form-group">
+              <label for="file">Select File (Optional for Manual Upload):</label>
+              <input type="file" id="file" (change)="onFileSelected($event)">
+            </div>
+
+            <button (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError">
+              {{ scheduling ? 'Creating Schedule...' : 'Create Backup Schedule' }}
+            </button>
+
+            <button *ngIf="selectedFile" (click)="onUpload()" [disabled]="!folderName || !selectedFile || uploading || fileNameError">
               {{ uploading ? 'Uploading...' : 'Upload File' }}
             </button>
 
