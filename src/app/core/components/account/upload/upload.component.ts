@@ -281,7 +281,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     if (error.status === 404) {
       this.message = 'Endpoint not found. Please check the server configuration.';
-   JW } else if (error.status === 400) {
+  } else if (error.status === 400) {
       this.message = error.error?.message || 'Operation failed due to a bad request.';
     } else if (error.status === 401) {
       this.message = 'Unauthorized. Please check authentication credentials.';
