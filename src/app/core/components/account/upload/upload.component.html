@@ -105,6 +105,25 @@
             <div *ngIf="message" class="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}">
               {{ message }}
             </div>
+
+            <!-- Add backup list and status display -->
+            <div class="backup-list">
+              <h3>Scheduled Backups</h3>
+              <div *ngFor="let schedule of backupSchedules" class="backup-item">
+                <div class="backup-info">
+                  <div>Path: {{ schedule.filePath }}</div>
+                  <div>Next Run: {{ schedule.nextBackupTime | date:'medium' }}</div>
+                  <div>Status: {{ schedule.lastError ? 'Error' : 'Active' }}</div>
+                  <div *ngIf="schedule.lastError" class="error-message">
+                    Last Error: {{ schedule.lastError }}
+                  </div>
+                </div>
+                <button (click)="triggerManualBackup(schedule.scheduleId)"
+                        [disabled]="!schedule.isActive">
+                  Run Now
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

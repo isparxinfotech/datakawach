@@ -1,10 +1,29 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { HttpClient, HttpEventType } from '@angular/common/http';
+import { HttpClient, HttpEventType, HttpParams } from '@angular/common/http';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { Subscription } from 'rxjs';
 import { SuperAdminService } from 'src/app/services/super-admin.service';
 import { PersonalInfoRequest } from 'src/app/models/personal-info-request.model';
+
+// Interface for BackupSchedule to match backend BackupScheduleEntity
+interface BackupSchedule {
+  scheduleId: number;
+  userId: number;
+  cloudProvider: string;
+  filePath: string;
+  localFilePath: string;
+  backupTime: string;
+  retentionDays: number;
+  backupFrequency: string;
+  dayOfWeek?: string;
+  dayOfMonth?: number;
+  isActive: boolean;
+  lastBackupTime?: Date | null;
+  nextBackupTime: Date;
+  lastError?: string | null;
+  retryCount: number;
+}
 
 @Component({
   selector: 'app-upload',
@@ -32,6 +51,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   private readonly CHUNK_SIZE = 20 * 1024 * 1024; // 20MB chunks
   private uploadSessionId: string | null = null;
   userInfo: PersonalInfoRequest[] = [];
+  backupSchedules: BackupSchedule[] = [];
   private usersSubscription?: Subscription;
 
   constructor(
@@ -52,6 +72,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     };
     if (this.userSessionDetails) {
       this.getUsersList();
+      this.loadBackupSchedules();
     }
   }
 
@@ -121,6 +142,9 @@ export class UploadComponent implements OnInit, OnDestroy {
       await this.http.post(url, body, { responseType: 'text' }).toPromise();
       this.message = 'Backup schedule created successfully';
       this.isSuccess = true;
+
+      // Refresh the backup schedules list
+      await this.loadBackupSchedules();
 
       if (this.selectedFile) {
         await this.onUpload(sanitizedFileName);
@@ -257,7 +281,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     if (error.status === 404) {
       this.message = 'Endpoint not found. Please check the server configuration.';
-    } else if (error.status === 400) {
+   JW } else if (error.status === 400) {
       this.message = error.error?.message || 'Operation failed due to a bad request.';
     } else if (error.status === 401) {
       this.message = 'Unauthorized. Please check authentication credentials.';
@@ -324,6 +348,57 @@ export class UploadComponent implements OnInit, OnDestroy {
           console.error('Error fetching user list:', error);
         }
       );
+  }
+
+  loadBackupSchedules() {
+    if (!this.userSessionDetails?.username) {
+      console.error('No username available to load schedules');
+      return;
+    }
+
+    const params = new HttpParams().set('email', this.userSessionDetails.username);
+    this.http.get<BackupSchedule[]>('https://datakavach.com/onedrive/schedules', { params })
+      .subscribe({
+        next: (schedules) => {
+          this.backupSchedules = schedules.map(s => ({
+            ...s,
+            nextBackupTime: new Date(s.nextBackupTime),
+            lastBackupTime: s.lastBackupTime ? new Date(s.lastBackupTime) : null
+          }));
+          console.log('Backup schedules loaded:', this.backupSchedules);
+        },
+        error: (err) => {
+          console.error('Error loading schedules:', err);
+          this.message = 'Failed to load backup schedules';
+          this.isSuccess = false;
+        }
+      });
+  }
+
+  triggerManualBackup(scheduleId: number) {
+    if (!this.userSessionDetails?.username) {
+      this.message = 'No user logged in';
+      this.isSuccess = false;
+      return;
+    }
+
+    const params = new HttpParams()
+      .set('scheduleId', scheduleId.toString())
+      .set('email', this.userSessionDetails.username);
+
+    this.http.post('https://datakavach.com/onedrive/backup-now', null, { params })
+      .subscribe({
+        next: () => {
+          this.message = 'Backup triggered successfully';
+          this.isSuccess = true;
+          setTimeout(() => this.loadBackupSchedules(), 3000);
+        },
+        error: (err) => {
+          this.message = 'Failed to trigger backup: ' + (err.error?.message || err.message);
+          this.isSuccess = false;
+          console.error('Error triggering backup:', err);
+        }
+      });
   }
 
   ngOnDestroy(): void {
