@@ -1,63 +1,63 @@
 <div class="container-fluid p-0 d-flex h-100">
-  <app-dynamic-menus></app-dynamic-menus>
+  <app-dynamic-menus class="dynamic-menu"></app-dynamic-menus>
 
-  <div class="bg-light flex-fill">
+  <div class="bg-light flex-fill content-wrapper">
     <div class="p-2 d-md-none d-flex text-white bg-success">
       <a href="dashboard" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
         <i class="fa-solid fa-bars"></i>
       </a>
       <span class="ms-3">Data Kavach</span>
     </div>
-    <div class="p-4">
-      <nav class="navbar navbar-expand-lg bg-body-tertiary">
+    
+    <div class="content-area">
+      <nav class="navbar navbar-expand-lg bg-white shadow-sm">
         <div class="container-fluid">
-          <a class="navbar-brand" href="dashboard"
-            style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
+          <a class="navbar-brand" href="dashboard">
             Welcome: {{ userSessionDetails?.username }}
           </a>
         </div>
       </nav>
-      <hr>
-      <div class="row">
-        <div class="container">
-          <div class="upload-container">
-            <h2>Add Backup</h2>
 
+      <div class="container py-5">
+        <div class="upload-card">
+          <h2 class="card-title">Add Backup</h2>
+          
+          <form class="backup-form">
             <div class="form-group">
-              <label>User Email:</label>
-              <input type="text" [value]="userSessionDetails?.username || 'Not logged in'" disabled>
+              <label for="userEmail">User Email</label>
+              <input type="text" id="userEmail" [value]="userSessionDetails?.username || 'Not logged in'" disabled>
             </div>
 
             <div class="form-group">
-              <label for="folder">Folder Name:</label>
-              <input type="text" id="folder" [(ngModel)]="folderName" placeholder="e.g., demo" required>
+              <label for="folder">Folder Name</label>
+              <input type="text" id="folder" [(ngModel)]="folderName" name="folderName" placeholder="e.g., demo" required>
             </div>
 
             <div class="form-group">
-              <label for="fileName">File Name:</label>
-              <input type="text" id="fileName" [(ngModel)]="fileName" placeholder="e.g., myfile.txt" required
+              <label for="fileName">File Name</label>
+              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt" required
                      (input)="validateFileNameInput()">
               <div *ngIf="fileNameError" class="error-message">{{ fileNameError }}</div>
             </div>
 
             <div class="form-group">
-              <label for="localPath">Local File Path:</label>
-              <input type="text" id="localPath" [(ngModel)]="localPath" placeholder="e.g., C:\path\to\file" required>
+              <label for="localPath">Local File Path</label>
+              <input type="text" id="localPath" [(ngModel)]="localPath" name="localPath" placeholder="e.g., C:\path\to\file" required>
             </div>
 
             <div class="form-group">
-              <label for="backupTime">Backup Time (HH:mm):</label>
-              <input type="time" id="backupTime" [(ngModel)]="backupTime" required>
+              <label for="backupTime">Backup Time (HH:mm)</label>
+              <input type="time" id="backupTime" [(ngModel)]="backupTime" name="backupTime" required>
             </div>
 
             <div class="form-group">
-              <label for="retentionDays">Retention Days:</label>
-              <input type="number" id="retentionDays" [(ngModel)]="retentionDays" min="1" value="7" required>
+              <label for="retentionDays">Retention Days</label>
+              <input type="number" id="retentionDays" [(ngModel)]="retentionDays" name="retentionDays" min="1" value="7" required>
             </div>
 
             <div class="form-group">
-              <label for="backupFrequency">Backup Frequency:</label>
-              <select id="backupFrequency" [(ngModel)]="backupFrequency" (change)="onFrequencyChange()">
+              <label for="backupFrequency">Backup Frequency</label>
+              <select id="backupFrequency" [(ngModel)]="backupFrequency" name="backupFrequency" (change)="onFrequencyChange()">
                 <option value="Daily">Daily</option>
                 <option value="Weekly">Weekly</option>
                 <option value="Monthly">Monthly</option>
@@ -65,8 +65,8 @@
             </div>
 
             <div class="form-group" *ngIf="backupFrequency === 'Weekly'">
-              <label for="dayOfWeek">Day of Week:</label>
-              <select id="dayOfWeek" [(ngModel)]="dayOfWeek">
+              <label for="dayOfWeek">Day of Week</label>
+              <select id="dayOfWeek" [(ngModel)]="dayOfWeek" name="dayOfWeek">
                 <option value="MONDAY">Monday</option>
                 <option value="TUESDAY">Tuesday</option>
                 <option value="WEDNESDAY">Wednesday</option>
@@ -78,48 +78,61 @@
             </div>
 
             <div class="form-group" *ngIf="backupFrequency === 'Monthly'">
-              <label for="dayOfMonth">Day of Month:</label>
-              <input type="number" id="dayOfMonth" [(ngModel)]="dayOfMonth" min="1" max="31" placeholder="e.g., 1">
+              <label for="dayOfMonth">Day of Month</label>
+              <input type="number" id="dayOfMonth" [(ngModel)]="dayOfMonth" name="dayOfMonth" min="1" max="31" placeholder="e.g., 1">
             </div>
 
             <div class="form-group">
-              <label for="file">Select File (Optional for Manual Upload):</label>
+              <label for="file">Select File (Optional)</label>
               <input type="file" id="file" (change)="onFileSelected($event)">
             </div>
 
-            <button (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError">
-              {{ scheduling ? 'Creating Schedule...' : 'Create Backup Schedule' }}
-            </button>
+            <div class="button-group">
+              <button type="button" (click)="onCreateSchedule()" 
+                      [disabled]="!isScheduleFormValid() || scheduling || fileNameError"
+                      class="btn-primary">
+                {{ scheduling ? 'Creating Schedule...' : 'Create Backup Schedule' }}
+              </button>
 
-            <button *ngIf="selectedFile" (click)="onUpload()" [disabled]="!folderName || !selectedFile || uploading || fileNameError">
-              {{ uploading ? 'Uploading...' : 'Upload File' }}
-            </button>
-
-            <div *ngIf="overallProgress > 0" class="progress-bar">
-              <div class="progress" [style.width]="overallProgress + '%'">Overall: {{ overallProgress }}%</div>
+              <button type="button" *ngIf="selectedFile" (click)="onUpload()" 
+                      [disabled]="!folderName || !selectedFile || uploading || fileNameError"
+                      class="btn-secondary">
+                {{ uploading ? 'Uploading...' : 'Upload File' }}
+              </button>
             </div>
-            <div *ngIf="chunkProgress > 0 && uploading" class="progress-bar">
-              <div class="progress" [ngStyle]="{'width': chunkProgress + '%'}">Chunk: {{ chunkProgress }}%</div>
+
+            <div *ngIf="overallProgress > 0" class="progress-container">
+              <div class="progress-bar">
+                <div class="progress" [style.width]="overallProgress + '%'">Overall: {{ overallProgress }}%</div>
+              </div>
+            </div>
+
+            <div *ngIf="chunkProgress > 0 && uploading" class="progress-container">
+              <div class="progress-bar">
+                <div class="progress" [style.width]="chunkProgress + '%'">Chunk: {{ chunkProgress }}%</div>
+              </div>
             </div>
 
             <div *ngIf="message" class="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}">
               {{ message }}
             </div>
+          </form>
 
-            <!-- Add backup list and status display -->
-            <div class="backup-list">
-              <h3>Scheduled Backups</h3>
+          <div class="backup-list">
+            <h3>Scheduled Backups</h3>
+            <div class="backup-grid">
               <div *ngFor="let schedule of backupSchedules" class="backup-item">
                 <div class="backup-info">
-                  <div>Path: {{ schedule.filePath }}</div>
-                  <div>Next Run: {{ schedule.nextBackupTime | date:'medium' }}</div>
-                  <div>Status: {{ schedule.lastError ? 'Error' : 'Active' }}</div>
+                  <div><strong>Path:</strong> {{ schedule.filePath }}</div>
+                  <div><strong>Next Run:</strong> {{ schedule.nextBackupTime | date:'medium' }}</div>
+                  <div><strong>Status:</strong> {{ schedule.lastError ? 'Error' : 'Active' }}</div>
                   <div *ngIf="schedule.lastError" class="error-message">
                     Last Error: {{ schedule.lastError }}
                   </div>
                 </div>
                 <button (click)="triggerManualBackup(schedule.scheduleId)"
-                        [disabled]="!schedule.isActive">
+                        [disabled]="!schedule.isActive"
+                        class="btn-action">
                   Run Now
                 </button>
               </div>

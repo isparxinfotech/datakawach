@@ -1,136 +1,274 @@
 /* General Page Styling */
 body {
-  font-family: 'Poppins', sans-serif;
-  background-color: #f8f9fa;
-  color: #333;
+  font-family: 'Inter', sans-serif;
+  background-color: #f5f6f8;
+  color: #2d3748;
+  margin: 0;
+  height: 100vh;
+}
+
+/* Layout Structure */
+.container-fluid {
+  height: 10vh;
+  overflow: hidden;
+  position: fixed;
+}
+
+.dynamic-menu {
+  width: 270px !important;
+  min-width: 270px !important;
+  max-width: 270px !important;
+  height: 100%;
+}
+
+.content-wrapper {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 2rem;
 }
 
 /* Navbar */
 .navbar {
   background-color: #ffffff !important;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 1rem;
 }
 
-/* Sidebar Toggle Button */
-.p-2.bg-success {
-  background-color: #28a745 !important;
-  font-weight: bold;
+.navbar-brand {
+  font-size: 1rem;
+  color: #4a5568;
+  font-weight: 500;
 }
 
-/* Upload Container */
-.upload-container {
-  background: #ffffff;
-  padding: 2rem;
-  border-radius: 10px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
-  margin: auto;
-  margin-top: 30px;
-}
-
-/* Upload Form Headings */
-.upload-container h2 {
-  text-align: center;
+/* Mobile Toggle */
+.bg-success {
+  background-color: #2f855a !important;
   font-weight: 600;
-  color: #007bff;
-  margin-bottom: 20px;
 }
 
-/* Form Group */
+/* Upload Card */
+.upload-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 2.5rem;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.card-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #2b6cb0;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+/* Form Styling */
+.backup-form {
+  display: grid;
+  gap: 1.5rem;
+}
+
 .form-group {
-  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
 }
 
 .form-group label {
-  font-weight: 500;
-  display: block;
-  margin-bottom: 5px;
-  color: #444;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.5rem;
 }
 
-/* Input Fields */
-input[type="email"],
-input[type="text"],
-input[type="file"] {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 16px;
-  transition: 0.3s ease-in-out;
+.form-group input,
+.form-group select {
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
 }
 
-input[type="email"]:focus,
-input[type="text"]:focus,
-input[type="file"]:focus {
-  border-color: #007bff;
-  box-shadow: 0px 0px 5px rgba(0, 123, 255, 0.5);
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #2b6cb0;
+  box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
 }
 
-/* Upload Button */
-button {
-  width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  font-weight: 500;
-  color: #fff;
-  background: linear-gradient(to right, #007bff, #0056b3);
+.form-group input:disabled {
+  background: #f7fafc;
+  color: #718096;
+}
+
+/* Buttons */
+.button-group {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.btn-primary {
+  background: linear-gradient(45deg, #2b6cb0, #4299e1);
+  color: white;
+  padding: 0.75rem;
+  border-radius: 8px;
   border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: 0.3s ease-in-out;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-button:hover {
-  background: linear-gradient(to right, #0056b3, #003f7f);
+.btn-secondary {
+  background: linear-gradient(45deg, #718096, #a0aec0);
+  color: white;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-action {
+  background: #48bb78;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-weight: 500;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-action:disabled {
+  background: #cbd5e0;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* Progress Bar */
+.progress-container {
+  margin-top: 1rem;
+}
+
 .progress-bar {
-  width: 100%;
-  background: #e9ecef;
-  border-radius: 5px;
-  margin-top: 10px;
-  height: 20px;
+  background: #edf2f7;
+  border-radius: 6px;
+  height: 1.5rem;
   overflow: hidden;
 }
 
 .progress {
   height: 100%;
-  text-align: center;
+  background: linear-gradient(45deg, #2b6cb0, #4299e1);
   color: white;
-  font-weight: bold;
-  background: linear-gradient(to right, #007bff, #0056b3);
-  transition: width 0.4s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: width 0.3s ease;
 }
 
-/* Success and Error Messages */
+/* Messages */
 .message {
-  margin-top: 15px;
-  padding: 10px;
-  border-radius: 5px;
+  padding: 1rem;
+  border-radius: 8px;
   text-align: center;
-  font-weight: bold;
+  font-weight: 500;
+  margin-top: 1rem;
 }
 
 .success {
-  background: #d4edda;
-  color: #155724;
+  background: #f0fff4;
+  color: #2f855a;
+  border: 1px solid #c6f6d5;
 }
 
 .error {
-  background: #f8d7da;
-  color: #721c24;
+  background: #fff5f5;
+  color: #c53030;
+  border: 1px solid #fed7d7;
+}
+
+/* Backup List */
+.backup-list {
+  margin-top: 3rem;
+}
+
+.backup-list h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+}
+
+.backup-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.backup-item {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: transform 0.2s ease;
+}
+
+.backup-item:hover {
+  transform: translateY(-2px);
+}
+
+.backup-info {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.backup-info div {
+  font-size: 0.9rem;
+  color: #4a5568;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .upload-container {
-    padding: 1.5rem;
-    max-width: 90%;
+  .dynamic-menu {
+    width: 200px !important;
+    min-width: 200px !important;
+    max-width: 200px !important;
   }
 
-  button {
-    font-size: 14px;
+  .upload-card {
+    padding: 1.5rem;
+    max-width: 100%;
+  }
+
+  .card-title {
+    font-size: 1.5rem;
+  }
+
+  .backup-item {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
   }
 }
