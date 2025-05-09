@@ -11,15 +11,15 @@
     <div class="p-4">
       <nav class="navbar navbar-expand-lg bg-body-tertiary shadow-sm">
         <div class="container-fluid">
-          <a class="navbar-brand" href="dashboard" style="float: right; position: absolute; right: 1px; padding-right: 0px; margin-right: 0px; font-size: 15px;">
-            Welcome: {{userSessionDetails?.username}}
+          <a class="navbar-brand" href="dashboard" style="position: absolute; right: 10px; font-size: 15px;">
+            Welcome: {{userSessionDetails?.username || 'Guest'}}
           </a>
         </div>
       </nav>
       <hr class="my-4">
       <div class="row">
         <div class="col">
-          <!-- OneDrive Section -->
+          <!-- OneDrive Section (Unchanged) -->
           <div *ngIf="cloudProvider === 'onedrive'">
             <h2 class="text-center mb-4 fw-bold text-primary">File Explorer</h2>
 
@@ -77,37 +77,34 @@
             </div>
           </div>
 
-          <!-- AWS S3 Section -->
+          <!-- AWS S3 Section (Updated) -->
           <div *ngIf="cloudProvider === 'aws'">
             <h2 class="text-center mb-4 fw-bold text-primary">Explorer</h2>
 
+            <!-- Buckets Section -->
             <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="buckets.length > 0; else noBuckets">
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Region</th>
-                    <th scope="col">Size</th>
-                    <th scope="col">Object Count</th>
-                    <th scope="col">Creation Date</th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let bucket of buckets">
-                    <td>{{ bucket.name }}</td>
-                    <td>{{ bucket.region }}</td>
-                    <td>{{ formatSize(bucket.size) }}</td>
-                    <td>{{ bucket.objectCount }}</td>
-                    <td>{{ bucket.creationDate }}</td>
-                    <td>
-                      <button class="btn btn-sm btn-outline-primary" (click)="listS3BucketContents(bucket.name)">
-                        View Contents
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <h3 class="mb-3 fw-semibold text-dark">S3 Buckets</h3>
+              <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <div class="col" *ngFor="let bucket of buckets">
+                  <div class="card h-100 shadow-sm file-card">
+                    <div class="card-body text-center">
+                      <i class="bi bi-bucket-fill fs-2 text-muted mb-3"></i>
+                      <h5 class="card-title text-truncate" title="{{bucket.name}}">{{bucket.name}}</h5>
+                      <p class="card-text text-muted small">
+                        Region: {{bucket.region}}<br>
+                        Size: {{formatSize(bucket.size)}}<br>
+                        Objects: {{bucket.objectCount}}<br>
+                        Created: {{bucket.creationDate}}
+                      </p>
+                      <div class="btn-group mt-3">
+                        <button class="btn btn-sm btn-outline-primary" (click)="listS3BucketContents(bucket.name)">
+                          <i class="bi bi-eye me-1"></i> View Contents
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- No Buckets -->
@@ -119,39 +116,40 @@
               </div>
             </ng-template>
 
-            <!-- S3 Contents -->
+            <!-- S3 Contents Section -->
             <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="s3Contents.length > 0">
-              <h3 class="mb-3">Contents of "{{selectedBucket}}"</h3>
-              <table class="table table-hover">
-                <thead>
-                  <tr>
-                    <th scope="col">Name</th>
-                    <th scope="col">Type</th>
-                    <th scope="col">Size</th>
-                    <th scope="col">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let item of s3Contents">
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.type }}</td>
-                    <td>{{ item.size !== undefined ? formatSize(item.size) : 'N/A' }}</td>
-                    <td>
-                      <div class="btn-group">
-                        <button *ngIf="item.downloadUrl" class="btn btn-sm btn-outline-success" (click)="requestOtpForDownload(item.downloadUrl, item.name)" [disabled]="loadingOtp">
+              <h3 class="mb-3 fw-semibold text-dark">Contents of "{{selectedBucket}}"</h3>
+              <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                <div class="col" *ngFor="let item of s3Contents">
+                  <div class="card h-100 shadow-sm file-card">
+                    <div class="card-body text-center">
+                      <i [ngClass]="{
+                        'bi bi-file-earmark-text': item.type === 'file',
+                        'bi bi-folder-fill': item.type === 'folder',
+                        'fs-2': true,
+                        'text-muted': true,
+                        'mb-3': true
+                      }"></i>
+                      <h5 class="card-title text-truncate" title="{{item.name}}">{{item.name}}</h5>
+                      <p class="card-text text-muted small">
+                        Type: {{item.type | titlecase}}<br>
+                        Size: {{item.size !== undefined ? formatSize(item.size) : 'N/A'}}
+                      </p>
+                      <div class="btn-group mt-3">
+                        <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-success" (click)="requestOtpForDownload(item.downloadUrl, item.name)" [disabled]="loadingOtp">
                           <i class="bi bi-download me-1"></i> Download
                         </button>
-                        <button *ngIf="item.downloadUrl" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
+                        <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
                           <i class="bi bi-eye me-1"></i> View
                         </button>
                         <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.prefix)">
-                          View Folder
+                          <i class="bi bi-folder me-1"></i> View Folder
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- S3 Spinner -->
@@ -189,7 +187,6 @@
             <p *ngIf="!otpErrorMessage">An OTP has been sent to Admin. Please enter it below to download "{{selectedFileName}}".</p>
             <div class="form-group">
               <label for="otpInput">OTP</label>
-              <!-- Changed #otpInput to #otpInputElement to avoid confusion -->
               <input #otpInputElement type="text" id="otpInput" class="form-control" [(ngModel)]="otpInput" placeholder="Enter 6-digit OTP" maxlength="6">
             </div>
             <div class="error-message" *ngIf="otpErrorMessage">

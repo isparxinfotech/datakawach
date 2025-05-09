@@ -70,7 +70,12 @@ body, html {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* OneDrive Input Section */
+.bg-white {
+  background: #1e293b !important;
+  color: #e2e8f0;
+}
+
+/* Input Fields */
 .form-control {
   border: 1px solid #475569;
   border-radius: 8px;
@@ -83,7 +88,7 @@ body, html {
   outline-offset: 2px;
 }
 
-/* OneDrive Buttons */
+/* Buttons */
 .btn-primary {
   background: linear-gradient(to right, #3b82f6, #60a5fa);
   border: none;
@@ -95,7 +100,27 @@ body, html {
   background: linear-gradient(to right, #2563eb, #3b82f6);
 }
 
-/* OneDrive File Cards */
+.btn-outline-success {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.btn-outline-success:hover {
+  background: #10b981;
+  color: white;
+}
+
+.btn-outline-primary {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.btn-outline-primary:hover {
+  background: #3b82f6;
+  color: white;
+}
+
+/* File Cards */
 .file-card {
   background: #1e293b;
   border-radius: 12px;
@@ -105,6 +130,15 @@ body, html {
 .file-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.card-text {
+  font-size: 0.85rem;
 }
 
 /* Modal Styling */

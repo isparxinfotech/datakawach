@@ -145,9 +145,10 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
       next: (response) => {
         this.s3Contents = response.map(item => ({
           name: item.name,
-          type: 'file',
+          type: item.prefix ? 'folder' : 'file',
           size: item.size || 0,
-          downloadUrl: item.downloadUrl
+          downloadUrl: item.downloadUrl,
+          prefix: item.prefix
         }));
         this.loadingS3 = false;
         if (this.s3Contents.length === 0) {
@@ -205,7 +206,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
 
     console.log('Requesting OTP for:', { email: this.email, fileName });
 
-    // Blur active element to prevent focus conflicts
     if (document.activeElement) {
       (document.activeElement as HTMLElement).blur();
     }
@@ -214,7 +214,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
     this.http.post<any>(url, {}).subscribe({
       next: () => {
         this.loadingOtp = false;
-        // Delay modal opening to ensure DOM is ready
         setTimeout(() => {
           this.showOtpModal = true;
           console.log('OTP modal opened for:', this.email);

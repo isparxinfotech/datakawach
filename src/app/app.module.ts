@@ -68,7 +68,7 @@ import { CorporateDashboardComponent } from './core/components/account/corporate
     NgbModule,
   
   ],
-  providers: [DatePipe, DecimalPipe], // Move DatePipe and DecimalPipe to providers
+  providers: [DatePipe, DecimalPipe],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

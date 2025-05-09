@@ -6,7 +6,7 @@ import { Subscription } from 'rxjs';
 import { SuperAdminService } from 'src/app/services/super-admin.service';
 import { PersonalInfoRequest } from 'src/app/models/personal-info-request.model';
 
-// Interface for BackupSchedule to match backend BackupScheduleEntity
+
 interface BackupSchedule {
   scheduleId: number;
   userId: number;
@@ -31,6 +31,7 @@ interface BackupSchedule {
   styleUrls: ['./upload.component.css']
 })
 export class UploadComponent implements OnInit, OnDestroy {
+  currentStep: number = 1;
   folderName: string = '';
   fileName: string = '';
   fileNameError: string = '';
@@ -48,7 +49,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   message: string = '';
   isSuccess: boolean = false;
   userSessionDetails: userSessionDetails | null = null;
-  private readonly CHUNK_SIZE = 20 * 1024 * 1024; // 20MB chunks
+  private readonly CHUNK_SIZE = 20 * 1024 * 1024;
   private uploadSessionId: string | null = null;
   userInfo: PersonalInfoRequest[] = [];
   backupSchedules: BackupSchedule[] = [];
@@ -76,6 +77,26 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
   }
 
+  isStep1Valid(): boolean {
+    return !!(
+      this.folderName &&
+      this.fileName &&
+      !this.fileName.includes(' ') &&
+      this.localPath &&
+      !this.fileNameError
+    );
+  }
+
+  nextStep(): void {
+    if (this.isStep1Valid()) {
+      this.currentStep = 2;
+    }
+  }
+
+  prevStep(): void {
+    this.currentStep = 1;
+  }
+
   validateFileNameInput(): void {
     if (this.fileName.includes(' ')) {
       this.fileNameError = 'File name cannot contain spaces. Use underscores instead.';
@@ -85,7 +106,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
   }
 
-  onFileSelected(event: any) {
+  onFileSelected(event: any): void {
     this.selectedFile = event.target.files[0];
     this.message = '';
     this.overallProgress = 0;
@@ -115,7 +136,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     );
   }
 
-  async onCreateSchedule() {
+  async onCreateSchedule(): Promise<void> {
     if (!this.isScheduleFormValid()) {
       this.message = 'Please fill all required fields correctly';
       this.isSuccess = false;
@@ -158,7 +179,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
   }
 
-  onFrequencyChange() {
+  onFrequencyChange(): void {
     this.dayOfWeek = '';
     this.dayOfMonth = null;
   }
@@ -171,7 +192,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       .replace(/_$/, '');
   }
 
-  async onUpload(providedFileName?: string) {
+  async onUpload(providedFileName?: string): Promise<void> {
     if (!this.userSessionDetails?.username || !this.folderName || (!this.selectedFile && !providedFileName)) {
       this.message = 'Please provide a folder name and file for upload';
       this.isSuccess = false;
@@ -265,7 +286,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     });
   }
 
-  private handleSuccess(response: any) {
+  private handleSuccess(response: any): void {
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = true;
@@ -274,14 +295,14 @@ export class UploadComponent implements OnInit, OnDestroy {
     console.log('Success:', response);
   }
 
-  private handleError(error: any) {
+  private handleError(error: any): void {
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = false;
 
     if (error.status === 404) {
       this.message = 'Endpoint not found. Please check the server configuration.';
-  } else if (error.status === 400) {
+    } else if (error.status === 400) {
       this.message = error.error?.message || 'Operation failed due to a bad request.';
     } else if (error.status === 401) {
       this.message = 'Unauthorized. Please check authentication credentials.';
@@ -296,7 +317,8 @@ export class UploadComponent implements OnInit, OnDestroy {
     console.error('Error:', error);
   }
 
-  private resetForm() {
+  private resetForm(): void {
+    this.currentStep = 1;
     this.folderName = '';
     this.fileName = '';
     this.fileNameError = '';
@@ -313,7 +335,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     setTimeout(() => this.message = '', 5000);
   }
 
-  private getUsersList() {
+  private getUsersList(): void {
     if (!this.userSessionDetails) {
       return;
     }
@@ -350,7 +372,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       );
   }
 
-  loadBackupSchedules() {
+  loadBackupSchedules(): void {
     if (!this.userSessionDetails?.username) {
       console.error('No username available to load schedules');
       return;
@@ -375,7 +397,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       });
   }
 
-  triggerManualBackup(scheduleId: number) {
+  triggerManualBackup(scheduleId: number): void {
     if (!this.userSessionDetails?.username) {
       this.message = 'No user logged in';
       this.isSuccess = false;

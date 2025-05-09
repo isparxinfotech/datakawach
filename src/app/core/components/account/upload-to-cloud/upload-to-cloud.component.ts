@@ -12,7 +12,7 @@ interface ScheduledBackup {
   backupFrequency: string;
   dayOfWeek?: string;
   dayOfMonth?: number;
-  intervalId?: any; // NodeJS.Timeout for interval
+  intervalId?: any;
 }
 
 @Component({
@@ -32,9 +32,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   result: string = '';
   loading: boolean = false;
   uploadProgress: { [key: string]: number } = {};
-  uploadDetails: {
-uploadTime: any; name: string; size: number; status: string 
-}[] = [];
+  uploadDetails: { uploadTime: any; name: string; size: number; status: string }[] = [];
   logs: string[] = [];
   fileDownloadUrls: { [key: string]: string } = {};
   backupTime: string = '';
@@ -47,6 +45,9 @@ uploadTime: any; name: string; size: number; status: string
   retentionEnabled: boolean = true;
   currentStep: number = 1;
   scheduledBackups: ScheduledBackup[] = [];
+  totalStorage: number = 5 * 1024 * 1024; // 5TB in MB
+  usedStorage: number = 0; // in GB
+  usedStoragePercentage: number = 0;
 
   @ViewChild('logContainer') logContainer!: ElementRef;
 
@@ -62,6 +63,7 @@ uploadTime: any; name: string; size: number; status: string
         this.addLog(`Initializing component with user: ${this.userSessionDetails.username}`);
         this.loadBuckets();
         this.loadScheduledBackups();
+        this.calculateUsedStorage();
       } else {
         this.result = 'User not logged in or email not available.';
         this.addLog('Error: User session details not available', true);
@@ -279,6 +281,7 @@ uploadTime: any; name: string; size: number; status: string
       });
 
       this.updateFilesToUpload();
+      this.calculateUsedStorage();
       this.addLog(`Selected ${this.originalFiles.length} files across ${folderMap.size} folders and ${this.selectedItems.filter(item => item.type === 'file').length} individual files`);
     } else {
       this.addLog('No files or folders selected', true);
@@ -292,6 +295,7 @@ uploadTime: any; name: string; size: number; status: string
       item.files.forEach(file => file.selected = item.selected);
     }
     this.updateFilesToUpload();
+    this.calculateUsedStorage();
     this.cdr.detectChanges();
   }
 
@@ -301,6 +305,7 @@ uploadTime: any; name: string; size: number; status: string
       item.selected = item.files.every(f => f.selected);
     }
     this.updateFilesToUpload();
+    this.calculateUsedStorage();
     this.cdr.detectChanges();
   }
 
@@ -412,10 +417,8 @@ uploadTime: any; name: string; size: number; status: string
         });
 
         if (fileData.url) {
-          // Single-part upload
           await this.uploadSinglePart(file, fileData.url, relativePath);
         } else if (fileData.uploadId && fileData.parts) {
-          // Multipart upload
           const uploadedParts = await this.uploadMultipart(file, fileData.parts, relativePath);
           await this.completeMultipartUpload(fileData.s3Key, fileData.uploadId, uploadedParts, relativePath);
         } else {
@@ -428,6 +431,7 @@ uploadTime: any; name: string; size: number; status: string
       this.result = `Processed ${this.uploadDetails.length} files:\n- Uploaded: ${uploadedCount}\n- Failed: ${failedCount}`;
       this.addLog(`Upload complete: ${uploadedCount} uploaded, ${failedCount} failed`);
       this.loadFolders();
+      this.calculateUsedStorage();
 
       if (this.retentionEnabled) {
         this.scheduleBackup(fileNames);
@@ -563,7 +567,7 @@ uploadTime: any; name: string; size: number; status: string
   saveScheduledBackups() {
     localStorage.setItem('scheduledBackups', JSON.stringify(this.scheduledBackups.map(b => ({
       ...b,
-      intervalId: undefined // Don't save interval IDs
+      intervalId: undefined
     }))));
   }
 
@@ -595,12 +599,12 @@ uploadTime: any; name: string; size: number; status: string
       }
     };
 
-    backup.intervalId = setInterval(checkBackup, 60 * 1000); // Check every minute
+    backup.intervalId = setInterval(checkBackup, 60 * 1000);
   }
 
   async executeBackup(backup: ScheduledBackup) {
     this.addLog(`Executing scheduled backup for ${backup.fileNames.length} files to ${backup.bucketName}/${backup.folderPath}`);
-    await this.handleFileUpload(); // Reuse upload logic
+    await this.handleFileUpload();
   }
 
   async retryUpload(detail: { name: string; size: number; status: string }) {
@@ -619,5 +623,18 @@ uploadTime: any; name: string; size: number; status: string
 
     this.filesToUpload = [file];
     await this.handleFileUpload();
+  }
+
+  calculateUsedStorage() {
+    // Simulate fetching used storage (replace with API call if available)
+    let totalBytes = 0;
+    this.uploadDetails.forEach(detail => {
+      if (detail.status === 'uploaded') {
+        totalBytes += detail.size;
+      }
+    });
+    this.usedStorage = totalBytes / (1024 * 1024 * 1024); // Convert bytes to GB
+    this.usedStoragePercentage = (this.usedStorage / (this.totalStorage / 1024)) * 100; // Percentage of 5TB (in GB)
+    this.cdr.detectChanges();
   }
 }

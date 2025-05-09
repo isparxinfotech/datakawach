@@ -16,7 +16,7 @@ body, html {
 
 /* Sidebar */
 .sidebar-wrapper {
-    width: 270px;
+    width: 200px;
     flex-shrink: 0;
     transition: transform 0.3s ease-in-out;
 }
@@ -31,16 +31,29 @@ body, html {
     }
 }
 #bdSidebar {
-    background: #181818;
+    background: linear-gradient(180deg, #000000, #333333);
     color: #fff;
-    width: 270px;
+    width: 200px;
     min-height: 100vh;
     padding: 20px;
-    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
-    border-radius: 0 20px 20px 0;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+}
+.logo-section .logo-placeholder {
+    background: #fff;
+    color: #1e293b;
+    text-align: center;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+app-dynamic-menus {
+    flex: 1;
+}
+.footer-section .powered-by {
+    font-size: 0.8rem;
+    text-align: center;
 }
 
 /* Main Content */
@@ -54,7 +67,7 @@ body, html {
 
 /* Mobile Topbar */
 .p-2.d-md-none {
-    background: #232323;
+    background: #000000;
     font-weight: 600;
     display: none;
 }
@@ -66,32 +79,56 @@ body, html {
 
 /* Navbar */
 .navbar {
-    background: #1b1b1b !important;
+    background: linear-gradient(90deg, #000000, #333333) !important;
     color: #fff;
     padding: 10px 20px;
+    border-radius: 10px;
 }
 .navbar-brand {
     color: #fff !important;
     font-size: 15px;
     font-weight: 600;
 }
-@media (max-width: 991.98px) {
-    .navbar-brand {
-        font-size: 14px;
-    }
+.stat-card {
+    color: #fff;
+    font-size: 0.9rem;
+}
+.stat-card h6 {
+    font-size: 0.9rem;
+}
+.stat-card h4 {
+    font-size: 1.2rem;
 }
 
-/* Blue Color Scheme */
-.bg-blue { background: #1f1f1f !important; }
-.text-blue { color: #1f1f1f !important; }
+/* New Color Scheme (Black) */
+.bg-blue { background: #000000 !important; }
+.text-blue { color: #000000 !important; }
 .btn-blue {
-    background: #1f1f1f;
-    border-color: #1f1f1f;
+    background: #000000;
+    border-color: #000000;
     color: #fff;
 }
 .btn-blue:hover {
-    background: #0ca8f0;
-    border-color: #0447ff;
+    background: #333333;
+    border-color: #333333;
+}
+.btn-outline-blue {
+    border-color: #000000;
+    color: #000000;
+}
+.btn-outline-blue:hover {
+    background: #000000;
+    color: #fff;
+}
+
+/* Search Bar */
+.search-bar {
+    display: flex;
+    align-items: center;
+}
+.search-bar .form-control {
+    border-radius: 5px;
+    border: 1px solid #000000;
 }
 
 /* Card and Table */
@@ -111,12 +148,27 @@ body, html {
 }
 .table a { text-decoration: none; }
 .table a:hover { text-decoration: underline; }
-.btn-sm {
-    padding: 4px 10px;
-    font-size: 0.8rem;
+
+/* File Explorer Container */
+.explorer-container {
+    max-height: 400px;
 }
-@media (max-width: 767.98px) {
-    .table th, .table td { font-size: 0.85rem; }
+.explorer-container .table th, .explorer-container .table td {
+    font-size: 0.85rem;
+}
+
+/* Pagination */
+.pagination .page-item.active .page-link {
+    background-color: #000000;
+    border-color: #000000;
+    color: #fff;
+}
+.pagination .page-link {
+    color: #000000;
+}
+.pagination .page-link:hover {
+    background-color: #e0e7ff;
+    color: #000000;
 }
 
 /* Breadcrumb */
@@ -134,32 +186,47 @@ body, html {
 
 /* Progress Bar */
 .progress {
-    height: 20px;
+    height: 15px;
     border-radius: 5px;
     background-color: #88c6fc;
 }
 .progress-bar {
-    background-color: #1f1f1f;
+    background-color: #000000;
 }
 
-/* Company Stats Section */
-.card .row.text-center h5 {
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
+/* Filter Section */
+.filter-section {
+    position: relative;
 }
-.card .row.text-center p {
-    font-size: 1.2rem;
-    margin-bottom: 0.5rem;
+.filter-options {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: #fff;
+    border: 1px solid #000000;
+    border-radius: 5px;
+    padding: 10px;
+    z-index: 10;
 }
-.folder-icon {
-    color: blue;
-    font-size: 24px;
-  }
+
+/* Chart Colors */
+canvas {
+    background: #fff;
+}
 
 /* Responsive Adjustments */
 @media (max-width: 767.98px) {
+    .navbar-brand { font-size: 14px; }
+    .stat-card h6 { font-size: 0.8rem; }
+    .stat-card h4 { font-size: 1rem; }
     .card { padding: 1rem; }
     .p-4 { padding: 1.5rem !important; }
-    .card .row.text-center h5 { font-size: 1rem; }
-    .card .row.text-center p { font-size: 1rem; }
+    .table th, .table td { font-size: 0.85rem; }
+    .col-md-8, .col-md-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    .explorer-container {
+        max-height: 300px;
+    }
 }

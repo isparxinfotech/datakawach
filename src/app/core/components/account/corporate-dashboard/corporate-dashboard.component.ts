@@ -11,14 +11,13 @@ import { userSessionDetails } from 'src/app/models/user-session-responce.model';
   styleUrls: ['./corporate-dashboard.component.css']
 })
 export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterViewInit {
-logout() {
-throw new Error('Method not implemented.');
-}
   @ViewChild('storagePieChart') pieChartCanvas!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('barChartCanvas') barChartCanvas!: ElementRef<HTMLCanvasElement>;
   userSessionDetails: userSessionDetails | null | undefined;
   email: string = '';
   cloudProvider: string = '';
   oneDriveContents: { name: string, id: string, size: number, type: string, downloadUrl?: string }[] = [];
+  paginatedContents: { name: string, id: string, size: number, type: string, downloadUrl?: string }[] = [];
   currentPath: string = '';
   pathHistory: string[] = [];
   loading: boolean = false;
@@ -27,7 +26,12 @@ throw new Error('Method not implemented.');
   totalStorageUsed: number = 0;
   totalStorageLimit: number = 1 * 1024 * 1024 * 1024 * 1024; // 1TB
   storageCalculationFailed: boolean = false;
-
+  searchFileName: string = '';
+  showFilter: boolean = false;
+  currentPage: number = 0;
+  itemsPerPage: number = 10;
+  totalPages: number = 0;
+  pageNumbers: number[] = [];
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -54,14 +58,12 @@ throw new Error('Method not implemented.');
   }
 
   ngAfterViewInit(): void {
-    // Draw the pie chart after the view is initialized
     this.drawPieChart();
+    this.drawBarChart();
   }
 
   private drawPieChart(): void {
-    if (!this.pieChartCanvas || this.storageCalculationFailed) {
-      return;
-    }
+    if (!this.pieChartCanvas || this.storageCalculationFailed) return;
 
     const canvas = this.pieChartCanvas.nativeElement;
     const ctx = canvas.getContext('2d');
@@ -74,33 +76,67 @@ throw new Error('Method not implemented.');
     const usedAngle = (percentage / 100) * 2 * Math.PI;
     const remainingAngle = 2 * Math.PI - usedAngle;
 
-    // Clear the canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Center and radius
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = Math.min(canvas.width, canvas.height) / 2 - 10;
 
-    // Draw used storage (dark blue)
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, usedAngle);
     ctx.lineTo(centerX, centerY);
-    ctx.fillStyle = '#1f1f1f'; // Match the .bg-blue color
+    ctx.fillStyle = '#4e73df';
     ctx.fill();
 
-    // Draw remaining storage (light blue)
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, usedAngle, 2 * Math.PI);
     ctx.lineTo(centerX, centerY);
-    ctx.fillStyle = '#88c6fc'; // Match the previous progress background
+    ctx.fillStyle = '#88c6fc';
     ctx.fill();
 
-    // Add a stroke to separate segments
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  private drawBarChart(): void {
+    if (!this.barChartCanvas) return;
+
+    const canvas = this.barChartCanvas.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      console.error('Failed to get canvas context');
+      return;
+    }
+
+    const data = this.oneDriveContents
+      .filter(item => item.type === 'file')
+      .slice(0, 5)
+      .map(item => item.size);
+    if (data.length === 0) return;
+
+    const maxSize = Math.max(...data);
+    const barWidth = 40;
+    const gap = 20;
+    const maxHeight = canvas.height - 20;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    data.forEach((size, index) => {
+      const height = (size / maxSize) * maxHeight;
+      const x = index * (barWidth + gap) + 20;
+      const y = canvas.height - height - 10;
+
+      ctx.fillStyle = '#4e73df';
+      ctx.fillRect(x, y, barWidth, height);
+    });
+
+    ctx.beginPath();
+    ctx.moveTo(10, 10);
+    ctx.lineTo(10, canvas.height - 10);
+    ctx.lineTo(canvas.width - 10, canvas.height - 10);
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
     ctx.stroke();
   }
 
@@ -152,7 +188,8 @@ throw new Error('Method not implemented.');
       next: (totalSize: number) => {
         this.totalStorageUsed = totalSize;
         this.loading = false;
-        this.drawPieChart(); // Redraw the pie chart when storage is updated
+        this.drawPieChart();
+        this.drawBarChart();
       },
       error: (err) => {
         console.error('Storage calculation error:', err);
@@ -237,6 +274,7 @@ throw new Error('Method not implemented.');
   listRootFolders(): void {
     this.currentPath = '';
     this.pathHistory = [];
+    this.currentPage = 0;
     this.loadFolderContents('');
   }
 
@@ -248,12 +286,14 @@ throw new Error('Method not implemented.');
     const newPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
     this.pathHistory.push(this.currentPath);
     this.currentPath = newPath;
+    this.currentPage = 0;
     this.loadFolderContents(newPath);
   }
 
   navigateBack(): void {
     const previousPath = this.pathHistory.pop();
     this.currentPath = previousPath || '';
+    this.currentPage = 0;
     this.loadFolderContents(this.currentPath);
   }
 
@@ -266,6 +306,7 @@ throw new Error('Method not implemented.');
     const newPath = pathSegments.slice(0, index + 1).join('/');
     this.pathHistory = this.pathHistory.slice(0, index);
     this.currentPath = newPath;
+    this.currentPage = 0;
     this.loadFolderContents(newPath);
   }
 
@@ -290,6 +331,9 @@ throw new Error('Method not implemented.');
           if (!response || !Array.isArray(response)) {
             this.errorMessage = 'No items found in the current folder.';
             this.loading = false;
+            this.paginatedContents = [];
+            this.totalPages = 0;
+            this.pageNumbers = [];
             return;
           }
           this.oneDriveContents = response
@@ -302,23 +346,59 @@ throw new Error('Method not implemented.');
             }))
             .filter(item => item.size >= 0);
 
+          this.totalPages = Math.ceil(this.oneDriveContents.length / this.itemsPerPage);
+          this.pageNumbers = Array.from({ length: this.totalPages }, (_, i) => i + 1);
+          this.updatePaginatedContents();
           this.calculateTotalStorage();
           this.loading = false;
           if (this.oneDriveContents.length === 0) {
             this.errorMessage = `No items found in ${folderPath || 'root'}.`;
+            this.paginatedContents = [];
+            this.totalPages = 0;
+            this.pageNumbers = [];
           }
         },
         error: (err) => {
           console.error('Error loading folder contents:', err);
           this.loading = false;
           this.errorMessage = err.error?.message || 'Failed to list contents. Please try again.';
+          this.paginatedContents = [];
+          this.totalPages = 0;
+          this.pageNumbers = [];
         }
       })
     );
   }
+
+  private updatePaginatedContents(): void {
+    const startIndex = this.currentPage * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    this.paginatedContents = this.oneDriveContents.slice(startIndex, endIndex);
+  }
+
+  goToPage(page: number): void {
+    if (page >= 0 && page < this.totalPages) {
+      this.currentPage = page;
+      this.updatePaginatedContents();
+    }
+  }
+
+  previousPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+      this.updatePaginatedContents();
+    }
+  }
+
+  nextPage(): void {
+    if (this.currentPage < this.totalPages - 1) {
+      this.currentPage++;
+      this.updatePaginatedContents();
+    }
+  }
+
   getFileIconClass(item: { name: string; type: string }): string {
     if (item.type === 'folder') return 'fa fa-folder text-warning';
-  
     const ext = item.name.split('.').pop()?.toLowerCase() || '';
     const iconMap: { [key: string]: string } = {
       'jpg': 'fa fa-file-image text-primary',
@@ -343,11 +423,8 @@ throw new Error('Method not implemented.');
       'json': 'fa fa-file-code text-warning',
       'csv': 'fa fa-file-csv text-success'
     };
-  
     return iconMap[ext] || 'fa fa-file text-secondary';
   }
-  
-  
 
   formatSize(bytes: number): string {
     if (bytes === 0) return '0 Bytes';
@@ -362,6 +439,42 @@ throw new Error('Method not implemented.');
       return 0;
     }
     return Math.min((this.totalStorageUsed / this.totalStorageLimit) * 100, 100);
+  }
+
+  searchFiles(): void {
+    if (this.searchFileName.trim()) {
+      this.oneDriveContents = this.oneDriveContents.filter(item =>
+        item.name.toLowerCase().includes(this.searchFileName.toLowerCase())
+      );
+      this.currentPage = 0;
+      this.totalPages = Math.ceil(this.oneDriveContents.length / this.itemsPerPage);
+      this.pageNumbers = Array.from({ length: this.totalPages }, (_, i) => i + 1);
+      this.updatePaginatedContents();
+    } else {
+      this.loadFolderContents(this.currentPath);
+    }
+  }
+
+  toggleFilter(): void {
+    this.showFilter = !this.showFilter;
+  }
+
+  filterByLastUploaded(): void {
+    this.oneDriveContents.sort((a, b) => b.size - a.size); // Placeholder for last uploaded logic
+    this.currentPage = 0;
+    this.totalPages = Math.ceil(this.oneDriveContents.length / this.itemsPerPage);
+    this.pageNumbers = Array.from({ length: this.totalPages }, (_, i) => i + 1);
+    this.updatePaginatedContents();
+    this.showFilter = false;
+  }
+
+  filterBySizeWise(): void {
+    this.oneDriveContents.sort((a, b) => b.size - a.size);
+    this.currentPage = 0;
+    this.totalPages = Math.ceil(this.oneDriveContents.length / this.itemsPerPage);
+    this.pageNumbers = Array.from({ length: this.totalPages }, (_, i) => i + 1);
+    this.updatePaginatedContents();
+    this.showFilter = false;
   }
 
   ngOnDestroy(): void {

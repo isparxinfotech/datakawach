@@ -1,5 +1,42 @@
 <div class="container-fluid p-0 d-flex h-100">
-  <app-dynamic-menus class="dynamic-menu"></app-dynamic-menus>
+  <div class="sidebar">
+    <app-dynamic-menus class="dynamic-menu"></app-dynamic-menus>
+    <div class="backup-list">
+      <h3>Scheduled Backups</h3>
+      <div class="table-container">
+        <table class="backup-table">
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Next Run</th>
+              <th>Status</th>
+              <th>Error</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let schedule of backupSchedules; let i = index" [ngClass]="{'alternate-row': i % 2 === 1}">
+              <td>{{ schedule.filePath }}</td>
+              <td>{{ schedule.nextBackupTime | date:'medium' }}</td>
+              <td>{{ schedule.lastError ? 'Error' : 'Active' }}</td>
+              <td>{{ schedule.lastError || '-' }}</td>
+              <td>
+                <button (click)="triggerManualBackup(schedule.scheduleId)"
+                        [disabled]="!schedule.isActive"
+                        class="btn-action"
+                        title="Trigger backup immediately">
+                  Run Now
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="backupSchedules.length === 0">
+              <td colspan="5" class="no-data">No scheduled backups found</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
   <div class="bg-light flex-fill content-wrapper">
     <div class="p-2 d-md-none d-flex text-white bg-success">
@@ -12,22 +49,22 @@
     <div class="content-area">
       <nav class="navbar navbar-expand-lg bg-white shadow-sm">
         <div class="container-fluid">
-          <a class="navbar-brand" href="dashboard">
+          <div class="navbar-brand ms-auto">
             Welcome: {{ userSessionDetails?.username }}
-          </a>
+          </div>
         </div>
       </nav>
 
       <div class="container py-5">
         <div class="upload-card">
           <h2 class="card-title">Add Backup</h2>
+          <div class="step-indicator">
+            <span [ngClass]="{'active': currentStep === 1}">Step 1: File Details</span>
+            <span class="separator">→</span>
+            <span [ngClass]="{'active': currentStep === 2}">Step 2: Schedule</span>
+          </div>
           
-          <form class="backup-form">
-            <div class="form-group">
-              <label for="userEmail">User Email</label>
-              <input type="text" id="userEmail" [value]="userSessionDetails?.username || 'Not logged in'" disabled>
-            </div>
-
+          <form class="backup-form" *ngIf="currentStep === 1">
             <div class="form-group">
               <label for="folder">Folder Name</label>
               <input type="text" id="folder" [(ngModel)]="folderName" name="folderName" placeholder="e.g., demo" required>
@@ -45,6 +82,16 @@
               <input type="text" id="localPath" [(ngModel)]="localPath" name="localPath" placeholder="e.g., C:\path\to\file" required>
             </div>
 
+            <div class="button-group">
+              <button type="button" (click)="nextStep()" 
+                      [disabled]="!isStep1Valid() || fileNameError"
+                      class="btn-primary">
+                Next Step
+              </button>
+            </div>
+          </form>
+
+          <form class="backup-form" *ngIf="currentStep === 2">
             <div class="form-group">
               <label for="backupTime">Backup Time (HH:mm)</label>
               <input type="time" id="backupTime" [(ngModel)]="backupTime" name="backupTime" required>
@@ -82,61 +129,81 @@
               <input type="number" id="dayOfMonth" [(ngModel)]="dayOfMonth" name="dayOfMonth" min="1" max="31" placeholder="e.g., 1">
             </div>
 
-            <div class="form-group">
-              <label for="file">Select File (Optional)</label>
-              <input type="file" id="file" (change)="onFileSelected($event)">
-            </div>
-
             <div class="button-group">
+              <button type="button" (click)="prevStep()" class="btn-secondary">
+                Previous Step
+              </button>
               <button type="button" (click)="onCreateSchedule()" 
-                      [disabled]="!isScheduleFormValid() || scheduling || fileNameError"
+                      [disabled]="!isScheduleFormValid() || scheduling"
                       class="btn-primary">
                 {{ scheduling ? 'Creating Schedule...' : 'Create Backup Schedule' }}
               </button>
-
-              <button type="button" *ngIf="selectedFile" (click)="onUpload()" 
-                      [disabled]="!folderName || !selectedFile || uploading || fileNameError"
-                      class="btn-secondary">
-                {{ uploading ? 'Uploading...' : 'Upload File' }}
-              </button>
-            </div>
-
-            <div *ngIf="overallProgress > 0" class="progress-container">
-              <div class="progress-bar">
-                <div class="progress" [style.width]="overallProgress + '%'">Overall: {{ overallProgress }}%</div>
-              </div>
-            </div>
-
-            <div *ngIf="chunkProgress > 0 && uploading" class="progress-container">
-              <div class="progress-bar">
-                <div class="progress" [style.width]="chunkProgress + '%'">Chunk: {{ chunkProgress }}%</div>
-              </div>
-            </div>
-
-            <div *ngIf="message" class="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}">
-              {{ message }}
             </div>
           </form>
 
-          <div class="backup-list">
-            <h3>Scheduled Backups</h3>
-            <div class="backup-grid">
-              <div *ngFor="let schedule of backupSchedules" class="backup-item">
-                <div class="backup-info">
-                  <div><strong>Path:</strong> {{ schedule.filePath }}</div>
-                  <div><strong>Next Run:</strong> {{ schedule.nextBackupTime | date:'medium' }}</div>
-                  <div><strong>Status:</strong> {{ schedule.lastError ? 'Error' : 'Active' }}</div>
-                  <div *ngIf="schedule.lastError" class="error-message">
-                    Last Error: {{ schedule.lastError }}
-                  </div>
-                </div>
-                <button (click)="triggerManualBackup(schedule.scheduleId)"
-                        [disabled]="!schedule.isActive"
-                        class="btn-action">
-                  Run Now
-                </button>
-              </div>
+          <div class="form-group">
+            <label for="file">Select File (Optional)</label>
+            <input type="file" id="file" (change)="onFileSelected($event)">
+          </div>
+
+          <div class="button-group">
+            <button type="button" *ngIf="selectedFile" (click)="onUpload()" 
+                    [disabled]="!folderName || !selectedFile || uploading || fileNameError"
+                    class="btn-secondary">
+              {{ uploading ? 'Uploading...' : 'Upload File' }}
+            </button>
+          </div>
+
+          <div *ngIf="overallProgress > 0" class="progress-container">
+            <div class="progress-bar">
+              <div class="progress" [style.width]="overallProgress + '%'">Overall: {{ overallProgress }}%</div>
             </div>
+          </div>
+
+          <div *ngIf="chunkProgress > 0 && uploading" class="progress-container">
+            <div class="progress-bar">
+              <div class="progress" [style.width]="chunkProgress + '%'">Chunk: {{ chunkProgress }}%</div>
+            </div>
+          </div>
+
+          <div *ngIf="message" class="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}">
+            {{ message }}
+          </div>
+        </div>
+
+        <div class="backup-list">
+          <h3>Scheduled Backups</h3>
+          <div class="table-container">
+            <table class="backup-table">
+              <thead>
+                <tr>
+                  <th>Path</th>
+                  <th>Next Run</th>
+                  <th>Status</th>
+                  <th>Error</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let schedule of backupSchedules; let i = index" [ngClass]="{'alternate-row': i % 2 === 1}">
+                  <td>{{ schedule.filePath }}</td>
+                  <td>{{ schedule.nextBackupTime | date:'medium' }}</td>
+                  <td>{{ schedule.lastError ? 'Error' : 'Active' }}</td>
+                  <td>{{ schedule.lastError || '-' }}</td>
+                  <td>
+                    <button (click)="triggerManualBackup(schedule.scheduleId)"
+                            [disabled]="!schedule.isActive"
+                            class="btn-action"
+                            title="Trigger backup immediately">
+                      Run Now
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="backupSchedules.length === 0">
+                  <td colspan="5" class="no-data">No scheduled backups found</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
