@@ -45,11 +45,12 @@ export class UploadComponent implements OnInit, OnDestroy {
   backupFrequency: string = 'Daily';
   dayOfWeek: string = '';
   dayOfMonth: number | null = null;
-  selectedFile: File | null = null;
+  selectedFiles: File[] = [];
   uploading: boolean = false;
   scheduling: boolean = false;
   overallProgress: number = 0;
   chunkProgress: number = 0;
+  currentFileIndex: number = 0;
   message: string = '';
   isSuccess: boolean = false;
   userSessionDetails: userSessionDetails | null = null;
@@ -75,19 +76,15 @@ export class UploadComponent implements OnInit, OnDestroy {
       userType: 0,
       roleid: 0,
       cloudProvider: undefined,
-      retentionNeeded: 0 // Set as number
+      retentionNeeded: 0
     };
     console.log('userSessionDetails:', this.userSessionDetails);
 
     if (this.userSessionDetails && this.userSessionDetails.jwtToken) {
-      // Set retentionNeeded from userSessionDetails, default to 0 if undefined
       this.retentionNeeded = this.userSessionDetails.retentionNeeded ?? 0;
       console.log('Retention Needed:', this.retentionNeeded);
 
-      // Load OneDrive folders for all cases
       this.loadOneDriveFolders();
-
-      // Load backup schedules only if retentionNeeded is 1 or 2
       if (this.retentionNeeded === 1 || this.retentionNeeded === 2) {
         this.loadBackupSchedules();
       }
@@ -101,26 +98,22 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   validateFileNameInput(): void {
-    if (this.fileName.includes(' ')) {
-      this.fileNameError = 'File name cannot contain spaces. Use underscores instead.';
-      this.fileName = this.sanitizeFileName(this.fileName);
-    } else {
-      this.fileNameError = '';
-    }
+    // Optional: Add validation for other invalid characters if needed
+    // For now, no restrictions on spaces
+    this.fileNameError = '';
   }
 
-  onFileSelected(event: any) {
-    this.selectedFile = event.target.files[0];
+  onFilesSelected(event: any) {
+    this.selectedFiles = Array.from(event.target.files);
     this.message = '';
     this.overallProgress = 0;
     this.chunkProgress = 0;
+    this.currentFileIndex = 0;
     this.uploadSessionId = null;
-    console.log('File selected:', this.selectedFile?.name, 'Size:', this.selectedFile?.size, 'Type:', this.selectedFile?.type);
+    console.log('Files selected:', this.selectedFiles.map(file => file.name));
 
-    if (this.selectedFile && this.selectedFile.name.includes(' ')) {
-      this.message = 'Selected file name cannot contain spaces. Renaming to: ' + this.sanitizeFileName(this.selectedFile.name);
-      this.isSuccess = false;
-      this.fileName = this.sanitizeFileName(this.selectedFile.name);
+    if (this.selectedFiles.length > 0) {
+      this.fileName = this.selectedFiles[0].name;
     }
   }
 
@@ -130,16 +123,13 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.userSessionDetails?.username &&
         this.folderName &&
         this.fileName &&
-        !this.fileName.includes(' ') &&
-        this.selectedFile
+        this.selectedFiles.length > 0
       );
     }
-    // For retentionNeeded === 1 or 2
     return !!(
       this.userSessionDetails?.username &&
       this.folderName &&
       this.fileName &&
-      !this.fileName.includes(' ') &&
       this.localPath &&
       this.backupTime &&
       this.retentionDays > 0 &&
@@ -159,23 +149,19 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.scheduling = true;
     this.message = '';
 
-    const sanitizedFileName = this.sanitizeFileName(this.fileName);
-
     if (this.retentionNeeded === 0) {
-      // For retentionNeeded == 0, only upload the file
-      await this.onUpload(sanitizedFileName);
+      await this.onUpload(this.fileName);
       this.scheduling = false;
       return;
     }
 
-    // For retentionNeeded == 1 or 2, create a backup schedule
     const url = 'https://datakavach.com/onedrive/schedule';
     const body = new FormData();
     body.append('email', this.userSessionDetails!.username);
     body.append('folderName', this.folderName);
-    body.append('fileName', sanitizedFileName);
+    body.append('fileName', this.fileName);
     body.append('localPath', this.localPath);
-    body.append('backupTime', this.backupTime + ':00'); // Append seconds to match backend
+    body.append('backupTime', this.backupTime + ':00');
     body.append('retentionDays', this.retentionDays.toString());
     body.append('backupFrequency', this.backupFrequency);
     if (this.dayOfWeek) body.append('dayOfWeek', this.dayOfWeek);
@@ -188,11 +174,10 @@ export class UploadComponent implements OnInit, OnDestroy {
       this.message = 'Backup schedule created successfully';
       this.isSuccess = true;
 
-      // Refresh the backup schedules list
       await this.loadBackupSchedules();
 
-      if (this.selectedFile) {
-        await this.onUpload(sanitizedFileName);
+      if (this.selectedFiles.length > 0) {
+        await this.onUpload(this.fileName);
       } else {
         this.handleSuccess('Backup schedule created without immediate upload');
       }
@@ -221,7 +206,6 @@ export class UploadComponent implements OnInit, OnDestroy {
       }).toPromise();
       this.message = `Manual backup triggered for schedule ID: ${scheduleId}`;
       this.isSuccess = true;
-      // Refresh schedules after a short delay to allow backend processing
       setTimeout(() => this.loadBackupSchedules(), 3000);
     } catch (err: any) {
       this.handleError(err);
@@ -270,17 +254,9 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.dayOfMonth = null;
   }
 
-  private sanitizeFileName(fileName: string): string {
-    return fileName
-      .replace(/[^a-zA-Z0-9.-]/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_/, '')
-      .replace(/_$/, '');
-  }
-
   async onUpload(providedFileName?: string) {
-    if (!this.userSessionDetails?.username || !this.folderName || (!this.selectedFile && !providedFileName)) {
-      this.message = 'Please provide a folder name and file for upload';
+    if (!this.userSessionDetails?.username || !this.folderName || this.selectedFiles.length === 0) {
+      this.message = 'Please provide a folder name and select at least one file for upload';
       this.isSuccess = false;
       this.uploading = false;
       return;
@@ -289,66 +265,77 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.uploading = true;
     this.overallProgress = 0;
     this.chunkProgress = 0;
+    this.currentFileIndex = 0;
     this.message = '';
 
-    const rawFileName = providedFileName || this.selectedFile!.name;
-    const sanitizedFileName = this.sanitizeFileName(rawFileName);
-    const fileSize = this.selectedFile?.size || 0;
-    const totalChunks = Math.ceil(fileSize / this.CHUNK_SIZE);
+    const totalSize = this.selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    let uploadedSize = 0;
 
-    console.log(`Starting upload: ${sanitizedFileName}, Size: ${fileSize} bytes, Total chunks: ${totalChunks}`);
+    for (let i = 0; i < this.selectedFiles.length; i++) {
+      this.currentFileIndex = i;
+      const file = this.selectedFiles[i];
+      const rawFileName = providedFileName || file.name;
+      const fileSize = file.size;
+      const totalChunks = Math.ceil(fileSize / this.CHUNK_SIZE);
 
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-      const startByte = chunkIndex * this.CHUNK_SIZE;
-      const endByte = Math.min(startByte + this.CHUNK_SIZE - 1, fileSize - 1);
-      const chunk = this.selectedFile!.slice(startByte, endByte + 1);
-      const chunkSize = endByte - startByte + 1;
+      console.log(`Starting upload: ${rawFileName}, Size: ${fileSize} bytes, Total chunks: ${totalChunks}`);
 
-      console.log(`Processing chunk ${chunkIndex + 1}/${totalChunks}, Bytes: ${startByte}-${endByte}, Size: ${chunkSize} bytes`);
+      this.uploadSessionId = null; // Reset session ID for each file
 
-      const formData = new FormData();
-      formData.append('email', this.userSessionDetails!.username);
-      formData.append('folderName', this.folderName);
-      formData.append('file', chunk, sanitizedFileName);
-      formData.append('chunkIndex', chunkIndex.toString());
-      formData.append('totalChunks', totalChunks.toString());
-      formData.append('startByte', startByte.toString());
-      formData.append('endByte', endByte.toString());
-      formData.append('totalSize', fileSize.toString());
-      if (this.uploadSessionId) {
-        formData.append('sessionId', this.uploadSessionId);
-      }
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const startByte = chunkIndex * this.CHUNK_SIZE;
+        const endByte = Math.min(startByte + this.CHUNK_SIZE - 1, fileSize - 1);
+        const chunk = file.slice(startByte, endByte + 1);
+        const chunkSize = endByte - startByte + 1;
 
-      const url = `https://datakavach.com/onedrive/upload/${encodeURIComponent(sanitizedFileName)}`;
+        console.log(`Processing chunk ${chunkIndex + 1}/${totalChunks}, Bytes: ${startByte}-${endByte}, Size: ${chunkSize} bytes`);
 
-      let retryCount = 0;
-      const maxRetries = 2;
+        const formData = new FormData();
+        formData.append('email', this.userSessionDetails!.username);
+        formData.append('folderName', this.folderName);
+        formData.append('file', chunk, rawFileName);
+        formData.append('chunkIndex', chunkIndex.toString());
+        formData.append('totalChunks', totalChunks.toString());
+        formData.append('startByte', startByte.toString());
+        formData.append('endByte', endByte.toString());
+        formData.append('totalSize', fileSize.toString());
+        if (this.uploadSessionId) {
+          formData.append('sessionId', this.uploadSessionId);
+        }
 
-      while (retryCount <= maxRetries) {
-        try {
-          const response = await this.uploadChunk(url, formData, chunkIndex, totalChunks, fileSize);
-          if (chunkIndex === 0 && response.sessionId) {
-            this.uploadSessionId = response.sessionId;
+        const url = `https://datakavach.com/onedrive/upload/${encodeURIComponent(rawFileName)}`;
+
+        let retryCount = 0;
+        const maxRetries = 2;
+
+        while (retryCount <= maxRetries) {
+          try {
+            const response = await this.uploadChunk(url, formData, chunkIndex, totalChunks, fileSize, totalSize, uploadedSize);
+            if (chunkIndex === 0 && response.sessionId) {
+              this.uploadSessionId = response.sessionId;
+            }
+            uploadedSize += chunkSize;
+            this.overallProgress = Math.round((uploadedSize / totalSize) * 100);
+            break;
+          } catch (err: any) {
+            if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
+              this.uploadSessionId = null;
+              retryCount++;
+              console.warn(`Session expired, retrying chunk ${chunkIndex + 1}/${totalChunks} (Attempt ${retryCount + 1})`);
+              continue;
+            }
+            this.handleError(err);
+            this.uploading = false;
+            return;
           }
-          break; // Success, exit retry loop
-        } catch (err: any) {
-          if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
-            // Session expired, clear sessionId and retry
-            this.uploadSessionId = null;
-            retryCount++;
-            console.warn(`Session expired, retrying chunk ${chunkIndex + 1}/${totalChunks} (Attempt ${retryCount + 1})`);
-            continue;
-          }
-          this.handleError(err);
-          return;
         }
       }
     }
 
-    this.handleSuccess('File uploaded successfully');
+    this.handleSuccess('All files uploaded successfully');
   }
 
-  private uploadChunk(url: string, formData: FormData, chunkIndex: number, totalChunks: number, totalSize: number): Promise<any> {
+  private uploadChunk(url: string, formData: FormData, chunkIndex: number, totalChunks: number, fileSize: number, totalSize: number, uploadedSize: number): Promise<any> {
     return new Promise((resolve, reject) => {
       this.http.put(url, formData, {
         headers: this.getAuthHeaders(),
@@ -358,7 +345,8 @@ export class UploadComponent implements OnInit, OnDestroy {
         next: (event: any) => {
           if (event.type === HttpEventType.UploadProgress && event.total) {
             this.chunkProgress = Math.round(100 * event.loaded / event.total);
-            this.overallProgress = Math.round(((chunkIndex * this.CHUNK_SIZE + event.loaded) / totalSize) * 100);
+            const currentFileUploaded = uploadedSize + event.loaded;
+            this.overallProgress = Math.round((currentFileUploaded / totalSize) * 100);
             console.log(`Chunk ${chunkIndex + 1} progress: ${this.chunkProgress}% | Overall: ${this.overallProgress}%`);
           } else if (event.type === HttpEventType.Response) {
             console.log('Chunk uploaded successfully:', event.body);
@@ -405,7 +393,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   private resetForm() {
-    this.selectedFile = null;
+    this.selectedFiles = [];
     this.folderName = '';
     this.fileName = '';
     this.localPath = '';
@@ -416,6 +404,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.dayOfMonth = null;
     this.overallProgress = 0;
     this.chunkProgress = 0;
+    this.currentFileIndex = 0;
     this.uploadSessionId = null;
   }
 

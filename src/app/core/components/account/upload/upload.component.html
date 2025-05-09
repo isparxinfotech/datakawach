@@ -58,7 +58,7 @@
 
                 <div class="form-group">
                   <label for="fileName">File Name:</label>
-                  <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt" required
+                  <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., my file.txt" required
                          (input)="validateFileNameInput()">
                   <div *ngIf="fileNameError" class="error-message">{{ fileNameError }}</div>
                 </div>
@@ -108,25 +108,26 @@
 
                 <div class="form-group">
                   <label for="fileInput">
-                    Select File {{ (retentionNeeded === 1 || retentionNeeded === 2) ? '(Optional for Initial Upload)' : '(Required)' }}:
+                    Select Files {{ (retentionNeeded === 1 || retentionNeeded === 2) ? '(Optional for Initial Upload)' : '(Required)' }}:
                   </label>
-                  <input type="file" id="fileInput" (change)="onFileSelected($event)" name="fileInput">
+                  <input type="file" id="fileInput" (change)="onFilesSelected($event)" name="fileInput" multiple>
+                  <small *ngIf="selectedFiles.length > 0">Selected: {{ selectedFiles.length }} file(s)</small>
                 </div>
 
                 <!-- Buttons -->
                 <div class="button-group">
                   <button type="button" (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError">
-                    {{ (retentionNeeded === 1 || retentionNeeded === 2) ? (scheduling ? 'Creating Schedule...' : 'Create Backup Schedule') : (uploading ? 'Uploading...' : 'Upload File') }}
+                    {{ (retentionNeeded === 1 || retentionNeeded === 2) ? (scheduling ? 'Creating Schedule...' : 'Create Backup Schedule') : (uploading ? 'Uploading...' : 'Upload Files') }}
                   </button>
                   <button type="button" *ngIf="retentionNeeded === 1 || retentionNeeded === 2" (click)="onUpload()" [disabled]="!folderName || uploading || fileNameError">
-                    {{ uploading ? 'Uploading...' : 'Upload File' }}
+                    {{ uploading ? 'Uploading...' : 'Upload Files' }}
                   </button>
                 </div>
 
                 <!-- Progress Bars -->
                 <div *ngIf="overallProgress > 0" class="progress-bar">
                   <div class="progress" [style.width]="overallProgress + '%'">
-                    Overall: {{ overallProgress }}%
+                    Overall: {{ overallProgress }}% (File {{ currentFileIndex + 1 }} of {{ selectedFiles.length }})
                   </div>
                 </div>
                 <div *ngIf="chunkProgress > 0 && uploading" class="progress-bar">
