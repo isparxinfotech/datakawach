@@ -19,7 +19,7 @@
       <hr class="my-4">
       <div class="row">
         <div class="col">
-          <!-- OneDrive Section (Unchanged) -->
+          <!-- OneDrive Section -->
           <div *ngIf="cloudProvider === 'onedrive'">
             <h2 class="text-center mb-4 fw-bold text-primary">File Explorer</h2>
 
@@ -31,8 +31,12 @@
                   <input type="email" id="email" class="form-control" [(ngModel)]="email" placeholder="e.g., user@example.com" readonly>
                 </div>
                 <div class="col-md-5">
-                  <label for="folderName" class="form-label fw-semibold" style="color: black;">Folder Name</label>
-                  <input type="text" id="folderName" class="form-control" [(ngModel)]="folderName" placeholder="e.g., demo" required>
+                  <label for="folderName" class="form-label fw-semibold" style="color: black;">Select Folder</label>
+                  <select id="folderName" class="form-control" [(ngModel)]="folderName" required>
+                    <option value="" disabled selected>Select a folder</option>
+                    <option *ngFor="let folder of oneDriveFolders" [value]="folder.name">{{ folder.name }}</option>
+                  </select>
+                  <small *ngIf="oneDriveFolders.length === 0" class="text-muted">No folders found. Please create a folder in OneDrive.</small>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
                   <button class="btn btn-primary w-100" (click)="listOneDriveFiles()" [disabled]="!email || !folderName || loadingOneDrive">
@@ -77,7 +81,7 @@
             </div>
           </div>
 
-          <!-- AWS S3 Section (Updated) -->
+          <!-- AWS S3 Section -->
           <div *ngIf="cloudProvider === 'aws'">
             <h2 class="text-center mb-4 fw-bold text-primary">Explorer</h2>
 

@@ -1,8 +1,14 @@
 import { Component, OnInit, OnDestroy, AfterViewChecked, ViewChild, ElementRef, Renderer2 } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
+
+interface OneDriveFolder {
+  name: string;
+  id: string;
+  size: number;
+}
 
 @Component({
   selector: 'app-user-dashboard',
@@ -15,9 +21,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
   folderName: string = '';
   cloudProvider: string = '';
   oneDriveFiles: { name: string, id: string, downloadUrl: string }[] = [];
+  oneDriveFolders: OneDriveFolder[] = [];
   loadingOneDrive: boolean = false;
   oneDriveErrorMessage: string = '';
-
   buckets: any[] = [];
   s3Contents: any[] = [];
   selectedBucket: string = '';
@@ -25,7 +31,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
   s3ErrorMessage: string = '';
   bucketSubscription?: Subscription;
   contentsSubscription?: Subscription;
-
+  folderSubscription?: Subscription;
   showOtpModal: boolean = false;
   otpInput: string = '';
   otpErrorMessage: string = '';
@@ -58,8 +64,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
     if (this.cloudProvider === 'aws') {
       this.loadS3Buckets();
     } else if (this.cloudProvider === 'onedrive') {
-      this.folderName = this.email;
-      this.listOneDriveFiles();
+      this.loadOneDriveFolders();
     } else {
       console.warn('Unsupported cloud provider:', this.cloudProvider);
     }
@@ -70,6 +75,44 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
       console.log('Modal rendered, focusing OTP input');
       this.renderer.selectRootElement(this.otpInputRef.nativeElement).focus();
     }
+  }
+
+  private getAuthHeaders(): HttpHeaders {
+    const token = this.userSessionDetails?.jwtToken || '';
+    return new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+  }
+
+  loadOneDriveFolders(): void {
+    if (!this.email) {
+      this.oneDriveErrorMessage = 'User email is missing.';
+      console.error('No email available for folder fetch');
+      return;
+    }
+
+    this.loadingOneDrive = true;
+    this.oneDriveErrorMessage = '';
+    this.oneDriveFolders = [];
+
+    const url = `https://datakavach.com/onedrive/folders?email=${encodeURIComponent(this.email)}`;
+    this.folderSubscription = this.http.get<OneDriveFolder[]>(url, {
+      headers: this.getAuthHeaders()
+    }).subscribe({
+      next: (response) => {
+        this.oneDriveFolders = response || [];
+        this.loadingOneDrive = false;
+        console.log('OneDrive folders loaded:', this.oneDriveFolders);
+        if (this.oneDriveFolders.length === 0) {
+          this.oneDriveErrorMessage = 'No folders found in OneDrive.';
+        }
+      },
+      error: (err) => {
+        this.loadingOneDrive = false;
+        this.oneDriveErrorMessage = err.error?.message || 'Failed to fetch folders. Check CORS or network.';
+        console.error('OneDrive folder error:', err);
+      }
+    });
   }
 
   listOneDriveFiles(): void {
@@ -83,7 +126,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
     this.oneDriveFiles = [];
 
     const url = `https://datakavach.com/onedrive/files?email=${encodeURIComponent(this.email)}&folderName=${encodeURIComponent(this.folderName)}`;
-    this.http.get<any[]>(url).subscribe({
+    this.http.get<any[]>(url, {
+      headers: this.getAuthHeaders()
+    }).subscribe({
       next: (response) => {
         this.oneDriveFiles = response;
         this.loadingOneDrive = false;
@@ -105,7 +150,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
     this.buckets = [];
 
     const url = `https://datakavach.com/api/s3/buckets?email=${encodeURIComponent(this.email)}`;
-    this.bucketSubscription = this.http.get<any[]>(url).subscribe({
+    this.bucketSubscription = this.http.get<any[]>(url, {
+      headers: this.getAuthHeaders()
+    }).subscribe({
       next: (response) => {
         this.buckets = response.map(bucketName => ({
           name: bucketName,
@@ -141,7 +188,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
     this.s3Contents = [];
 
     const url = `https://datakavach.com/api/s3/files?email=${encodeURIComponent(this.email)}&bucketName=${encodeURIComponent(bucketName)}${prefix ? '&prefix=' + encodeURIComponent(prefix) : ''}`;
-    this.contentsSubscription = this.http.get<any[]>(url).subscribe({
+    this.contentsSubscription = this.http.get<any[]>(url, {
+      headers: this.getAuthHeaders()
+    }).subscribe({
       next: (response) => {
         this.s3Contents = response.map(item => ({
           name: item.name,
@@ -211,7 +260,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
     }
 
     const url = `https://datakavach.com/onedrive/generate-otp?email=${encodeURIComponent(this.email)}`;
-    this.http.post<any>(url, {}).subscribe({
+    this.http.post<any>(url, {}, {
+      headers: this.getAuthHeaders()
+    }).subscribe({
       next: () => {
         this.loadingOtp = false;
         setTimeout(() => {
@@ -246,7 +297,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
     console.log('Verifying OTP:', { email: this.email, otp: this.otpInput });
 
     const url = `https://datakavach.com/onedrive/verify-otp?email=${encodeURIComponent(this.email)}&otp=${encodeURIComponent(this.otpInput)}`;
-    this.http.post<any>(url, {}).subscribe({
+    this.http.post<any>(url, {}, {
+      headers: this.getAuthHeaders()
+    }).subscribe({
       next: (response) => {
         this.loadingOtp = false;
         if (response.valid) {
@@ -284,5 +337,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy, AfterViewCheck
   ngOnDestroy(): void {
     this.bucketSubscription?.unsubscribe();
     this.contentsSubscription?.unsubscribe();
+    this.folderSubscription?.unsubscribe();
   }
 }
