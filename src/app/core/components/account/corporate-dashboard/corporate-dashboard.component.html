@@ -1,184 +1,150 @@
 <div class="container-fluid p-0 d-flex h-100">
- 
-      <app-dynamic-menus></app-dynamic-menus>
-      
- 
+  <app-dynamic-menus></app-dynamic-menus>
 
   <div class="bg-light flex-fill">
-    <!-- Mobile Header -->
-    <div class="p-2 d-md-none d-flex text-white bg-blue">
-      <a href="#" class="text-white" (click)="toggleSidebar()">
+    <!-- Mobile Sidebar Toggle -->
+    <div class="p-2 d-md-none d-flex text-white bg-gradient bg-primary">
+      <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
         <i class="fa-solid fa-bars"></i>
       </a>
-      <span class="ms-3">Data Kavach</span>
+      <span class="ms-3 fw-bold">Data Kavach</span>
     </div>
 
     <div class="p-4">
-      <!-- Top Navbar -->
-      <nav class="navbar navbar-expand-lg bg-blue shadow-sm rounded">
-        <div class="container-fluid d-flex justify-content-between align-items-center">
-          <a class="navbar-brand text-white" href="dashboard">
-            Welcome: {{ userSessionDetails?.username }}
-          </a>
-          <div class="d-flex align-items-center">
-            <div class="stat-card me-3">
-              <h6 class="mb-1 fw-semibold">Total User</h6>
-              <h4 class="mb-0 fw-bold">{{ userCount }}</h4>
-              <i class="fa fa-users fa-lg opacity-75 ms-2"></i>
-            </div>
-            <div class="stat-card">
-              <h6 class="fw-bold mb-2">Storage Used</h6>
-              <div *ngIf="!storageCalculationFailed; else storageError">
-                <div class="progress mb-2">
-                  <div
-                    class="progress-bar bg-info"
-                    role="progressbar"
-                    [style.width]="getStoragePercentage() + '%'"
-                    [attr.aria-valuenow]="getStoragePercentage()"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                  ></div>
-                </div>
-                <p class="mb-0 small">
-                  {{ formatSize(totalStorageUsed) }} / {{ formatSize(totalStorageLimit) }}
-                  <span class="ms-2">Remaining: {{ formatSize(totalStorageLimit - totalStorageUsed) }}</span>
-                </p>
-              </div>
-              <ng-template #storageError>
-                <p class="fw-bold text-danger small">Error calculating storage</p>
-              </ng-template>
-            </div>
-          </div>
+      <!-- Navbar with Username -->
+      <nav class="navbar navbar-expand-lg bg-white shadow-sm rounded">
+        <div class="container-fluid">
+          <span class="navbar-brand fw-semibold text-muted" style="font-size: 14px;">
+            Welcome, {{userSessionDetails?.username}}
+          </span>
         </div>
       </nav>
 
-      <div class="row mt-4">
-        <!-- Left Section (Search Bar and Charts) -->
-        <div class="col-md-8">
-          <!-- Search Bar -->
-          <div class="search-bar mb-4">
-            <input type="text" class="form-control" placeholder="File Name" [(ngModel)]="searchFileName" />
-            <button class="btn btn-blue ms-2" (click)="searchFiles()">Enter File Names</button>
-          </div>
+      <hr class="my-4">
 
-          <!-- Charts Section -->
-          <div class="row g-4 mb-4">
-            <!-- Bar Chart -->
-            <div class="col-md-6">
-              <div class="card shadow-sm p-3 bg-white rounded">
-                <canvas #barChartCanvas width="300" height="200"></canvas>
+      <div class="row">
+        <div class="col">
+          <!-- OneDrive Folders Section -->
+          <h2 class="text-center mb-4 fw-bold text-primary">Folder Explorer</h2>
+
+          <!-- Storage Overview -->
+          <div class="card shadow-sm p-4 mb-4 bg-white rounded">
+            <div class="row align-items-center">
+              <div class="col-md-6">
+                <h5 class="fw-semibold text-dark">Storage Overview</h5>
+                <p class="text-muted">Total Used: {{ formatSize(totalSize) }} / 1 TB</p>
+                <p class="text-muted">Remaining: {{ formatSize(remainingStorage) }}</p>
               </div>
-            </div>
-            <!-- Pie Chart -->
-            <div class="col-md-6">
-              <div class="card shadow-sm p-3 bg-white rounded">
-                <canvas #storagePieChart width="200" height="200"></canvas>
+              <div class="col-md-6 text-center">
+                <canvas id="storageChart" height="150"></canvas>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Right Section (File Explorer) -->
-        <div class="col-md-4">
-          <!-- Folder Explorer Section -->
-          <h2 class="mb-4 fw-bold text-blue">File Explorer</h2>
+          <!-- Success Message -->
+          <div *ngIf="successMessage" class="alert alert-success shadow-sm rounded" role="alert" style="white-space: pre-wrap;">
+            {{ successMessage }}
+          </div>
 
-          <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+          <!-- Error Message -->
+          <div *ngIf="errorMessage" class="alert alert-danger shadow-sm rounded" role="alert" style="white-space: pre-wrap;">
             {{ errorMessage }}
           </div>
 
-          <!-- Breadcrumbs -->
+          <!-- Breadcrumbs and Navigation -->
           <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb">
+            <ol class="breadcrumb bg-white p-2 rounded shadow-sm">
               <li class="breadcrumb-item">
-                <a href="javascript:void(0)" (click)="listRootFolders()">Root</a>
+                <a href="javascript:void(0)" class="text-primary" (click)="listRootFolders()">Root</a>
               </li>
               <li *ngFor="let pathSegment of currentPath.split('/'); let i = index" class="breadcrumb-item">
-                <a href="javascript:void(0)" (click)="navigateToPathSegment(i)">
-                  {{ pathSegment }}
-                </a>
+                <a href="javascript:void(0)" class="text-primary" (click)="navigateToPathSegment(i)">{{ pathSegment }}</a>
               </li>
             </ol>
           </nav>
 
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <button *ngIf="pathHistory.length > 0" class="btn btn-blue btn-sm" (click)="navigateBack()">Back</button>
-            <div class="filter-section">
-              <button class="btn btn-outline-blue btn-sm" (click)="toggleFilter()">
-                Filter <i class="fa fa-filter ms-1"></i>
-              </button>
-              <div class="filter-options mt-2" *ngIf="showFilter">
-                <button class="btn btn-outline-blue btn-sm me-2" (click)="filterByLastUploaded()">Last Uploaded</button>
-                <button class="btn btn-outline-blue btn-sm" (click)="filterBySizeWise()">Size Wise</button>
-              </div>
-            </div>
-          </div>
+          <!-- Back Button -->
+          <button *ngIf="pathHistory.length > 0" class="btn btn-outline-primary mb-3 shadow-sm" (click)="navigateBack()">
+            <i class="bi bi-arrow-left me-1"></i> Back
+          </button>
 
-          <!-- Loader -->
+          <!-- Loading Spinner -->
           <div class="text-center mt-4" *ngIf="loading">
-            <div class="spinner-border text-blue" role="status">
+            <div class="spinner-border text-primary" role="status">
               <span class="visually-hidden">Loading...</span>
             </div>
           </div>
 
-          <!-- OneDrive Table -->
-          <div class="card shadow-sm p-3 mb-4 bg-white rounded explorer-container" *ngIf="!loading && paginatedContents.length > 0">
+          <!-- Contents Table -->
+          <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!loading && oneDriveContents.length > 0">
             <table class="table table-hover">
               <thead>
                 <tr>
                   <th scope="col">Name</th>
+                  <th scope="col">ID</th>
                   <th scope="col">Type</th>
                   <th scope="col">Size</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of paginatedContents">
+                <tr *ngFor="let item of oneDriveContents" class="hover-shadow">
                   <td>
-                    <a
-                      *ngIf="item.type === 'folder'"
-                      href="javascript:void(0)"
-                      (click)="listFolderContents(item.name)"
-                      class="text-blue"
-                    >
-                      <i [ngClass]="getFileIconClass(item)" class="fa-fw me-1"></i>
-                      {{ item.name }}
+                    <a *ngIf="item.type === 'folder'" href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)">
+                      <i class="bi bi-folder-fill me-1"></i> {{ item.name }}
                     </a>
-                    <span *ngIf="item.type === 'file'">
-                      <i [ngClass]="getFileIconClass(item)" class="fa-fw me-1"></i>{{ item.name }}
-                    </span>
+                    <span *ngIf="item.type === 'file'" class="text-dark"><i class="bi bi-file-earmark-text me-1"></i> {{ item.name }}</span>
                   </td>
+                  <td>{{ item.id }}</td>
                   <td>{{ item.type | titlecase }}</td>
                   <td>{{ formatSize(item.size) }}</td>
+                  <td>
+                    <a *ngIf="item.type === 'file' && item.downloadUrl" [href]="item.downloadUrl" [download]="item.name" class="btn btn-primary btn-sm shadow-sm me-1">
+                      <i class="bi bi-download me-1"></i> Download
+                    </a>
+                    <button *ngIf="item.type === 'folder'" class="btn btn-primary btn-sm shadow-sm me-1" (click)="downloadFolder(item.name)">
+                      <i class="bi bi-download me-1"></i> Download Folder
+                    </button>
+                    <button *ngIf="item.type === 'folder'" class="btn btn-outline-secondary btn-sm shadow-sm" (click)="openRenameModal(item.name)">
+                      <i class="bi bi-pencil me-1"></i> Rename
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
-
-            <!-- Pagination Controls -->
-            
           </div>
-          <nav aria-label="Page navigation">
-            <ul class="pagination pagination-sm justify-content-center">
-              <li class="page-item" [class.disabled]="currentPage === 0">
-                <a class="page-link" href="javascript:void(0)" (click)="previousPage()">Previous</a>
-              </li>
-              <li class="page-item" *ngFor="let page of pageNumbers" [class.active]="currentPage === page - 1">
-                <a class="page-link" href="javascript:void(0)" (click)="goToPage(page - 1)">{{ page }}</a>
-              </li>
-              <li class="page-item" [class.disabled]="currentPage === totalPages - 1 || totalPages === 0">
-                <a class="page-link" href="javascript:void(0)" (click)="nextPage()">Next</a>
-              </li>
-            </ul>
-          </nav>
 
-          <!-- No Items State -->
-          <div
-            class="card shadow-sm p-3 mb-4 bg-white rounded explorer-container"
-            *ngIf="!loading && paginatedContents.length === 0 && !errorMessage"
-          >
-            <div class="alert alert-info text-center" *ngIf="userSessionDetails">
-              No items found in the OneDrive account for "{{ userSessionDetails?.username }}" in the current folder.
+          <!-- Rename Folder Modal -->
+          <div class="modal fade" id="renameModal" tabindex="-1" aria-labelledby="renameModalLabel" aria-hidden="true" [ngClass]="{'show d-block': showRenameModal}" style="background-color: rgba(0,0,0,0.5);" *ngIf="showRenameModal">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="renameModalLabel">Rename Folder: {{ selectedFolder }}</h5>
+                  <button type="button" class="btn-close" (click)="closeRenameModal()" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="mb-3">
+                    <label for="newFolderName" class="form-label">New Folder Name</label>
+                    <input type="text" class="form-control" id="newFolderName" [(ngModel)]="newFolderName" placeholder="Enter new folder name" required>
+                  </div>
+                  <div *ngIf="renameError" class="alert alert-danger" role="alert" style="white-space: pre-wrap;">
+                    {{ renameError }}
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" (click)="closeRenameModal()">Cancel</button>
+                  <button type="button" class="btn btn-primary" (click)="renameFolder()" [disabled]="!newFolderName.trim()">Rename</button>
+                </div>
+              </div>
             </div>
-            <div class="alert alert-warning text-center" *ngIf="!userSessionDetails">
+          </div>
+
+          <!-- No Folders Message -->
+          <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!loading && oneDriveContents.length === 0 && !errorMessage">
+            <div class="alert alert-info text-center shadow-sm" *ngIf="userSessionDetails">
+              No items found in the OneDrive account for "{{userSessionDetails?.username}}" in the current folder.
+            </div>
+            <div class="alert alert-warning text-center shadow-sm" *ngIf="!userSessionDetails">
               Please log in to view OneDrive folders.
             </div>
           </div>

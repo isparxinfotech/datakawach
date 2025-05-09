@@ -14,6 +14,7 @@ export interface PersonalInfoRequest {
   branch: string;
   landlineNumber: string;
   userType: number;
+  retentionNeeded:number;
 
 }
 
@@ -35,5 +36,6 @@ export interface GetPersonalInfoRequest {
   landlineNumber: string;
   userType: number;
   ipAddress: string;
+  retentionNeeded:number;
   userInfo: PersonalInfoRequest[];
 }

@@ -57,7 +57,8 @@ export class UserEditComponent implements OnInit {
             branch: item.branch || '',
             landlineNumber: item.landlineNumber || '',
             userType: Number(item.userType) || 0,
-            ipAddress: item.ip_address || item.ipAddress || ''
+            ipAddress: item.ip_address || item.ipAddress || '',
+            retentionNeeded: Number(item.retentionNeeded) || 0 // Add retentionNeeded, default to 0
           }));
           console.log("Mapped userInfo:", userInfo);
           this.user = userInfo.find(u => u.userid === userId) || null;
@@ -94,7 +95,8 @@ export class UserEditComponent implements OnInit {
       corpoName: this.user.corpoName,
       branch: this.user.branch,
       landlineNumber: this.user.landlineNumber,
-      userType: this.user.userType
+      userType: this.user.userType,
+      retentionNeeded: this.user.retentionNeeded // Include retentionNeeded
     };
 
     this.superAdminService.updateUser(this.user.email, payload).subscribe(

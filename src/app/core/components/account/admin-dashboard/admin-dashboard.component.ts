@@ -54,7 +54,8 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       resourcePermission: this.adminSessionDetails.resourcePermission || [],
       userType: 3, // Override for corporates
       roleid: this.adminSessionDetails.roleid || 0,
-      cloudProvider: this.adminSessionDetails.cloudProvider
+      cloudProvider: this.adminSessionDetails.cloudProvider,
+      retentionNeeded: this.adminSessionDetails.retentionNeeded || 0 // Add retentionNeeded
     };
     this.subscriptions.push(
       this.superAdminService.getUsersList(corporateSession).subscribe({
@@ -80,7 +81,8 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
       resourcePermission: this.adminSessionDetails.resourcePermission || [],
       userType: 5, // Override for users
       roleid: this.adminSessionDetails.roleid || 0,
-      cloudProvider: this.adminSessionDetails.cloudProvider
+      cloudProvider: this.adminSessionDetails.cloudProvider,
+      retentionNeeded: this.adminSessionDetails.retentionNeeded || 0 // Add retentionNeeded
     };
     this.subscriptions.push(
       this.superAdminService.getUsersList(userSession).subscribe({

@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Subscription, interval } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { AlertService } from 'src/app/services/alert.servive';
-import { userSessionDetails } from 'src/app/models/api-resp.model';
+import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 
 @Component({
   selector: 'app-login',
@@ -144,7 +144,7 @@ export class LoginComponent implements OnDestroy {
     } else {
       // Fallback navigation if userType is unexpected
       this.router.navigate(['/dashboard']);
-    }
+    }
   }
 
   goBackToLogin() {

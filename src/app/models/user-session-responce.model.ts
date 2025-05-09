@@ -10,4 +10,6 @@ export interface userSessionDetails {
   userType: number;
   roleid: number;
   cloudProvider?: string;
+  retentionNeeded:number;
+
 }

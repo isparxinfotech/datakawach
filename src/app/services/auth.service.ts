@@ -14,7 +14,7 @@ import { userSessionDetails } from '../models/user-session-responce.model';
 })
 export class AuthService {
   private resourcesAccess: resourcePermission[] = [];
-  private apiUrl = 'https://datakavach.com/api/auth';
+  private apiUrl = 'https://datakavach.com/api/auth'; // Hardcoded URL as per your request
 
   constructor(private http: HttpClient, private router: Router) {}
 
@@ -23,29 +23,46 @@ export class AuthService {
     return this.http.post<void>(`${this.apiUrl}/createUser`, model);
   }
 
-  // Updated loginUser to handle both regular and OTP flows
+  // Login user (unchanged)
   loginUser(model: LoginUserRequest): Observable<userSessionDetails> {
     return this.http.post<userSessionDetails>(`${this.apiUrl}/signin`, model);
   }
 
-  // Request OTP (updated to use HttpParams)
-  requestOtp(username: string, password: string): Observable<any> {
+  // Request OTP (unchanged)
+  requestOtp(username: string, password: string): Observable<string> {
     const params = new HttpParams()
       .set('username', username)
       .set('password', password);
-    return this.http.post(`${this.apiUrl}/requestOtp`, null, {
-      params,
-      responseType: 'text'
+    return this.http.post(`${this.apiUrl}/requestOtp`, null, { 
+      params, 
+      responseType: 'text' 
     });
   }
 
-  // Validate OTP (updated to include currentPassword in HttpParams)
+  // Validate OTP for login (unchanged)
   validateOtp(username: string, otp: number, currentPassword: string): Observable<userSessionDetails> {
     const params = new HttpParams()
       .set('username', username)
       .set('otpnum', otp.toString())
       .set('password', currentPassword);
     return this.http.post<userSessionDetails>(`${this.apiUrl}/validateOtp`, null, { params });
+  }
+
+  // Forgot password (unchanged)
+  forgotPassword(email: string): Observable<{ statusCode: string, message: string }> {
+    const body = { email };
+    return this.http.post<{ statusCode: string, message: string }>(`${this.apiUrl}/forgotPassword`, body);
+  }
+
+  // Validate OTP for password reset (unchanged)
+  validateOtpForPasswordReset(email: string, otp: string): Observable<{ statusCode: string, message: string }> {
+    const body = { email, otp };
+    return this.http.post<{ statusCode: string, message: string }>(`${this.apiUrl}/validateOtpForPasswordReset`, body);
+  }
+
+  // Reset password (unchanged)
+  resetPassword(model: { email: string; newPassword: string }): Observable<{ statusCode: string, message: string }> {
+    return this.http.post<{ statusCode: string, message: string }>(`${this.apiUrl}/resetPassword`, model);
   }
 
   // Get personal info (unchanged)
@@ -84,7 +101,7 @@ export class AuthService {
     return this.http.get<{ ip: string }>('https://api.ipify.org?format=json');
   }
 
-  // Get logged-in user details from session storage (updated with proper typing)
+  // Get logged-in user details from session storage
   getLoggedInUserDetails(): userSessionDetails | null {
     const jsonObj = sessionStorage.getItem('UserDetails');
     if (jsonObj) {
@@ -97,7 +114,8 @@ export class AuthService {
         cloudProvider: parsedObj.cloudProvider || '',
         statusCode: parsedObj.statusCode || '',
         resourcePermission: parsedObj.resourcePermission || [],
-        message: parsedObj.message || ''
+        message: parsedObj.message || '',
+        retentionNeeded: parsedObj.retentionNeeded ?? 0 // Default to 0 if undefined
       };
       console.log('User Session Details');
       console.log(userDetails);
@@ -106,14 +124,15 @@ export class AuthService {
     return null;
   }
 
-  // Save user details to session storage (updated with complete fields)
+  // Save user details to session storage
   saveUserDetails(userDetails: userSessionDetails): void {
     const completeDetails: userSessionDetails = {
       ...userDetails,
       statusCode: userDetails.statusCode || '200',
       message: userDetails.message || '',
       resourcePermission: userDetails.resourcePermission || [],
-      cloudProvider: userDetails.cloudProvider || ''
+      cloudProvider: userDetails.cloudProvider || '',
+      retentionNeeded: userDetails.retentionNeeded ?? 0 // Default to 0 if undefined
     };
     sessionStorage.setItem('UserDetails', JSON.stringify(completeDetails));
     if (userDetails.resourcePermission) {

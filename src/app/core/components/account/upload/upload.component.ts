@@ -1,12 +1,10 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { HttpClient, HttpEventType, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEventType, HttpHeaders } from '@angular/common/http';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { Subscription } from 'rxjs';
-import { SuperAdminService } from 'src/app/services/super-admin.service';
-import { PersonalInfoRequest } from 'src/app/models/personal-info-request.model';
 
-
+// Interface for BackupSchedule to match backend BackupScheduleEntity
 interface BackupSchedule {
   scheduleId: number;
   userId: number;
@@ -19,10 +17,17 @@ interface BackupSchedule {
   dayOfWeek?: string;
   dayOfMonth?: number;
   isActive: boolean;
-  lastBackupTime?: Date | null;
-  nextBackupTime: Date;
+  lastBackupTime?: string | null;
+  nextBackupTime: string;
   lastError?: string | null;
   retryCount: number;
+}
+
+// Interface for OneDrive folder
+interface OneDriveFolder {
+  name: string;
+  id: string;
+  size: number;
 }
 
 @Component({
@@ -31,7 +36,6 @@ interface BackupSchedule {
   styleUrls: ['./upload.component.css']
 })
 export class UploadComponent implements OnInit, OnDestroy {
-  currentStep: number = 1;
   folderName: string = '';
   fileName: string = '';
   fileNameError: string = '';
@@ -49,16 +53,17 @@ export class UploadComponent implements OnInit, OnDestroy {
   message: string = '';
   isSuccess: boolean = false;
   userSessionDetails: userSessionDetails | null = null;
-  private readonly CHUNK_SIZE = 20 * 1024 * 1024;
+  private readonly CHUNK_SIZE = 20 * 1024 * 1024; // 20MB chunks
   private uploadSessionId: string | null = null;
-  userInfo: PersonalInfoRequest[] = [];
   backupSchedules: BackupSchedule[] = [];
-  private usersSubscription?: Subscription;
+  oneDriveFolders: OneDriveFolder[] = [];
+  retentionNeeded: number = 0; // Default, will be updated from userSessionDetails
+  isLoading: boolean = true;
+  private subscriptions: Subscription[] = [];
 
   constructor(
     private http: HttpClient,
-    private authService: AuthService,
-    private superAdminService: SuperAdminService
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -69,32 +74,30 @@ export class UploadComponent implements OnInit, OnDestroy {
       resourcePermission: [],
       userType: 0,
       roleid: 0,
-      cloudProvider: undefined
+      cloudProvider: undefined,
+      retentionNeeded: 0 // Set as number
     };
-    if (this.userSessionDetails) {
-      this.getUsersList();
-      this.loadBackupSchedules();
+    console.log('userSessionDetails:', this.userSessionDetails);
+
+    if (this.userSessionDetails && this.userSessionDetails.jwtToken) {
+      // Set retentionNeeded from userSessionDetails, default to 0 if undefined
+      this.retentionNeeded = this.userSessionDetails.retentionNeeded ?? 0;
+      console.log('Retention Needed:', this.retentionNeeded);
+
+      // Load OneDrive folders for all cases
+      this.loadOneDriveFolders();
+
+      // Load backup schedules only if retentionNeeded is 1 or 2
+      if (this.retentionNeeded === 1 || this.retentionNeeded === 2) {
+        this.loadBackupSchedules();
+      }
+
+      this.isLoading = false;
+    } else {
+      this.isLoading = false;
+      this.message = 'No valid user session or JWT token found';
+      this.isSuccess = false;
     }
-  }
-
-  isStep1Valid(): boolean {
-    return !!(
-      this.folderName &&
-      this.fileName &&
-      !this.fileName.includes(' ') &&
-      this.localPath &&
-      !this.fileNameError
-    );
-  }
-
-  nextStep(): void {
-    if (this.isStep1Valid()) {
-      this.currentStep = 2;
-    }
-  }
-
-  prevStep(): void {
-    this.currentStep = 1;
   }
 
   validateFileNameInput(): void {
@@ -106,7 +109,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
   }
 
-  onFileSelected(event: any): void {
+  onFileSelected(event: any) {
     this.selectedFile = event.target.files[0];
     this.message = '';
     this.overallProgress = 0;
@@ -122,6 +125,16 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   isScheduleFormValid(): boolean {
+    if (this.retentionNeeded === 0) {
+      return !!(
+        this.userSessionDetails?.username &&
+        this.folderName &&
+        this.fileName &&
+        !this.fileName.includes(' ') &&
+        this.selectedFile
+      );
+    }
+    // For retentionNeeded === 1 or 2
     return !!(
       this.userSessionDetails?.username &&
       this.folderName &&
@@ -132,11 +145,11 @@ export class UploadComponent implements OnInit, OnDestroy {
       this.retentionDays > 0 &&
       this.backupFrequency &&
       (this.backupFrequency !== 'Weekly' || this.dayOfWeek) &&
-      (this.backupFrequency !== 'Monthly' || this.dayOfMonth)
+      (this.backupFrequency !== 'Monthly' || (this.dayOfMonth && this.dayOfMonth >= 1 && this.dayOfMonth <= 31))
     );
   }
 
-  async onCreateSchedule(): Promise<void> {
+  async onCreateSchedule() {
     if (!this.isScheduleFormValid()) {
       this.message = 'Please fill all required fields correctly';
       this.isSuccess = false;
@@ -147,20 +160,31 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.message = '';
 
     const sanitizedFileName = this.sanitizeFileName(this.fileName);
+
+    if (this.retentionNeeded === 0) {
+      // For retentionNeeded == 0, only upload the file
+      await this.onUpload(sanitizedFileName);
+      this.scheduling = false;
+      return;
+    }
+
+    // For retentionNeeded == 1 or 2, create a backup schedule
     const url = 'https://datakavach.com/onedrive/schedule';
     const body = new FormData();
     body.append('email', this.userSessionDetails!.username);
     body.append('folderName', this.folderName);
     body.append('fileName', sanitizedFileName);
     body.append('localPath', this.localPath);
-    body.append('backupTime', this.backupTime);
+    body.append('backupTime', this.backupTime + ':00'); // Append seconds to match backend
     body.append('retentionDays', this.retentionDays.toString());
     body.append('backupFrequency', this.backupFrequency);
     if (this.dayOfWeek) body.append('dayOfWeek', this.dayOfWeek);
     if (this.dayOfMonth) body.append('dayOfMonth', this.dayOfMonth.toString());
 
     try {
-      await this.http.post(url, body, { responseType: 'text' }).toPromise();
+      await this.http.post(url, body, {
+        headers: this.getAuthHeaders()
+      }).toPromise();
       this.message = 'Backup schedule created successfully';
       this.isSuccess = true;
 
@@ -179,7 +203,69 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
   }
 
-  onFrequencyChange(): void {
+  async triggerManualBackup(scheduleId: number) {
+    if (!this.userSessionDetails?.username) {
+      this.message = 'No user logged in';
+      this.isSuccess = false;
+      return;
+    }
+
+    const url = 'https://datakavach.com/onedrive/backup-now';
+    const body = new FormData();
+    body.append('scheduleId', scheduleId.toString());
+    body.append('email', this.userSessionDetails.username);
+
+    try {
+      await this.http.post(url, body, {
+        headers: this.getAuthHeaders()
+      }).toPromise();
+      this.message = `Manual backup triggered for schedule ID: ${scheduleId}`;
+      this.isSuccess = true;
+      // Refresh schedules after a short delay to allow backend processing
+      setTimeout(() => this.loadBackupSchedules(), 3000);
+    } catch (err: any) {
+      this.handleError(err);
+    }
+  }
+
+  async loadBackupSchedules() {
+    if (!this.userSessionDetails?.username || (this.retentionNeeded !== 1 && this.retentionNeeded !== 2)) {
+      this.backupSchedules = [];
+      return;
+    }
+
+    const url = `https://datakavach.com/onedrive/schedules?email=${encodeURIComponent(this.userSessionDetails.username)}`;
+    try {
+      const schedules = await this.http.get<BackupSchedule[]>(url, {
+        headers: this.getAuthHeaders()
+      }).toPromise();
+      this.backupSchedules = schedules || [];
+      console.log('Backup schedules loaded:', this.backupSchedules);
+    } catch (err: any) {
+      this.handleError(err);
+    }
+  }
+
+  async loadOneDriveFolders() {
+    if (!this.userSessionDetails?.username) {
+      this.message = 'No user logged in';
+      this.isSuccess = false;
+      return;
+    }
+
+    const url = `https://datakavach.com/onedrive/folders?email=${encodeURIComponent(this.userSessionDetails.username)}`;
+    try {
+      const folders = await this.http.get<OneDriveFolder[]>(url, {
+        headers: this.getAuthHeaders()
+      }).toPromise();
+      this.oneDriveFolders = folders || [];
+      console.log('OneDrive folders loaded:', this.oneDriveFolders);
+    } catch (err: any) {
+      this.handleError(err);
+    }
+  }
+
+  onFrequencyChange() {
     this.dayOfWeek = '';
     this.dayOfMonth = null;
   }
@@ -192,7 +278,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       .replace(/_$/, '');
   }
 
-  async onUpload(providedFileName?: string): Promise<void> {
+  async onUpload(providedFileName?: string) {
     if (!this.userSessionDetails?.username || !this.folderName || (!this.selectedFile && !providedFileName)) {
       this.message = 'Please provide a folder name and file for upload';
       this.isSuccess = false;
@@ -265,6 +351,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   private uploadChunk(url: string, formData: FormData, chunkIndex: number, totalChunks: number, totalSize: number): Promise<any> {
     return new Promise((resolve, reject) => {
       this.http.put(url, formData, {
+        headers: this.getAuthHeaders(),
         reportProgress: true,
         observe: 'events'
       }).subscribe({
@@ -286,7 +373,14 @@ export class UploadComponent implements OnInit, OnDestroy {
     });
   }
 
-  private handleSuccess(response: any): void {
+  private getAuthHeaders(): HttpHeaders {
+    const token = this.userSessionDetails?.jwtToken || '';
+    return new HttpHeaders({
+      'Authorization': `Bearer ${token}`
+    });
+  }
+
+  private handleSuccess(response: any) {
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = true;
@@ -295,135 +389,37 @@ export class UploadComponent implements OnInit, OnDestroy {
     console.log('Success:', response);
   }
 
-  private handleError(error: any): void {
+  private handleError(error: any) {
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = false;
-
-    if (error.status === 404) {
-      this.message = 'Endpoint not found. Please check the server configuration.';
-    } else if (error.status === 400) {
-      this.message = error.error?.message || 'Operation failed due to a bad request.';
-    } else if (error.status === 401) {
-      this.message = 'Unauthorized. Please check authentication credentials.';
-    } else if (error.status === 405) {
-      this.message = 'Method not allowed. Server does not support this operation.';
-    } else if (error.status === 413) {
-      this.message = 'Content too large. Server rejected chunk. Try reducing chunk size.';
-    } else {
-      this.message = error.error?.message || 'Operation failed. Please try again.';
+    let errorMessage = 'An error occurred';
+    if (error.error && error.error.message) {
+      errorMessage = error.error.message;
+    } else if (error.message) {
+      errorMessage = error.message;
     }
-
+    this.message = errorMessage;
     console.error('Error:', error);
+    this.isLoading = false;
   }
 
-  private resetForm(): void {
-    this.currentStep = 1;
+  private resetForm() {
+    this.selectedFile = null;
     this.folderName = '';
     this.fileName = '';
-    this.fileNameError = '';
     this.localPath = '';
     this.backupTime = '';
     this.retentionDays = 7;
     this.backupFrequency = 'Daily';
     this.dayOfWeek = '';
     this.dayOfMonth = null;
-    this.selectedFile = null;
     this.overallProgress = 0;
     this.chunkProgress = 0;
     this.uploadSessionId = null;
-    setTimeout(() => this.message = '', 5000);
-  }
-
-  private getUsersList(): void {
-    if (!this.userSessionDetails) {
-      return;
-    }
-    this.userSessionDetails.userType = 5;
-    this.usersSubscription = this.superAdminService.getUsersList(this.userSessionDetails)
-      .subscribe(
-        (response) => {
-          console.log('User list fetched:', response);
-          this.userInfo = (response.userInfo as any[]).map(item => ({
-            userid: item.userid || '',
-            firstName: item.firstName || '',
-            middleName: item.middleName || '',
-            lastName: item.lastName || '',
-            gender: item.gender || '',
-            dateOfBirth: item.dateOfBirth ? new Date(item.dateOfBirth) : null,
-            address: item.address || '',
-            city: item.city || '',
-            pinCode: item.pinCode || '',
-            mobileNumber: item.mobileNumber || '',
-            email: item.email || '',
-            corpoName: item.corpoName || '',
-            branch: item.branch || '',
-            landlineNumber: item.landlineNumber || '',
-            userType: Number(item.userType) || 0
-          }));
-          console.log('Mapped userInfo:', this.userInfo);
-          if (this.userInfo.length > 0) {
-            this.userInfo.reverse();
-          }
-        },
-        (error) => {
-          console.error('Error fetching user list:', error);
-        }
-      );
-  }
-
-  loadBackupSchedules(): void {
-    if (!this.userSessionDetails?.username) {
-      console.error('No username available to load schedules');
-      return;
-    }
-
-    const params = new HttpParams().set('email', this.userSessionDetails.username);
-    this.http.get<BackupSchedule[]>('https://datakavach.com/onedrive/schedules', { params })
-      .subscribe({
-        next: (schedules) => {
-          this.backupSchedules = schedules.map(s => ({
-            ...s,
-            nextBackupTime: new Date(s.nextBackupTime),
-            lastBackupTime: s.lastBackupTime ? new Date(s.lastBackupTime) : null
-          }));
-          console.log('Backup schedules loaded:', this.backupSchedules);
-        },
-        error: (err) => {
-          console.error('Error loading schedules:', err);
-          this.message = 'Failed to load backup schedules';
-          this.isSuccess = false;
-        }
-      });
-  }
-
-  triggerManualBackup(scheduleId: number): void {
-    if (!this.userSessionDetails?.username) {
-      this.message = 'No user logged in';
-      this.isSuccess = false;
-      return;
-    }
-
-    const params = new HttpParams()
-      .set('scheduleId', scheduleId.toString())
-      .set('email', this.userSessionDetails.username);
-
-    this.http.post('https://datakavach.com/onedrive/backup-now', null, { params })
-      .subscribe({
-        next: () => {
-          this.message = 'Backup triggered successfully';
-          this.isSuccess = true;
-          setTimeout(() => this.loadBackupSchedules(), 3000);
-        },
-        error: (err) => {
-          this.message = 'Failed to trigger backup: ' + (err.error?.message || err.message);
-          this.isSuccess = false;
-          console.error('Error triggering backup:', err);
-        }
-      });
   }
 
   ngOnDestroy(): void {
-    this.usersSubscription?.unsubscribe();
+    this.subscriptions.forEach(sub => sub.unsubscribe());
   }
 }

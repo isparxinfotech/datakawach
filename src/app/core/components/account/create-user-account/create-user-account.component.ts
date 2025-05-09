@@ -27,21 +27,26 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       middleName: ['', [Validators.minLength(3), Validators.pattern('^[a-zA-Z]+$')]],
       lastName: ['', [Validators.required, Validators.minLength(3), Validators.pattern('^[a-zA-Z]+$')]],
       gender: ['', [Validators.required]],
-      dateOfBirth: ['', [Validators.required]],
-      address: ['', [Validators.required, Validators.minLength(3)]],
+      branch: ['', [Validators.required, Validators.minLength(3)]],
       city: ['', [Validators.required]],
       pinCode: ['', [Validators.required, Validators.minLength(6), Validators.pattern('[0-9]*')]],
       mobileNumber: ['', [Validators.required, Validators.minLength(10), Validators.pattern('[0-9]*')]],
       email: ['', [Validators.required, Validators.email]],
-      password: ['qwerty', [Validators.minLength(3)]],
+      password: ['', [Validators.required, Validators.minLength(8), Validators.pattern('^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$')]],
+      confirmPassword: ['', [Validators.required]],
       createdBy: ['', Validators.required],
       folderName: [''],
       userType: [5],
       corpoName: ['none'],
-      branch: ['none'],
       landlineNumber: ['0000000000'],
       cloudProvider: ['', Validators.required]
-    });
+    }, { validators: this.passwordMatchValidator });
+  }
+
+  passwordMatchValidator(form: FormGroup) {
+    const password = form.get('password')?.value;
+    const confirmPassword = form.get('confirmPassword')?.value;
+    return password === confirmPassword ? null : { mismatch: true };
   }
 
   ngOnInit(): void {
@@ -56,7 +61,7 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       createdBy: this.userSessionDetails.username,
       cloudProvider: this.userSessionDetails.cloudProvider
     });
-    console.log('Logged-in user details set - createdBy:', this.userSessionDetails.username,
+    console.log('Logged-in user details set - createdBy:', this.userSessionDetails.username, 
                 'cloudProvider:', this.userSessionDetails.cloudProvider);
 
     // Fetch current IP address from backend
@@ -112,7 +117,7 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       cloudProvider: this.userSessionDetails?.cloudProvider,
       userType: 5,
       corpoName: 'none',
-      branch: 'none',
+      branch: '',
       landlineNumber: '0000000000',
       ipAddress: this.currentIp // Retain fetched IP address
     });

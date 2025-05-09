@@ -52,6 +52,7 @@ export class UserAccountListComponent {
             branch: item.branch || '',
             landlineNumber: item.landlineNumber || '',
             userType: Number(item.userType) || 0,
+            retentionNeeded: Number(item.retentionNeeded) || 0 // Add retentionNeeded, default to 0
           }));
           console.log("Mapped userInfo:", this.userInfo);
           if (this.userInfo.length > 0) {
