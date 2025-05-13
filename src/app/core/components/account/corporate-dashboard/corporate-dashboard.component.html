@@ -1,4 +1,4 @@
-<div class="container-fluid p-0 d-flex h-100">
+<div class="container-fluid p-0 d-flex h-100" [ngClass]="{'black-and-white-theme': isBlackAndWhiteTheme}">
   <app-dynamic-menus></app-dynamic-menus>
 
   <div class="bg-light flex-fill">
@@ -11,12 +11,19 @@
     </div>
 
     <div class="p-4">
-      <!-- Navbar with Username -->
-      <nav class="navbar navbar-expand-lg bg-white shadow-sm rounded">
+      <!-- Navbar with Username and Theme Toggle -->
+      <nav class="navbar navbar-expand-lg bg-gradient bg-blue shadow-sm rounded">
         <div class="container-fluid">
-          <span class="navbar-brand fw-semibold text-muted" style="font-size: 14px;">
+          <span class="navbar-brand fw-semibold text-white" style="font-size: 14px;">
             Welcome, {{userSessionDetails?.username}}
           </span>
+          <div class="ms-auto d-flex align-items-center">
+            <label class="theme-toggle me-2 text-white">
+              <input type="checkbox" [(ngModel)]="isBlackAndWhiteTheme" (change)="toggleTheme()">
+              <span class="slider"></span>
+              
+            </label>
+          </div>
         </div>
       </nav>
 
@@ -24,94 +31,148 @@
 
       <div class="row">
         <div class="col">
-          <!-- OneDrive Folders Section -->
-          <h2 class="text-center mb-4 fw-bold text-primary">Folder Explorer</h2>
-
-          <!-- Storage Overview -->
-          <div class="card shadow-sm p-4 mb-4 bg-white rounded">
-            <div class="row align-items-center">
-              <div class="col-md-6">
-                <h5 class="fw-semibold text-dark">Storage Overview</h5>
-                <p class="text-muted">Total Used: {{ formatSize(totalSize) }} / 1 TB</p>
-                <p class="text-muted">Remaining: {{ formatSize(remainingStorage) }}</p>
-              </div>
-              <div class="col-md-6 text-center">
-                <canvas id="storageChart" height="150"></canvas>
-              </div>
-            </div>
-          </div>
-
-          <!-- Success Message -->
-          <div *ngIf="successMessage" class="alert alert-success shadow-sm rounded" role="alert" style="white-space: pre-wrap;">
+          <!-- Success/Error Messages -->
+          <div *ngIf="successMessage" class="alert alert-success shadow-sm rounded" role="alert">
             {{ successMessage }}
           </div>
-
-          <!-- Error Message -->
-          <div *ngIf="errorMessage" class="alert alert-danger shadow-sm rounded" role="alert" style="white-space: pre-wrap;">
+          <div *ngIf="errorMessage" class="alert alert-danger shadow-sm rounded" role="alert">
             {{ errorMessage }}
           </div>
 
-          <!-- Breadcrumbs and Navigation -->
-          <nav aria-label="breadcrumb" class="mb-3">
-            <ol class="breadcrumb bg-white p-2 rounded shadow-sm">
-              <li class="breadcrumb-item">
-                <a href="javascript:void(0)" class="text-primary" (click)="listRootFolders()">Root</a>
-              </li>
-              <li *ngFor="let pathSegment of currentPath.split('/'); let i = index" class="breadcrumb-item">
-                <a href="javascript:void(0)" class="text-primary" (click)="navigateToPathSegment(i)">{{ pathSegment }}</a>
-              </li>
-            </ol>
-          </nav>
+          <!-- Two-Column Layout -->
+          <div class="row">
+            <!-- File Explorer Section (Left Side, Wider) -->
+            <div class="col-md-8 mb-4">
+              <div class="file-explorer-header">
+                <h5 class="fw-semibold text-dark mb-3">File Explorer</h5>
+                <!-- Search Bar -->
+                <div class="search-bar mb-3">
+                  <input type="text" class="form-control" placeholder="Search files/folders..." 
+                         [(ngModel)]="searchQuery" (input)="filterContents()">
+                </div>
+              </div>
+              <!-- Breadcrumbs and Controls -->
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <nav aria-label="breadcrumb">
+                  <ol class="breadcrumb modern-breadcrumb">
+                    <li class="breadcrumb-item">
+                      <a href="javascript:void(0)" class="text-primary" (click)="listRootFolders()">Root</a>
+                    </li>
+                    <li *ngFor="let pathSegment of currentPath.split('/'); let i = index" class="breadcrumb-item">
+                      <a href="javascript:void(0)" class="text-primary" (click)="navigateToPathSegment(i)">{{ pathSegment }}</a>
+                    </li>
+                  </ol>
+                </nav>
+                <div class="d-flex align-items-center">
+                  <button *ngIf="pathHistory.length > 0" class="btn btn-outline-blue me-2" (click)="navigateBack()">
+                    <i class="bi bi-arrow-left me-1"></i> Back
+                  </button>
+                  <!-- Sort Dropdown -->
+                  <div class="dropdown">
+                    <button class="btn btn-outline-blue dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                      Sort by: {{ sortBy | titlecase }}
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+                      <li><a class="dropdown-item" href="javascript:void(0)" (click)="sortBy = 'name'; sortContents()">Name</a></li>
+                      <li><a class="dropdown-item" href="javascript:void(0)" (click)="sortBy = 'type'; sortContents()">Type</a></li>
+                      <li><a class="dropdown-item" href="javascript:void(0)" (click)="sortBy = 'size'; sortContents()">Size</a></li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <!-- File Explorer Table -->
+              <div class="file-explorer-table explorer-container" *ngIf="!loading && filteredContents.length > 0">
+                <table class="table table-hover table-bordered">
+                  <thead>
+                    <tr>
+                      <th scope="col">Name</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Storage</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let item of filteredContents">
+                      <td>
+                        <a *ngIf="item.type === 'folder'" href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)">
+                          <img src="assets/images/fileicon.svg" alt="Folder Icon" class="folder-icon"> {{ item.name }}
+                        </a>
+                        <span *ngIf="item.type === 'file'" class="text-dark">
+                          <i class="bi bi-file-earmark-text me-2 text-secondary"></i> {{ item.name }}
+                        </span>
+                      </td>
+                      <td>{{ item.type | titlecase }}</td>
+                      <td>{{ formatSize(item.size) }}</td>
+                      <td>
+                        <ng-container *ngIf="item.type === 'file' && item.downloadUrl">
+                          <a [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm me-1">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                            </svg>
+                            Download
+                          </a>
+                        </ng-container>
+                        <ng-container *ngIf="item.type === 'folder'">
+                          <button class="btn btn-blue btn-sm me-1" (click)="downloadFolder(item.name)">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                            </svg>
+                            Download
+                          </button>
+                          <button class="btn btn-outline-blue btn-sm" (click)="openRenameModal(item.name)">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                            </svg>
+                            Rename
+                          </button>
+                        </ng-container>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <!-- No Contents Message -->
+              <div class="card shadow-sm p-3 bg-white rounded" *ngIf="!loading && filteredContents.length === 0 && !errorMessage">
+                <div class="alert alert-info text-center shadow-sm" *ngIf="userSessionDetails">
+                  No items found in the OneDrive account for "{{userSessionDetails.username}}" in the current folder.
+                </div>
+              </div>
 
-          <!-- Back Button -->
-          <button *ngIf="pathHistory.length > 0" class="btn btn-outline-primary mb-3 shadow-sm" (click)="navigateBack()">
-            <i class="bi bi-arrow-left me-1"></i> Back
-          </button>
-
-          <!-- Loading Spinner -->
-          <div class="text-center mt-4" *ngIf="loading">
-            <div class="spinner-border text-primary" role="status">
-              <span class="visually-hidden">Loading...</span>
+              <!-- Folder Usage Bar Graph -->
+              <div class="mt-4" *ngIf="!loading && hasFolders()">
+                <h5 class="fw-semibold text-dark mb-3">Folder Usage</h5>
+                <div class="chart-container">
+                  <canvas id="folderUsageChart" height="200"></canvas>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <!-- Contents Table -->
-          <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!loading && oneDriveContents.length > 0">
-            <table class="table table-hover">
-              <thead>
-                <tr>
-                  <th scope="col">Name</th>
-                  <th scope="col">ID</th>
-                  <th scope="col">Type</th>
-                  <th scope="col">Size</th>
-                  <th scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let item of oneDriveContents" class="hover-shadow">
-                  <td>
-                    <a *ngIf="item.type === 'folder'" href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)">
-                      <i class="bi bi-folder-fill me-1"></i> {{ item.name }}
-                    </a>
-                    <span *ngIf="item.type === 'file'" class="text-dark"><i class="bi bi-file-earmark-text me-1"></i> {{ item.name }}</span>
-                  </td>
-                  <td>{{ item.id }}</td>
-                  <td>{{ item.type | titlecase }}</td>
-                  <td>{{ formatSize(item.size) }}</td>
-                  <td>
-                    <a *ngIf="item.type === 'file' && item.downloadUrl" [href]="item.downloadUrl" [download]="item.name" class="btn btn-primary btn-sm shadow-sm me-1">
-                      <i class="bi bi-download me-1"></i> Download
-                    </a>
-                    <button *ngIf="item.type === 'folder'" class="btn btn-primary btn-sm shadow-sm me-1" (click)="downloadFolder(item.name)">
-                      <i class="bi bi-download me-1"></i> Download Folder
-                    </button>
-                    <button *ngIf="item.type === 'folder'" class="btn btn-outline-secondary btn-sm shadow-sm" (click)="openRenameModal(item.name)">
-                      <i class="bi bi-pencil me-1"></i> Rename
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <!-- Storage Overview Section (Right Side) -->
+            <div class="col-md-4 mb-4">
+              <div class="card shadow-sm p-4 bg-white rounded">
+                <div class="row align-items-center">
+                  <div class="col-md-12 text-center mb-4">
+                    <h5 class="fw-semibold text-dark">Total User</h5>
+                    <p class="text-muted fs-3 fw-bold">{{ totalUsers }}</p>
+                  </div>
+                  <div class="col-md-12">
+                    <h5 class="fw-semibold text-dark">Storage Overview</h5>
+                    <p class="text-muted">Storage Used: {{ formatSize(totalSize) }} / 1 TB</p>
+                    <p class="text-muted">Remaining: {{ formatSize(remainingStorage) }}</p>
+                    <div class="progress">
+                      <div class="progress-bar bg-blue" role="progressbar" [style.width]="(totalSize / totalStorage * 100) + '%'" 
+                           [attr.aria-valuenow]="totalSize / totalStorage * 100" aria-valuemin="0" aria-valuemax="100">
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-12 text-center mt-4">
+                    <canvas id="storageChart" height="150"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Rename Folder Modal -->
@@ -127,25 +188,22 @@
                     <label for="newFolderName" class="form-label">New Folder Name</label>
                     <input type="text" class="form-control" id="newFolderName" [(ngModel)]="newFolderName" placeholder="Enter new folder name" required>
                   </div>
-                  <div *ngIf="renameError" class="alert alert-danger" role="alert" style="white-space: pre-wrap;">
+                  <div *ngIf="renameError" class="alert alert-danger" role="alert">
                     {{ renameError }}
                   </div>
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-secondary" (click)="closeRenameModal()">Cancel</button>
-                  <button type="button" class="btn btn-primary" (click)="renameFolder()" [disabled]="!newFolderName.trim()">Rename</button>
+                  <button type="button" class="btn btn-blue" (click)="renameFolder()" [disabled]="!newFolderName.trim()">Rename</button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- No Folders Message -->
-          <div class="card shadow-sm p-4 mb-4 bg-white rounded" *ngIf="!loading && oneDriveContents.length === 0 && !errorMessage">
-            <div class="alert alert-info text-center shadow-sm" *ngIf="userSessionDetails">
-              No items found in the OneDrive account for "{{userSessionDetails?.username}}" in the current folder.
-            </div>
-            <div class="alert alert-warning text-center shadow-sm" *ngIf="!userSessionDetails">
-              Please log in to view OneDrive folders.
+          <!-- Loading Spinner -->
+          <div class="text-center mt-4" *ngIf="loading">
+            <div class="spinner-border text-blue" role="status">
+              <span class="visually-hidden">Loading...</span>
             </div>
           </div>
         </div>

@@ -29,7 +29,7 @@ import { AdminDashboardComponent } from './core/components/account/admin-dashboa
 import { UserEditComponent } from './core/components/account/user-edit/user-edit.component';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { CorporateDashboardComponent } from './core/components/account/corporate-dashboard/corporate-dashboard.component';
-// WebSocket configuration
+
 
 @NgModule({
   declarations: [

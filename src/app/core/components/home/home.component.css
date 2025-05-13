@@ -227,7 +227,7 @@
   color: #009dff;
 }
 .form-container .form .button-container .send-button:disabled {
-  background: #666;
+  background: #000000;
   color: #333;
   cursor: not-allowed;
 }
@@ -360,7 +360,7 @@
 .footer-bottom {
   text-align: center;
   padding-top: 20px;
-  color: #666;
+  color: #000000;
   border-top: 1px solid #333;
 }
 

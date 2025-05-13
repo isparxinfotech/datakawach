@@ -29,7 +29,7 @@
     "@types/jszip": "^3.4.1",
     "animate.css": "^4.1.1",
     "bootstrap": "^5.3.5",
-    "chart.js": "^4.4.9",
+    "chart.js": "^4.4.0",
     "datakavachui": "file:",
     "feather-icons": "^4.29.2",
     "file-saver": "^2.0.5",

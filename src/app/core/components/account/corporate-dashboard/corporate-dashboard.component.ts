@@ -2,10 +2,14 @@ import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
+import { SuperAdminService } from 'src/app/services/super-admin.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
-import { Chart } from 'chart.js/auto';
+import { Chart, registerables } from 'chart.js';
 import * as JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+
+// Register Chart.js components
+Chart.register(...registerables);
 
 @Component({
   selector: 'app-corporate-dashboard',
@@ -16,15 +20,20 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   userSessionDetails: userSessionDetails | null | undefined;
   email: string = '';
   cloudProvider: string = '';
-  oneDriveContents: { name: string, id: string, size: number, type: string, downloadUrl?: string }[] = [];
+  oneDriveContents: { name: string; id: string; size: number; type: string; downloadUrl?: string }[] = [];
+  filteredContents: { name: string; id: string; size: number; type: string; downloadUrl?: string }[] = [];
   currentPath: string = '';
   pathHistory: string[] = [];
   loading: boolean = false;
   errorMessage: string = '';
-  successMessage: string = ''; // New property for success messages
+  successMessage: string = '';
   totalSize: number = 0;
   totalStorage: number = 1_000_000_000_000; // 1 TB in bytes
   remainingStorage: number = this.totalStorage;
+  totalUsers: number = 0;
+
+  // Theme state
+  isBlackAndWhiteTheme: boolean = false;
 
   // Rename folder state
   showRenameModal: boolean = false;
@@ -32,10 +41,22 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   newFolderName: string = '';
   renameError: string = '';
 
-  private subscription?: Subscription;
-  private chart: Chart | undefined;
+  // Search and sort state
+  searchQuery: string = '';
+  sortBy: string = 'name'; // Options: 'name', 'type', 'size'
 
-  constructor(private authService: AuthService, private http: HttpClient) {}
+  // Charts
+  private storageChart: Chart<'doughnut', number[], string> | undefined;
+  private folderUsageChart: Chart | undefined;
+
+  private subscription?: Subscription;
+  private userSubscription?: Subscription;
+
+  constructor(
+    private authService: AuthService,
+    private http: HttpClient,
+    private superAdminService: SuperAdminService
+  ) {}
 
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
@@ -50,10 +71,53 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     } else {
       this.errorMessage = 'User session details are incomplete. Please log in again.';
     }
+
+    // Fetch total corporate users
+    this.fetchTotalUsers();
   }
 
   ngAfterViewInit(): void {
+    // Delay chart initialization to ensure DOM is fully rendered
+    setTimeout(() => {
+      this.initializeCharts();
+    }, 0);
+  }
+
+  private initializeCharts(): void {
+    console.log('Attempting to initialize charts...');
     this.updateStorageChart();
+    this.initFolderUsageChart();
+  }
+
+  private fetchTotalUsers(): void {
+    if (!this.userSessionDetails) {
+      this.errorMessage = 'User session details are missing. Cannot fetch user list.';
+      this.totalUsers = 0;
+      return;
+    }
+
+    this.userSessionDetails.userType = 5;
+    this.userSubscription = this.superAdminService.getUsersList(this.userSessionDetails).subscribe({
+      next: (response) => {
+        if (response && response.userInfo && Array.isArray(response.userInfo)) {
+          this.totalUsers = response.userInfo.length;
+        } else {
+          this.errorMessage = 'Failed to fetch user count: Invalid response from server.';
+          this.totalUsers = 0;
+        }
+      },
+      error: (err) => {
+        this.errorMessage = 'Failed to fetch user count. Please try again later.';
+        this.totalUsers = 0;
+        console.error('Error fetching user list:', err);
+      }
+    });
+  }
+
+  toggleTheme(): void {
+    this.isBlackAndWhiteTheme = !this.isBlackAndWhiteTheme;
+    this.updateStorageChart();
+    this.initFolderUsageChart();
   }
 
   listRootFolders(): void {
@@ -99,11 +163,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     this.loading = true;
     this.errorMessage = '';
-    this.successMessage = ''; // Clear success message
+    this.successMessage = '';
     const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
     const url = `https://datakavach.com/onedrive/download-folder?email=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
-
-    console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
 
     try {
       const files = await this.http.get<any[]>(url).toPromise();
@@ -129,19 +191,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       let hasFiles = false;
       for (const file of files) {
         if (file.type === 'file' && file.downloadUrl) {
-          console.log(`Fetching file: ${file.name}`);
-          try {
-            const response = await this.http.get(file.downloadUrl, { responseType: 'blob' }).toPromise();
-            if (response) {
-              zip.file(file.name, response);
-              hasFiles = true;
-            } else {
-              console.warn(`No content received for file: ${file.name}`);
-              this.errorMessage += `Skipped ${file.name} (no content). `;
-            }
-          } catch (err: any) {
-            console.error(`Failed to fetch file ${file.name}:`, err);
-            this.errorMessage += `Failed to include ${file.name} in ZIP. `;
+          const response = await this.http.get(file.downloadUrl, { responseType: 'blob' }).toPromise();
+          if (response) {
+            zip.file(file.name, response);
+            hasFiles = true;
+          } else {
+            this.errorMessage += `Skipped ${file.name} (no content). `;
           }
         }
       }
@@ -154,7 +209,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, `${folderName}.zip`);
-      console.log(`ZIP file created for folder: ${folderPath}`);
       this.loading = false;
     } catch (err: any) {
       this.loading = false;
@@ -163,7 +217,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       } else {
         this.errorMessage = err.error?.message || 'Failed to download folder. Please try again.';
       }
-      console.error(`Error downloading folder: ${this.errorMessage}`, err);
     }
   }
 
@@ -171,7 +224,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.selectedFolder = folderName;
     this.newFolderName = folderName;
     this.renameError = '';
-    this.successMessage = ''; // Clear success message
+    this.successMessage = '';
     this.showRenameModal = true;
   }
 
@@ -193,7 +246,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     this.loading = true;
     this.renameError = '';
-    this.successMessage = ''; // Clear success message
+    this.successMessage = '';
 
     try {
       const response = await this.http.patch(url, {}, { observe: 'response', responseType: 'text' }).toPromise();
@@ -201,7 +254,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         this.closeRenameModal();
         this.loadFolderContents(this.currentPath);
         this.successMessage = response.body || 'Folder renamed successfully';
-        console.log(`Folder renamed: ${folderPath} to ${this.newFolderName}`);
       } else {
         throw new Error(`Unexpected response: ${response ? response.status : 'undefined'}`);
       }
@@ -210,7 +262,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.loading = false;
       const errorMessage = err.error?.message || err.message || 'Failed to rename folder. Please try again.';
       this.renameError = errorMessage;
-      console.error(`Error renaming folder: ${errorMessage}`, err);
     }
   }
 
@@ -223,15 +274,14 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     this.loading = true;
     this.errorMessage = '';
-    this.successMessage = ''; // Clear success message
+    this.successMessage = '';
     this.oneDriveContents = [];
+    this.filteredContents = [];
     this.totalSize = 0;
 
     const url = folderPath
       ? `https://datakavach.com/onedrive/folder-contents?email=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`
       : `https://datakavach.com/onedrive/folders?email=${encodeURIComponent(this.email)}`;
-
-    console.log(`Loading contents for folder path: ${folderPath || 'root'} (URL: ${url})`);
 
     this.subscription = this.http.get<any[]>(url).subscribe({
       next: (response) => {
@@ -249,8 +299,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         }));
         this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + item.size, 0);
         this.remainingStorage = this.totalStorage - this.totalSize;
+        this.filteredContents = [...this.oneDriveContents];
+        this.sortContents();
         this.loading = false;
         this.updateStorageChart();
+        this.initFolderUsageChart();
         if (this.oneDriveContents.length === 0) {
           this.errorMessage = `No items found in ${folderPath || 'root'}.`;
         }
@@ -258,59 +311,154 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       error: (err) => {
         this.loading = false;
         if (err.status === 404 && err.error?.message?.includes('Folder not found')) {
-          this.errorMessage = err.error.message || `The folder "${folderPath || 'root'}" does not exist in your OneDrive. Please check the folder name and try again.`;
+          this.errorMessage = err.error.message || `The folder "${folderPath || 'root'}" does not exist in your OneDrive.`;
         } else {
           this.errorMessage = err.error?.message || 'Failed to list contents. Please try again.';
         }
-        console.error(`Error loading folder contents: ${this.errorMessage}`, err);
       }
     });
   }
 
   updateStorageChart(): void {
     const ctx = document.getElementById('storageChart') as HTMLCanvasElement;
-    if (!ctx) return;
-
-    if (this.chart) {
-      this.chart.destroy();
+    if (!ctx) {
+      console.error('Storage chart canvas not found');
+      return;
     }
 
-    this.chart = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Used Storage', 'Remaining Storage'],
-        datasets: [{
-          data: [this.totalSize, this.remainingStorage],
-          backgroundColor: ['#007bff', '#e9ecef'],
-          borderColor: ['#0056b3', '#ced4da'],
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              font: {
-                size: 12,
-                weight: 'bold'
+    console.log('Initializing storage chart...');
+    if (this.storageChart) {
+      this.storageChart.destroy();
+    }
+
+    try {
+      this.storageChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Used Storage', 'Remaining Storage'],
+          datasets: [{
+            data: [this.totalSize, this.remainingStorage],
+            backgroundColor: this.isBlackAndWhiteTheme ? ['#666', '#ccc'] : ['#007bff', '#e9ecef'],
+            borderColor: this.isBlackAndWhiteTheme ? ['#333', '#999'] : ['#0056b3', '#ced4da'],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: {
+                  size: 12,
+                  weight: 'bold'
+                },
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
               }
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const label = context.label || '';
-                const value = context.raw as number;
-                return `${label}: ${this.formatSize(value)}`;
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const label = context.label || '';
+                  const value = context.raw as number;
+                  return `${label}: ${this.formatSize(value)}`;
+                }
               }
             }
           }
         }
-      }
-    });
+      });
+      console.log('Storage chart initialized successfully');
+    } catch (error) {
+      console.error('Error initializing storage chart:', error);
+    }
+  }
+
+  initFolderUsageChart(): void {
+    const ctx = document.getElementById('folderUsageChart') as HTMLCanvasElement;
+    if (!ctx) {
+      console.error('Folder usage chart canvas not found');
+      return;
+    }
+
+    console.log('Initializing folder usage chart...');
+    if (this.folderUsageChart) {
+      this.folderUsageChart.destroy();
+    }
+
+    const folders = this.filteredContents.filter(item => item.type === 'folder');
+    const folderNames = folders.map(folder => folder.name);
+    const folderSizes = folders.map(folder => folder.size / (1024 * 1024)); // Convert to MB
+
+    try {
+      this.folderUsageChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: folderNames,
+          datasets: [{
+            label: 'Storage Used (MB)',
+            data: folderSizes,
+            backgroundColor: this.isBlackAndWhiteTheme ? '#666' : ['#007bff'],
+            borderColor: this.isBlackAndWhiteTheme ? '#333' : ['#0056b3'],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Storage (MB)',
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
+              },
+              ticks: {
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
+              },
+              grid: {
+                color: this.isBlackAndWhiteTheme ? '#ccc' : '#e9ecef'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Folders',
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
+              },
+              ticks: {
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
+              },
+              grid: {
+                display: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  return `${context.raw} MB`;
+                }
+              }
+            }
+          }
+        }
+      });
+      console.log('Folder usage chart initialized successfully');
+    } catch (error) {
+      console.error('Error initializing folder usage chart:', error);
+    }
+  }
+
+  // Method to check if there are any folders
+  hasFolders(): boolean {
+    return this.filteredContents.some(item => item.type === 'folder');
   }
 
   formatSize(bytes: number): string {
@@ -321,12 +469,40 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
+  filterContents(): void {
+    this.filteredContents = this.oneDriveContents.filter(item =>
+      item.name.toLowerCase().includes(this.searchQuery.toLowerCase())
+    );
+    this.sortContents();
+    this.initFolderUsageChart();
+  }
+
+  sortContents(): void {
+    this.filteredContents.sort((a, b) => {
+      if (this.sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else if (this.sortBy === 'type') {
+        return a.type.localeCompare(b.type);
+      } else if (this.sortBy === 'size') {
+        return a.size - b.size;
+      }
+      return 0;
+    });
+    this.initFolderUsageChart();
+  }
+
   ngOnDestroy(): void {
     if (this.subscription) {
       this.subscription.unsubscribe();
     }
-    if (this.chart) {
-      this.chart.destroy();
+    if (this.userSubscription) {
+      this.userSubscription.unsubscribe();
+    }
+    if (this.storageChart) {
+      this.storageChart.destroy();
+    }
+    if (this.folderUsageChart) {
+      this.folderUsageChart.destroy();
     }
   }
 }
