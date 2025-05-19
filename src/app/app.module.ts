@@ -29,6 +29,7 @@ import { AdminDashboardComponent } from './core/components/account/admin-dashboa
 import { UserEditComponent } from './core/components/account/user-edit/user-edit.component';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { CorporateDashboardComponent } from './core/components/account/corporate-dashboard/corporate-dashboard.component';
+import { ChatComponent } from './core/components/account/chat/chat.component';
 
 
 @NgModule({
@@ -53,7 +54,8 @@ import { CorporateDashboardComponent } from './core/components/account/corporate
     UploadComponent,
     AdminDashboardComponent,
     UserEditComponent,
-    CorporateDashboardComponent
+    CorporateDashboardComponent,
+    ChatComponent
   ],
   imports: [
     BrowserModule,

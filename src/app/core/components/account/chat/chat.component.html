@@ -1,0 +1,23 @@
+<div class="chat-icon" (click)="toggleChat()">
+  <i class="fas fa-comment"></i>
+</div>
+<div class="chat-container" *ngIf="isChatOpen">
+  <div class="chat-header">
+    <h3>DataKavach Chat</h3>
+    <button class="close-btn" (click)="toggleChat()">X</button>
+  </div>
+  <div class="chat-window">
+    <div *ngFor="let message of messages" class="message" [ngClass]="message.isUser ? 'user-message' : 'bot-message'">
+      <strong>{{ message.isUser ? 'You' : 'Bot' }}:</strong> {{ message.text }}
+    </div>
+  </div>
+  <div class="input-container">
+    <input
+      type="text"
+      [(ngModel)]="newMessage"
+      (keyup.enter)="sendMessage()"
+      placeholder="Type your message..."
+    />
+    <button (click)="sendMessage()">Send</button>
+  </div>
+</div>
