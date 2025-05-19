@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class ChatService {
-  private flaskApiUrl = 'https://www.datakavach.com/api';
+  private flaskApiUrl = 'https://www.datakavach.com/chatbot-api';
 
   constructor(private http: HttpClient) {}
 

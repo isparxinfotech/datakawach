@@ -15,7 +15,7 @@ export class ChatComponent implements OnInit {
   userId: string = 'user123';
 
   constructor(private chatService: ChatService, private http: HttpClient) {
-    this.http.get<{ userId: string }>('https://www.datakavach.com/api/user').subscribe({
+    this.http.get<{ userId: string }>('https://www.datakavach.com/chatbot-api/user').subscribe({
       next: (data) => {
         this.userId = data.userId;
       },
