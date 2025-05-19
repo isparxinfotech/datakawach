@@ -12,11 +12,10 @@ export class ChatComponent implements OnInit {
   isChatOpen = false;
   messages: { text: string; isUser: boolean }[] = [];
   newMessage: string = '';
-  userId: string = 'user123'; // Fallback user ID
+  userId: string = 'user123';
 
   constructor(private chatService: ChatService, private http: HttpClient) {
-    // Fetch user ID from Spring Boot
-    this.http.get<{ userId: string }>('http://localhost:8080/api/user').subscribe({
+    this.http.get<{ userId: string }>('https://www.datakavach.com/api/user').subscribe({
       next: (data) => {
         this.userId = data.userId;
       },
@@ -27,7 +26,6 @@ export class ChatComponent implements OnInit {
   }
 
   ngOnInit() {
-    // Poll for replies every 5 seconds
     interval(5000).subscribe(() => {
       this.chatService.getReplies(this.userId).subscribe({
         next: (replies) => {
@@ -47,10 +45,8 @@ export class ChatComponent implements OnInit {
   sendMessage() {
     if (!this.newMessage.trim()) return;
 
-    // Add user message to chat
     this.messages.push({ text: this.newMessage, isUser: true });
 
-    // Send message to Flask backend
     this.chatService.sendMessage(this.userId, this.newMessage).subscribe({
       next: (response) => {
         console.log('Message sent:', response);
