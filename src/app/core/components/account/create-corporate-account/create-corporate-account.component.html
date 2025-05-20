@@ -23,7 +23,7 @@
               <h1 style="text-align:center">Create Corporate Account</h1>
             </div>
             <div class="col-lg-12">
-              <form [formGroup]="frmValidate" id="frmRegistration" (ngSubmit)="onCreateCoprporateAccount()" novalidate>
+              <form [formGroup]="frmValidate" id="frmRegistration" (ngSubmit)="onCreateCorporateAccount()" novalidate>
                 <fieldset class="scheduler-border">
                   <legend class="scheduler-border">Registration Details</legend>
                   <div class="row mb-3">
@@ -89,7 +89,34 @@
                         [ngClass]="{ 'is-invalid': submitted && f['email'].errors }">
                       <div *ngIf="submitted && f['email'].errors" class="invalid-feedback">
                         <div *ngIf="f['email'].errors['required']">Email is required</div>
-                        <div *ngIf="f['email'].errors['email']">Please enter valid email</div>
+                        <div *ngIf="f['email'].errors['pattern']">Please enter valid email</div>
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
+
+                <fieldset class="scheduler-border">
+                  <legend class="scheduler-border">Login Details</legend>
+                  <div class="row mb-3">
+                    <div class="col-lg-6">
+                      <label for="password">Password <span class="mandatory">*</span></label>
+                      <input type="password" class="form-control" id="password" formControlName="password"
+                        placeholder="Enter Password" maxlength="50"
+                        [ngClass]="{ 'is-invalid': submitted && f['password'].errors }">
+                      <div *ngIf="submitted && f['password'].errors" class="invalid-feedback">
+                        <div *ngIf="f['password'].errors['required']">Password is required</div>
+                        <div *ngIf="f['password'].errors['minlength']">Minimum 8 characters required</div>
+                        <div *ngIf="f['password'].errors['pattern']">Password must contain at least one uppercase letter, one number, and one special character</div>
+                      </div>
+                    </div>
+                    <div class="col-lg-6">
+                      <label for="confirmPassword">Confirm Password <span class="mandatory">*</span></label>
+                      <input type="password" class="form-control" id="confirmPassword" formControlName="confirmPassword"
+                        placeholder="Confirm Password" maxlength="50"
+                        [ngClass]="{ 'is-invalid': submitted && f['confirmPassword'].errors }">
+                      <div *ngIf="submitted && f['confirmPassword'].errors" class="invalid-feedback">
+                        <div *ngIf="f['confirmPassword'].errors['required']">Confirm Password is required</div>
+                        <div *ngIf="frmValidate.errors?.['mismatch']">Passwords do not match</div>
                       </div>
                     </div>
                   </div>
@@ -122,6 +149,7 @@
                           [ngClass]="{ 'is-invalid': submitted && f['oneDriveUserId'].errors }">
                         <div *ngIf="submitted && f['oneDriveUserId'].errors" class="invalid-feedback">
                           <div *ngIf="f['oneDriveUserId'].errors['required']">OneDrive User ID is required</div>
+                          <div *ngIf="f['oneDriveUserId'].errors['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                       <div class="col-lg-6">
@@ -131,6 +159,7 @@
                           [ngClass]="{ 'is-invalid': submitted && f['onedriveUsername'].errors }">
                         <div *ngIf="submitted && f['onedriveUsername'].errors" class="invalid-feedback">
                           <div *ngIf="f['onedriveUsername'].errors['required']">OneDrive Username is required</div>
+                          <div *ngIf="f['onedriveUsername'].errors['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                     </div>
@@ -142,6 +171,7 @@
                           [ngClass]="{ 'is-invalid': submitted && f['onedrivePassword'].errors }">
                         <div *ngIf="submitted && f['onedrivePassword'].errors" class="invalid-feedback">
                           <div *ngIf="f['onedrivePassword'].errors['required']">OneDrive Password is required</div>
+                          <div *ngIf="f['onedrivePassword'].errors['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                       <div class="col-lg-6">
@@ -151,6 +181,7 @@
                           [ngClass]="{ 'is-invalid': submitted && f['onedriveTenantId'].errors }">
                         <div *ngIf="submitted && f['onedriveTenantId'].errors" class="invalid-feedback">
                           <div *ngIf="f['onedriveTenantId'].errors['required']">OneDrive Tenant ID is required</div>
+                          <div *ngIf="f['onedriveTenantId'].errors['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                     </div>
@@ -162,6 +193,7 @@
                           [ngClass]="{ 'is-invalid': submitted && f['onedriveClientId'].errors }">
                         <div *ngIf="submitted && f['onedriveClientId'].errors" class="invalid-feedback">
                           <div *ngIf="f['onedriveClientId'].errors['required']">OneDrive Client ID is required</div>
+                          <div *ngIf="f['onedriveClientId'].errors['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                       <div class="col-lg-6">
@@ -171,6 +203,7 @@
                           [ngClass]="{ 'is-invalid': submitted && f['clientSecret'].errors }">
                         <div *ngIf="submitted && f['clientSecret'].errors" class="invalid-feedback">
                           <div *ngIf="f['clientSecret'].errors['required']">Client Secret is required</div>
+                          <div *ngIf="f['clientSecret'].errors['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                     </div>
@@ -186,15 +219,17 @@
                           [ngClass]="{ 'is-invalid': submitted && f['awsAccessKey'].errors }">
                         <div *ngIf="submitted && f['awsAccessKey'].errors" class="invalid-feedback">
                           <div *ngIf="f['awsAccessKey'].errors['required']">AWS Access Key is required</div>
+                          <div *ngIf="f['awsAccessKey'].errors['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                       <div class="col-lg-6">
                         <label for="awsSecretKey">AWS Secret Key <span class="mandatory">*</span></label>
-                        <input type="text" class="form-control" id="awsSecretKey" formControlName="awsSecretKey"
+                        <input type="password" class="form-control" id="awsSecretKey" formControlName="awsSecretKey"
                           placeholder="Enter AWS Secret Key" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['awsSecretKey'].errors }">
                         <div *ngIf="submitted && f['awsSecretKey'].errors" class="invalid-feedback">
                           <div *ngIf="f['awsSecretKey'].errors['required']">AWS Secret Key is required</div>
+                          <div *ngIf="f['awsSecretKey'].errors['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                     </div>
@@ -206,6 +241,7 @@
                           [ngClass]="{ 'is-invalid': submitted && f['awsRegion'].errors }">
                         <div *ngIf="submitted && f['awsRegion'].errors" class="invalid-feedback">
                           <div *ngIf="f['awsRegion'].errors['required']">AWS Region is required</div>
+                          <div *ngIf="f['awsRegion'].errors['maxlength']">Maximum 50 characters</div>
                         </div>
                       </div>
                     </div>
@@ -214,7 +250,8 @@
 
                 <div class="row">
                   <div class="col-lg-12">
-                    <input type="submit" class="btn btn-primary" value="Submit" />
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                    <button type="button" class="btn btn-secondary ms-2" (click)="onReset()">Reset</button>
                   </div>
                 </div>
               </form>
@@ -230,18 +267,17 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" *ngIf="userMessage == ''">Success</h5>
-        <h5 class="modal-title" *ngIf="userMessage != ''">Error</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close" (click)="closeModel()">
+        <h5 class="modal-title">{{ userMessage ? 'Error' : 'Success' }}</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close" (click)="closeModal()">
           <span aria-hidden="true">×</span>
         </button>
       </div>
       <div class="modal-body">
-        <p *ngIf="userMessage == ''">Account Created Successfully</p>
-        <p *ngIf="userMessage != ''">{{userMessage}}</p>
+        <p *ngIf="!userMessage">Account Created Successfully</p>
+        <p *ngIf="userMessage">{{userMessage}}</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal" (click)="closeModel()">Close</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" (click)="closeModal()">Close</button>
       </div>
     </div>
   </div>

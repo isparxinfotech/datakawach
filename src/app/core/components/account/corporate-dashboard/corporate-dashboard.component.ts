@@ -11,6 +11,15 @@ import { saveAs } from 'file-saver';
 // Register Chart.js components
 Chart.register(...registerables);
 
+// Interface for OneDrive content items
+interface OneDriveItem {
+  name: string;
+  id: string;
+  size: number;
+  type: string;
+  downloadUrl?: string;
+}
+
 @Component({
   selector: 'app-corporate-dashboard',
   templateUrl: './corporate-dashboard.component.html',
@@ -18,10 +27,9 @@ Chart.register(...registerables);
 })
 export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   userSessionDetails: userSessionDetails | null | undefined;
-  email: string = '';
+  username: string = '';
   cloudProvider: string = '';
-  oneDriveContents: { name: string; id: string; size: number; type: string; downloadUrl?: string }[] = [];
-  filteredContents: { name: string; id: string; size: number; type: string; downloadUrl?: string }[] = [];
+  oneDriveContents: OneDriveItem[] = [];
   currentPath: string = '';
   pathHistory: string[] = [];
   loading: boolean = false;
@@ -30,10 +38,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   totalSize: number = 0;
   totalStorage: number = 1_000_000_000_000; // 1 TB in bytes
   remainingStorage: number = this.totalStorage;
-  totalUsers: number = 0;
-
-  // Theme state
-  isBlackAndWhiteTheme: boolean = false;
+  nextLink: string = ''; // Store pagination link
 
   // Rename folder state
   showRenameModal: boolean = false;
@@ -51,6 +56,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   private subscription?: Subscription;
   private userSubscription?: Subscription;
+  totalUsers: number = 0;
+  isBlackAndWhiteTheme: boolean = false;
+  filteredContents: OneDriveItem[] = []; // Fixed type from never[] to OneDriveItem[]
 
   constructor(
     private authService: AuthService,
@@ -61,7 +69,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
     if (this.userSessionDetails && this.userSessionDetails.username && this.userSessionDetails.cloudProvider) {
-      this.email = this.userSessionDetails.username;
+      this.username = this.userSessionDetails.username;
       this.cloudProvider = this.userSessionDetails.cloudProvider.toLowerCase();
       if (this.cloudProvider === 'onedrive') {
         this.listRootFolders();
@@ -123,6 +131,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   listRootFolders(): void {
     this.currentPath = '';
     this.pathHistory = [];
+    this.nextLink = '';
     this.loadFolderContents('');
   }
 
@@ -134,12 +143,14 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     const newPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
     this.pathHistory.push(this.currentPath);
     this.currentPath = newPath;
+    this.nextLink = '';
     this.loadFolderContents(newPath);
   }
 
   navigateBack(): void {
     const previousPath = this.pathHistory.pop();
     this.currentPath = previousPath || '';
+    this.nextLink = '';
     this.loadFolderContents(this.currentPath);
   }
 
@@ -152,12 +163,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     const newPath = pathSegments.slice(0, index + 1).join('/');
     this.pathHistory = this.pathHistory.slice(0, index);
     this.currentPath = newPath;
+    this.nextLink = '';
     this.loadFolderContents(newPath);
   }
 
   async downloadFolder(folderName: string): Promise<void> {
-    if (!this.email) {
-      this.errorMessage = 'Please provide an email.';
+    if (!this.username) {
+      this.errorMessage = 'Please provide a username.';
       return;
     }
 
@@ -165,23 +177,18 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.errorMessage = '';
     this.successMessage = '';
     const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
-    const url = `https://datakavach.com/onedrive/download-folder?email=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
     try {
-      const files = await this.http.get<any[]>(url).toPromise();
-      if (!files || !Array.isArray(files)) {
-        this.errorMessage = 'Invalid response from server.';
-        this.loading = false;
-        return;
+      const response = await this.http.get<any>(url).toPromise();
+      console.log('Download folder response:', response);
+
+      if (!response || response.error) {
+        throw new Error(response?.error || 'Invalid response from server.');
       }
 
-      if (files.length && files[0].error) {
-        this.errorMessage = files[0].error;
-        this.loading = false;
-        return;
-      }
-
-      if (files.length === 0) {
+      const files = response.files || [];
+      if (!Array.isArray(files) || files.length === 0) {
         this.errorMessage = `No files found in folder "${folderPath}".`;
         this.loading = false;
         return;
@@ -191,12 +198,19 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       let hasFiles = false;
       for (const file of files) {
         if (file.type === 'file' && file.downloadUrl) {
-          const response = await this.http.get(file.downloadUrl, { responseType: 'blob' }).toPromise();
-          if (response) {
-            zip.file(file.name, response);
-            hasFiles = true;
-          } else {
-            this.errorMessage += `Skipped ${file.name} (no content). `;
+          console.log(`Fetching file: ${file.name}`);
+          try {
+            const fileResponse = await this.http.get(file.downloadUrl, { responseType: 'blob' }).toPromise();
+            if (fileResponse) {
+              zip.file(file.name, fileResponse);
+              hasFiles = true;
+            } else {
+              console.warn(`No content received for file: ${file.name}`);
+              this.errorMessage += `Skipped ${file.name} (no content). `;
+            }
+          } catch (err: any) {
+            console.error(`Failed to fetch file ${file.name}:`, err);
+            this.errorMessage += `Failed to include ${file.name} in ZIP. `;
           }
         }
       }
@@ -209,14 +223,21 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, `${folderName}.zip`);
+      console.log(`ZIP file created for folder: ${folderPath}`);
+      this.successMessage = `Folder "${folderName}" downloaded as ZIP successfully.`;
       this.loading = false;
     } catch (err: any) {
       this.loading = false;
-      if (err.status === 404) {
-        this.errorMessage = err.error?.message || `Folder "${folderPath}" not found.`;
-      } else {
-        this.errorMessage = err.error?.message || 'Failed to download folder. Please try again.';
+      let errorMessage = err.message || 'Failed to download folder. Please try again.';
+      if (err.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (err.status === 404) {
+        errorMessage = `Folder "${folderPath}" not found.`;
+      } else if (err.message?.includes('multi-factor authentication')) {
+        errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
       }
+      this.errorMessage = errorMessage;
+      console.error(`Error downloading folder: ${errorMessage}`, err);
     }
   }
 
@@ -236,39 +257,49 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   async renameFolder(): Promise<void> {
-    if (!this.email || !this.newFolderName.trim()) {
+    if (!this.username || !this.newFolderName.trim()) {
       this.renameError = 'Please provide a valid folder name.';
       return;
     }
 
     const folderPath = this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder;
-    const url = `https://datakavach.com/onedrive/rename-folder?email=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}&newFolderName=${encodeURIComponent(this.newFolderName)}`;
+    const url = `https://datakavach.com/onedrive/rename-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}&newFolderName=${encodeURIComponent(this.newFolderName)}`;
 
     this.loading = true;
     this.renameError = '';
     this.successMessage = '';
 
     try {
-      const response = await this.http.patch(url, {}, { observe: 'response', responseType: 'text' }).toPromise();
+      const response = await this.http.patch<any>(url, {}, { observe: 'response' }).toPromise();
       if (response && response.status >= 200 && response.status < 300) {
         this.closeRenameModal();
         this.loadFolderContents(this.currentPath);
-        this.successMessage = response.body || 'Folder renamed successfully';
+        this.successMessage = response.body?.message || 'Folder renamed successfully.';
+        console.log(`Folder renamed: ${folderPath} to ${this.newFolderName}`);
       } else {
         throw new Error(`Unexpected response: ${response ? response.status : 'undefined'}`);
       }
       this.loading = false;
     } catch (err: any) {
       this.loading = false;
-      const errorMessage = err.error?.message || err.message || 'Failed to rename folder. Please try again.';
+      let errorMessage = err.error?.message || err.message || 'Failed to rename folder. Please try again.';
+      if (err.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (err.status === 404) {
+        errorMessage = `Folder "${folderPath}" not found.`;
+      } else if (err.error?.message?.includes('multi-factor authentication')) {
+        errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
+      }
       this.renameError = errorMessage;
     }
   }
 
   private loadFolderContents(folderPath: string): void {
-    if (!this.email) {
-      this.errorMessage = 'Please provide an email.';
+    if (!this.username) {
+      this.errorMessage = 'Please provide a username.';
       this.loading = false;
+      this.oneDriveContents = [];
+      this.filteredContents = [];
       return;
     }
 
@@ -280,24 +311,52 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.totalSize = 0;
 
     const url = folderPath
-      ? `https://datakavach.com/onedrive/folder-contents?email=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`
-      : `https://datakavach.com/onedrive/folders?email=${encodeURIComponent(this.email)}`;
+      ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
+      : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.username)}`;
 
-    this.subscription = this.http.get<any[]>(url).subscribe({
+    console.log(`Loading contents for folder path: ${folderPath || 'root'} (URL: ${url})`);
+
+    this.subscription = this.http.get<any>(url).subscribe({
       next: (response) => {
-        if (!response || !Array.isArray(response)) {
-          this.errorMessage = 'Invalid response from server.';
+        console.log('Folder contents response:', response, 'Type:', typeof response);
+        if (response && response.error) {
+          let errorMessage = response.error || 'Error fetching folder contents.';
+          if (response.error?.includes('multi-factor authentication')) {
+            errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
+          }
+          this.errorMessage = errorMessage;
           this.loading = false;
+          this.oneDriveContents = [];
+          this.filteredContents = [];
           return;
         }
-        this.oneDriveContents = response.map(item => ({
+
+        let items: any[] = [];
+        if (folderPath) {
+          items = response.contents || [];
+          this.nextLink = response.nextLink || '';
+        } else {
+          items = response.folders || [];
+          this.nextLink = response.nextLink || '';
+        }
+
+        if (!Array.isArray(items)) {
+          this.errorMessage = `Invalid response format from server. Expected an array of items. Received: ${JSON.stringify(response, null, 2)}`;
+          console.error('Invalid response:', response);
+          this.loading = false;
+          this.oneDriveContents = [];
+          this.filteredContents = [];
+          return;
+        }
+
+        this.oneDriveContents = items.map(item => ({
           name: item.name || 'Unknown',
           id: item.id || 'N/A',
           size: item.size || 0,
-          type: item.type || 'folder',
+          type: item.type || 'folder', // Default to 'folder' if type is missing
           downloadUrl: item.downloadUrl
         }));
-        this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + item.size, 0);
+        this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
         this.remainingStorage = this.totalStorage - this.totalSize;
         this.filteredContents = [...this.oneDriveContents];
         this.sortContents();
@@ -307,14 +366,22 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         if (this.oneDriveContents.length === 0) {
           this.errorMessage = `No items found in ${folderPath || 'root'}.`;
         }
+        console.log('Processed oneDriveContents:', this.oneDriveContents, 'NextLink:', this.nextLink);
       },
       error: (err) => {
         this.loading = false;
-        if (err.status === 404 && err.error?.message?.includes('Folder not found')) {
-          this.errorMessage = err.error.message || `The folder "${folderPath || 'root'}" does not exist in your OneDrive.`;
-        } else {
-          this.errorMessage = err.error?.message || 'Failed to list contents. Please try again.';
+        let errorMessage = err.error?.error || 'Failed to list contents. Please try again.';
+        if (err.status === 401) {
+          errorMessage = 'Authentication failed. Please log in again.';
+        } else if (err.status === 404) {
+          errorMessage = `The folder "${folderPath || 'root'}" does not exist in your OneDrive.`;
+        } else if (err.error?.error?.includes('multi-factor authentication')) {
+          errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
         }
+        this.errorMessage = errorMessage;
+        this.oneDriveContents = [];
+        this.filteredContents = [];
+        console.error(`Error loading folder contents: ${errorMessage}`, err);
       }
     });
   }
@@ -399,8 +466,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           datasets: [{
             label: 'Storage Used (MB)',
             data: folderSizes,
-            backgroundColor: this.isBlackAndWhiteTheme ? '#666' : ['#007bff'],
-            borderColor: this.isBlackAndWhiteTheme ? '#333' : ['#0056b3'],
+            backgroundColor: this.isBlackAndWhiteTheme ? ['#666'] : ['#007bff'],
+            borderColor: this.isBlackAndWhiteTheme ? ['#333'] : ['#0056b3'],
             borderWidth: 1
           }]
         },
