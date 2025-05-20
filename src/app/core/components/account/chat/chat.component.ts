@@ -13,9 +13,13 @@ export class ChatComponent implements OnInit {
   messages: { text: string; isUser: boolean }[] = [];
   newMessage: string = '';
   userId: string = 'user123';
+  isLoading: boolean = false;
 
   constructor(private chatService: ChatService, private http: HttpClient) {
-    this.http.get<{ userId: string }>('https://www.datakavach.com/chatbot-api/user').subscribe({
+    // Use public IP for development; switch to domain for production
+    const apiUrl = 'http://13.127.44.80:5000/chatbot-api/user';
+    // For production: 'https://www.datakavach.com/chatbot-api/user'
+    this.http.get<{ userId: string }>(apiUrl).subscribe({
       next: (data) => {
         this.userId = data.userId;
       },
@@ -45,15 +49,18 @@ export class ChatComponent implements OnInit {
   sendMessage() {
     if (!this.newMessage.trim()) return;
 
+    this.isLoading = true;
     this.messages.push({ text: this.newMessage, isUser: true });
 
     this.chatService.sendMessage(this.userId, this.newMessage).subscribe({
       next: (response) => {
         console.log('Message sent:', response);
+        this.isLoading = false;
       },
       error: (error) => {
         console.error('Error sending message:', error);
         this.messages.push({ text: 'Error: Could not send message', isUser: false });
+        this.isLoading = false;
       }
     });
 
