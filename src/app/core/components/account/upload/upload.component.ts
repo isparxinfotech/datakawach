@@ -30,10 +30,17 @@ interface FileInfo {
   downloadUrl: string;
 }
 
+// Interface for Folder details from /onedrive/folders endpoint
+interface FolderInfo {
+  name: string;
+  id: string;
+  size: number;
+}
+
 @Component({
   selector: 'app-upload',
   templateUrl: './upload.component.html',
-  styleUrls: ['./upload.component.css']
+  styleUrls: []
 })
 export class UploadComponent implements OnInit, OnDestroy {
   folderName: string = '';
@@ -57,11 +64,10 @@ export class UploadComponent implements OnInit, OnDestroy {
   private readonly CHUNK_SIZE = 20 * 1024 * 1024; // 20MB chunks
   private uploadSessionId: string | null = null;
   backupSchedules: BackupSchedule[] = [];
-  userFolders: string[] = [];
-  retentionNeeded: number = 2;
+  rootFolders: FolderInfo[] = [];
+  needsBackup: 'yes' | 'no' = 'yes';
   isLoading: boolean = true;
   isSchedulesLoading: boolean = false;
-  isFetchingUserDetails: boolean = false;
   isFilesLoading: boolean = false;
   files: FileInfo[] = [];
   nextLink: string = '';
@@ -75,16 +81,12 @@ export class UploadComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.isLoading = true;
-    this.fetchUserDetails();
+    this.initializeUser();
   }
 
-  async fetchUserDetails() {
-    this.isFetchingUserDetails = true;
+  async initializeUser() {
     this.message = '';
-    console.log('Fetching user details from backend...');
-
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
-    console.log('AuthService userSessionDetails:', this.userSessionDetails);
 
     if (!this.userSessionDetails?.jwtToken || !this.userSessionDetails?.username) {
       const url = `https://datakavach.com/users/current`;
@@ -92,10 +94,8 @@ export class UploadComponent implements OnInit, OnDestroy {
         const response = await this.http.get<userSessionDetails>(url, {
           headers: this.getAuthHeaders()
         }).toPromise();
-        console.log('Backend user details response:', response);
         this.userSessionDetails = response;
       } catch (err: any) {
-        console.error('Error fetching user details:', err);
         let errorMessage = 'Failed to fetch user details';
         if (err.status === 401) {
           errorMessage = 'Authentication failed. Please log in again.';
@@ -105,40 +105,34 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.handleError(new Error(errorMessage));
         this.userSessionDetails = null;
         this.isLoading = false;
-        this.isFetchingUserDetails = false;
         this.cdr.detectChanges();
         return;
       }
     }
 
     if (this.userSessionDetails && this.userSessionDetails.jwtToken && this.userSessionDetails.username) {
-      this.retentionNeeded = 2;
-      console.log('Forcing retentionNeeded to:', this.retentionNeeded, 'for testing. Actual value from backend:', this.userSessionDetails.retentionNeeded);
-
       this.loadBackupSchedules();
-      await this.loadUserFolders();
+      await this.loadRootFolders();
     } else {
       this.message = 'Invalid user session. Please log in again.';
       this.isSuccess = false;
-      console.error('Invalid user session: Missing jwtToken or username');
     }
 
     this.isLoading = false;
-    this.isFetchingUserDetails = false;
     this.cdr.detectChanges();
   }
 
-  toggleRetentionNeeded() {
-    this.retentionNeeded = this.retentionNeeded === 1 ? 2 : 1;
-    console.log('Toggled retentionNeeded to:', this.retentionNeeded, 'for testing');
+  onBackupChoiceChange() {
+    if (this.needsBackup === 'no') {
+      // Reset scheduling fields when switching to "No Backup"
+      this.localPath = '';
+      this.backupTime = '';
+      this.retentionDays = 7;
+      this.backupFrequency = 'Daily';
+      this.dayOfWeek = '';
+      this.dayOfMonth = null;
+    }
     this.message = '';
-    this.backupSchedules = [];
-    this.userFolders = [];
-    this.files = [];
-    this.nextLink = '';
-
-    this.loadBackupSchedules();
-    this.loadUserFolders();
     this.cdr.detectChanges();
   }
 
@@ -161,7 +155,6 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.chunkProgress = 0;
     this.currentFileIndex = 0;
     this.uploadSessionId = null;
-    console.log('Files selected:', this.selectedFiles.map(file => file.name));
 
     if (this.selectedFiles.length > 0) {
       this.fileName = this.selectedFiles[0].name;
@@ -171,13 +164,13 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   isScheduleFormValid(): boolean {
-    if (this.retentionNeeded === 0) {
+    if (this.needsBackup === 'no') {
       return !!(
         this.userSessionDetails?.username &&
         this.folderName &&
         this.fileName &&
-        this.selectedFiles.length > 0 &&
-        !this.fileNameError
+        !this.fileNameError &&
+        this.selectedFiles.length > 0
       );
     }
     return !!(
@@ -205,8 +198,8 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.scheduling = true;
     this.message = '';
 
-    if (this.retentionNeeded === 0) {
-      await this.onUpload(this.fileName);
+    if (this.needsBackup === 'no') {
+      await this.onUpload();
       this.scheduling = false;
       this.cdr.detectChanges();
       return;
@@ -214,7 +207,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     const url = 'https://datakavach.com/onedrive/schedule';
     const body = new FormData();
-    body.append('email', this.userSessionDetails!.username);
+    body.append('username', this.userSessionDetails!.username);
     body.append('folderName', this.folderName);
     body.append('fileName', this.fileName);
     body.append('localPath', this.localPath);
@@ -234,7 +227,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       await this.loadBackupSchedules();
 
       if (this.selectedFiles.length > 0) {
-        await this.onUpload(this.fileName);
+        await this.onUpload();
       } else {
         this.handleSuccess('Backup schedule created without immediate upload');
       }
@@ -257,7 +250,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     const url = 'https://datakavach.com/onedrive/backup-now';
     const body = new FormData();
     body.append('scheduleId', scheduleId.toString());
-    body.append('email', this.userSessionDetails.username);
+    body.append('username', this.userSessionDetails.username);
 
     try {
       await this.http.post(url, body, {
@@ -275,28 +268,24 @@ export class UploadComponent implements OnInit, OnDestroy {
   async loadBackupSchedules() {
     if (!this.userSessionDetails?.username) {
       this.backupSchedules = [];
-      console.log('Skipping loadBackupSchedules: No valid user');
       this.cdr.detectChanges();
       return;
     }
 
     this.isSchedulesLoading = true;
     this.message = '';
-    const url = `https://datakavach.com/onedrive/schedules?email=${encodeURIComponent(this.userSessionDetails.username)}`;
-    console.log('Fetching backup schedules from:', url);
+    const url = `https://datakavach.com/onedrive/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
-      const schedules = await this.http.get<BackupSchedule[]>(url, {
+      const response = await this.http.get<{ schedules: BackupSchedule[] }>(url, {
         headers: this.getAuthHeaders()
       }).toPromise();
-      this.backupSchedules = schedules || [];
-      console.log('Backup schedules loaded:', this.backupSchedules);
+      this.backupSchedules = response?.schedules || [];
       if (this.backupSchedules.length === 0) {
         this.message = 'No backup schedules found for this user.';
         this.isSuccess = false;
       }
     } catch (err: any) {
-      console.error('Error loading backup schedules:', err);
       let errorMessage = 'Failed to load backup schedules';
       if (err.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
@@ -313,53 +302,37 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
   }
 
-  async loadUserFolders() {
+  async loadRootFolders() {
     if (!this.userSessionDetails?.username) {
       this.message = 'No user logged in';
       this.isSuccess = false;
-      this.userFolders = [];
-      console.log('Skipping loadUserFolders: No valid user');
+      this.rootFolders = [];
       this.cdr.detectChanges();
       return;
     }
 
-    const url = `https://datakavach.com/onedrive/user-folders?email=${encodeURIComponent(this.userSessionDetails.username)}`;
-    console.log('Fetching user folders from:', url);
+    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
-      const response = await this.http.get<any>(url, {
+      const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
       }).toPromise();
-      console.log('User folders response:', response);
-
-      // Handle different response formats
-      if (Array.isArray(response)) {
-        this.userFolders = response;
-      } else if (response && Array.isArray(response.folders)) {
-        this.userFolders = response.folders;
-      } else {
-        throw new Error('Invalid response format for user folders');
-      }
-
-      console.log('User folders loaded:', this.userFolders);
-      if (this.userFolders.length === 0) {
-        this.message = 'No folders found for this user. Please create a folder in OneDrive.';
+      this.rootFolders = response?.folders || [];
+      if (this.rootFolders.length === 0) {
+        this.message = 'No folders found in OneDrive. Please create a folder.';
         this.isSuccess = false;
       }
     } catch (err: any) {
-      console.error('Error loading user folders:', err);
-      let errorMessage = 'Failed to load user folders';
+      let errorMessage = 'Failed to load root folders';
       if (err.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
       } else if (err.status === 500) {
         errorMessage = 'Server error while fetching folders. Please try again later.';
       } else if (err.error?.message) {
         errorMessage = err.error.message;
-      } else if (err.message) {
-        errorMessage = err.message;
       }
       this.handleError(new Error(errorMessage));
-      this.userFolders = [];
+      this.rootFolders = [];
     }
     this.cdr.detectChanges();
   }
@@ -376,26 +349,22 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isFilesLoading = true;
     this.message = '';
-    let url = `https://datakavach.com/onedrive/files?email=${encodeURIComponent(this.userSessionDetails.username)}&folderName=${encodeURIComponent(this.folderName)}`;
+    let url = `https://datakavach.com/onedrive/files?username=${encodeURIComponent(this.userSessionDetails.username)}&folderName=${encodeURIComponent(this.folderName)}`;
     if (nextLink) {
       url = nextLink;
     }
-    console.log('Fetching files from:', url);
 
     try {
       const response = await this.http.get<{ files: FileInfo[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
       }).toPromise();
-      console.log('Files response:', response);
       this.files = response?.files || [];
       this.nextLink = response?.nextLink || '';
-      console.log('Files loaded:', this.files);
       if (this.files.length === 0) {
         this.message = 'No files found in the selected folder.';
         this.isSuccess = false;
       }
     } catch (err: any) {
-      console.error('Error loading files:', err);
       let errorMessage = 'Failed to load files';
       if (err.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
@@ -426,7 +395,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  async onUpload(providedFileName?: string) {
+  async onUpload() {
     if (!this.userSessionDetails?.username || !this.folderName || this.selectedFiles.length === 0) {
       this.message = 'Please select a folder and at least one file for upload';
       this.isSuccess = false;
@@ -447,11 +416,9 @@ export class UploadComponent implements OnInit, OnDestroy {
     for (let i = 0; i < this.selectedFiles.length; i++) {
       this.currentFileIndex = i;
       const file = this.selectedFiles[i];
-      const rawFileName = providedFileName || file.name;
+      const rawFileName = file.name;
       const fileSize = file.size;
       const totalChunks = Math.ceil(fileSize / this.CHUNK_SIZE);
-
-      console.log(`Starting upload: ${rawFileName}, Size: ${fileSize} bytes, Total chunks: ${totalChunks}`);
 
       this.uploadSessionId = null;
 
@@ -461,10 +428,8 @@ export class UploadComponent implements OnInit, OnDestroy {
         const chunk = file.slice(startByte, endByte + 1);
         const chunkSize = endByte - startByte + 1;
 
-        console.log(`Processing chunk ${chunkIndex + 1}/${totalChunks}, Bytes: ${startByte}-${endByte}, Size: ${chunkSize} bytes`);
-
         const formData = new FormData();
-        formData.append('email', this.userSessionDetails!.username);
+        formData.append('username', this.userSessionDetails!.username);
         formData.append('folderName', this.folderName);
         formData.append('file', chunk, rawFileName);
         formData.append('chunkIndex', chunkIndex.toString());
@@ -494,7 +459,6 @@ export class UploadComponent implements OnInit, OnDestroy {
             if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
               this.uploadSessionId = null;
               retryCount++;
-              console.warn(`Session expired, retrying chunk ${chunkIndex + 1}/${totalChunks} (Attempt ${retryCount + 1})`);
               continue;
             }
             this.handleError(err);
@@ -523,15 +487,12 @@ export class UploadComponent implements OnInit, OnDestroy {
             this.chunkProgress = Math.round(100 * event.loaded / event.total);
             const currentFileUploaded = uploadedSize + event.loaded;
             this.overallProgress = Math.round((currentFileUploaded / totalSize) * 100);
-            console.log(`Chunk ${chunkIndex + 1} progress: ${this.chunkProgress}% | Overall: ${this.overallProgress}%`);
             this.cdr.detectChanges();
           } else if (event.type === HttpEventType.Response) {
-            console.log('Chunk uploaded successfully:', event.body);
             resolve(event.body);
           }
         },
         error: (err) => {
-          console.error('Chunk upload failed:', err);
           reject(err);
         }
       });
@@ -551,7 +512,6 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.isSuccess = true;
     this.message = typeof response === 'string' ? response : 'Operation completed successfully!';
     this.resetForm();
-    console.log('Success:', response);
     this.cdr.detectChanges();
   }
 
@@ -566,12 +526,12 @@ export class UploadComponent implements OnInit, OnDestroy {
       errorMessage = error.message;
     }
     this.message = errorMessage;
-    console.error('Error:', error);
     this.isLoading = false;
     this.cdr.detectChanges();
   }
 
   private resetForm() {
+    this.needsBackup = 'yes';
     this.selectedFiles = [];
     this.fileName = '';
     this.localPath = '';
