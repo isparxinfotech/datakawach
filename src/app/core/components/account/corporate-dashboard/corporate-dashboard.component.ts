@@ -36,7 +36,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   errorMessage: string = '';
   successMessage: string = '';
   totalSize: number = 0;
-  totalStorage: number = 1_000_000_000_000; // 1 TB in bytes
+  totalStorage: number = 5_000_000_000_000; // 1 TB in bytes
   remainingStorage: number = this.totalStorage;
   nextLink: string = ''; // Store pagination link
 

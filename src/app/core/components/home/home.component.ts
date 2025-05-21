@@ -79,20 +79,20 @@ export class HomeComponent implements OnInit {
   ];
 
   pricingPlans = [
-    {
-      name: 'Basic',
-      price: 'Free',
-      features: ['5GB Storage', 'Basic Security', 'Email Support']
-    },
+    // {
+    //   name: 'Basic',
+    //   price: 'Free',
+    //   features: ['5GB Storage', 'Basic Security', 'Email Support']
+    // },
     {
       name: 'Professional',
-      price: '$9.99/mo',
-      features: ['50GB Storage', 'Advanced Security', '24/7 Support']
+      price: '₹14999/-Year',
+      features: ['1TB Storage', 'Advanced Security', '24/7 Support']
     },
     {
       name: 'Enterprise',
-      price: '$29.99/mo',
-      features: ['Unlimited Storage', 'Military-grade Security', 'Dedicated Support']
+      price: '₹19999/-Year',
+      features: ['5TB Storage', 'Military-grade Security', 'Dedicated Support']
     }
   ];
 
