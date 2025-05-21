@@ -16,9 +16,8 @@ export class ChatComponent implements OnInit {
   isLoading: boolean = false;
 
   constructor(private chatService: ChatService, private http: HttpClient) {
-    // Use public IP for development; switch to domain for production
-    const apiUrl = 'http://13.127.44.80:5000/chatbot-api/user';
-    // For production: 'https://www.datakavach.com/chatbot-api/user'
+    // Updated to new backend URL
+    const apiUrl = 'https://datakavach-chatbot.onrender.com/chatbot-api/user';
     this.http.get<{ userId: string }>(apiUrl).subscribe({
       next: (data) => {
         this.userId = data.userId;
