@@ -1,3 +1,3 @@
 export const environment = {
-    apiUrl: 'httpss://datakavach.com/api/'
+    apiUrl: 'https://datakavach.com/api/'
   };
