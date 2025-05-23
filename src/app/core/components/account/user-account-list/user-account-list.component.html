@@ -24,7 +24,12 @@
             <div class="col-lg-12">
               <h1 style="text-align: center">User Accounts</h1>
               <a href="createuseraccount" class="btn-gradient">
-                  <i class="fa-solid fa-plus me-2"></i>Create User Account</a>
+                <i class="fa-solid fa-plus me-2"></i>Create User Account
+              </a>
+              <button class="btn btn-success" (click)="exportToExcel()">
+                <i class="fa-solid fa-download me-2"></i>Export to Excel
+              </button>
+              <input type="file" accept=".xlsx, .xls" (change)="onFileChange($event)" style="margin-left: 10px;">
             </div>
             <div class="col-lg-12">
               <table class="table">

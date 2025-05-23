@@ -27,6 +27,7 @@
     "@stomp/stompjs": "^7.1.0",
     "@types/file-saver": "^2.0.7",
     "@types/jszip": "^3.4.1",
+    "@types/xlsx": "^0.0.35",
     "animate.css": "^4.1.1",
     "bootstrap": "^5.3.5",
     "chart.js": "^4.4.0",
@@ -39,6 +40,7 @@
     "sockjs-client": "^1.6.1",
     "three": "^0.173.0",
     "tslib": "^2.3.0",
+    "xlsx": "^0.18.5",
     "zone.js": "~0.13.0"
   },
   "devDependencies": {

@@ -11,6 +11,12 @@ import { PersonalInfoRequest } from 'src/app/models/personal-info-request.model'
   styleUrls: ['./user-account-list.component.css']
 })
 export class UserAccountListComponent {
+onFileChange($event: Event) {
+throw new Error('Method not implemented.');
+}
+exportToExcel() {
+throw new Error('Method not implemented.');
+}
   PersonalInfoSubscription?: Subscription;
   userSessionDetails: userSessionDetails | null | undefined;
   userInfo: PersonalInfoRequest[] = [];
