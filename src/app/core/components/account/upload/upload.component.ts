@@ -25,10 +25,10 @@ interface BackupSchedule {
 }
 
 interface FileInfo {
-  type: string;
   name: string;
   id: string;
   downloadUrl: string;
+  type: 'file' | 'folder';
 }
 
 interface FolderInfo {
@@ -192,6 +192,7 @@ throw new Error('Method not implemented.');
     this.folderName = path;
     this.folderPathSegments = path ? path.split('/') : [];
     this.loadFolderContents(path);
+    this.currentFolders = this.rootFolders; // Reset to show all root folders
     this.cdr.detectChanges();
   }
 
@@ -201,6 +202,7 @@ throw new Error('Method not implemented.');
     this.folderName = newPath;
     this.folderPathSegments = newPath ? newPath.split('/') : [];
     this.loadFolderContents(newPath);
+    this.currentFolders = this.rootFolders; // Reset to show all root folders
     this.cdr.detectChanges();
   }
 
@@ -210,7 +212,8 @@ throw new Error('Method not implemented.');
       await this.loadSubFolders(folder.id, folder.path, folder);
     }
     folder.isExpanded = !folder.isExpanded;
-    this.currentFolders = [folder];
+    // Show all root folders, but keep the expanded state
+    this.currentFolders = [...this.rootFolders];
     this.cdr.detectChanges();
   }
 
@@ -333,7 +336,7 @@ throw new Error('Method not implemented.');
         retry({ count: 2, delay: 1000 }),
         catchError(err => this.handleApiError(err, 'Failed to load folders'))
       ).toPromise();
-      console.log('Root folders response:', response);
+      console.log('Root folders response:', JSON.stringify(response, null, 2));
 
       if (!response?.folders) {
         throw new Error('Invalid response format');
@@ -362,28 +365,37 @@ throw new Error('Method not implemented.');
   async loadSubFolders(parentId: string, parentPath: string, parentFolder: FolderInfo) {
     const url = `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails!.username)}&folderPath=${encodeURIComponent(parentPath)}`;
     try {
-      console.log(`Fetching subfolders for ${parentPath}:`, url);
+      console.log(`Fetching subfolders for "${parentPath}":`, url);
       const response = await this.http.get<{ contents: { name: string, type: 'file' | 'folder', id: string, size?: number }[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
       }).pipe(
         retry({ count: 2, delay: 1000 }),
         catchError(err => this.handleApiError(err, `Failed to load subfolders for ${parentPath}`))
       ).toPromise();
-      console.log(`Subfolders response for ${parentPath}:`, response);
+      console.log(`Subfolders response for "${parentPath}":`, JSON.stringify(response, null, 2));
 
+      // Filter for folders only
       parentFolder.children = response?.contents
         .filter(item => item.type === 'folder')
         .map(item => ({
           name: item.name,
           id: item.id,
           size: item.size || 0,
-          path: `${parentPath}/${item.name}`,
+          path: parentPath ? `${parentPath}/${item.name}` : item.name,
           children: [],
           isExpanded: false
         })) || [];
+
+      if (parentFolder.children.length === 0) {
+        console.log(`No subfolders found for "${parentPath}"`);
+      }
     } catch (err: any) {
-      console.warn(`Failed to load subfolders for ${parentPath}:`, err);
+      console.error(`Failed to load subfolders for "${parentPath}":`, err);
+      parentFolder.children = [];
+      this.message = `Failed to load subfolders for "${parentPath}".`;
+      this.isSuccess = false;
     }
+    this.cdr.detectChanges();
   }
 
   async loadFolderContents(folderPath: string) {
@@ -398,17 +410,20 @@ throw new Error('Method not implemented.');
       : `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=root`;
 
     try {
+      console.log(`Fetching contents for "${folderPath || 'root'}":`, url);
       const response = await this.http.get<{ contents: FileInfo[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
       }).pipe(
         retry({ count: 2, delay: 1000 }),
         catchError(err => this.handleApiError(err, 'Failed to load folder contents'))
       ).toPromise();
+      console.log(`Contents response for "${folderPath || 'root'}":`, JSON.stringify(response, null, 2));
       this.files = response?.contents.filter(item => item.type === 'file') || [];
     } catch (err: any) {
       this.handleError(err, 'Failed to load folder contents');
       this.files = [];
     }
+    this.cdr.detectChanges();
   }
 
   async onUpload() {

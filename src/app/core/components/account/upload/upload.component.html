@@ -83,6 +83,16 @@
                           <a href="#" (click)="toggleFolder(subfolder, $event)">{{ subfolder.name }}</a>
                           <button class="btn btn-sm btn-primary ms-auto" (click)="selectFolder(subfolder.path, $event)">Select</button>
                         </div>
+                        <!-- Recursive Subfolder Display -->
+                        <ul *ngIf="subfolder.isExpanded && subfolder.children?.length" class="list-group ms-4">
+                          <li *ngFor="let subsubfolder of subfolder.children" class="list-group-item">
+                            <div class="d-flex align-items-center">
+                              <i class="fa-solid fa-folder me-2"></i>
+                              <a href="#" (click)="toggleFolder(subsubfolder, $event)">{{ subsubfolder.name }}</a>
+                              <button class="btn btn-sm btn-primary ms-auto" (click)="selectFolder(subsubfolder.path, $event)">Select</button>
+                            </div>
+                          </li>
+                        </ul>
                       </li>
                     </ul>
                   </li>
