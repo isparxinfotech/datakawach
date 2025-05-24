@@ -30,18 +30,19 @@ interface FileInfo {
   downloadUrl: string;
 }
 
-// Interface for Folder details with path for subfolders
+// Interface for Folder details with children for subfolders
 interface FolderInfo {
   name: string;
   id: string;
   size: number;
   path: string; // Full path, e.g., "rushikeshshinde/rushi"
+  children?: FolderInfo[];
 }
 
 @Component({
   selector: 'app-upload',
   templateUrl: './upload.component.html',
-  styleUrls: []
+  styleUrls: ['./upload.component.css']
 })
 export class UploadComponent implements OnInit, OnDestroy {
   folderName: string = '';
@@ -92,9 +93,11 @@ export class UploadComponent implements OnInit, OnDestroy {
     if (!this.userSessionDetails?.jwtToken || !this.userSessionDetails?.username) {
       const url = `https://datakavach.com/users/current`;
       try {
+        console.log('Fetching user details from:', url);
         const response = await this.http.get<userSessionDetails>(url, {
           headers: this.getAuthHeaders()
         }).toPromise();
+        console.log('User details response:', response);
         this.userSessionDetails = response;
       } catch (err: any) {
         let errorMessage = 'Failed to fetch user details';
@@ -103,6 +106,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         } else if (err.error?.message) {
           errorMessage = err.error.message;
         }
+        console.error('Error fetching user details:', err);
         this.handleError(new Error(errorMessage));
         this.userSessionDetails = null;
         this.isLoading = false;
@@ -188,6 +192,15 @@ export class UploadComponent implements OnInit, OnDestroy {
     );
   }
 
+  selectFolder(path: string, event: Event) {
+    event.preventDefault();
+    this.folderName = path;
+    this.files = [];
+    this.nextLink = '';
+    this.loadFiles();
+    this.cdr.detectChanges();
+  }
+
   async onCreateSchedule() {
     if (!this.isScheduleFormValid()) {
       this.message = 'Please fill all required fields correctly';
@@ -209,7 +222,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     const url = 'https://datakavach.com/onedrive/schedule';
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
-    body.append('folderName', this.folderName); // Now includes full path, e.g., "rushikeshshinde/rushi"
+    body.append('folderPath', this.folderName);
     body.append('fileName', this.fileName);
     body.append('localPath', this.localPath);
     body.append('backupTime', this.backupTime + ':00');
@@ -219,6 +232,17 @@ export class UploadComponent implements OnInit, OnDestroy {
     if (this.dayOfMonth) body.append('dayOfMonth', this.dayOfMonth.toString());
 
     try {
+      console.log('Creating schedule with:', {
+        username: this.userSessionDetails!.username,
+        folderPath: this.folderName,
+        fileName: this.fileName,
+        localPath: this.localPath,
+        backupTime: this.backupTime + ':00',
+        retentionDays: this.retentionDays,
+        backupFrequency: this.backupFrequency,
+        dayOfWeek: this.dayOfWeek,
+        dayOfMonth: this.dayOfMonth
+      });
       await this.http.post(url, body, {
         headers: this.getAuthHeaders()
       }).toPromise();
@@ -233,6 +257,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.handleSuccess('Backup schedule created without immediate upload');
       }
     } catch (err: any) {
+      console.error('Error creating schedule:', err);
       this.handleError(err);
     } finally {
       this.scheduling = false;
@@ -254,6 +279,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     body.append('username', this.userSessionDetails.username);
 
     try {
+      console.log('Triggering manual backup for scheduleId:', scheduleId);
       await this.http.post(url, body, {
         headers: this.getAuthHeaders()
       }).toPromise();
@@ -261,6 +287,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       this.isSuccess = true;
       setTimeout(() => this.loadBackupSchedules(), 3000);
     } catch (err: any) {
+      console.error('Error triggering manual backup:', err);
       this.handleError(err);
     }
     this.cdr.detectChanges();
@@ -278,9 +305,11 @@ export class UploadComponent implements OnInit, OnDestroy {
     const url = `https://datakavach.com/onedrive/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
+      console.log('Fetching backup schedules from:', url);
       const response = await this.http.get<{ schedules: BackupSchedule[] }>(url, {
         headers: this.getAuthHeaders()
       }).toPromise();
+      console.log('Backup schedules response:', response);
       this.backupSchedules = response?.schedules || [];
       if (this.backupSchedules.length === 0) {
         this.message = 'No backup schedules found for this user.';
@@ -295,6 +324,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       } else if (err.error?.message) {
         errorMessage = err.error.message;
       }
+      console.error('Error fetching backup schedules:', err);
       this.handleError(new Error(errorMessage));
       this.backupSchedules = [];
     } finally {
@@ -312,13 +342,31 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}&includeSubfolders=true`;
+    this.rootFolders = [];
+    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
+      console.log('Fetching root folders from:', url);
       const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
       }).toPromise();
-      this.rootFolders = response?.folders || [];
+      console.log('Root folders response:', response);
+
+      if (!response || !response.folders) {
+        throw new Error('Invalid response format: folders array missing');
+      }
+
+      // Add root folders
+      for (const folder of response.folders) {
+        const folderInfo: FolderInfo = {
+          ...folder,
+          path: folder.name,
+          children: []
+        };
+        this.rootFolders.push(folderInfo);
+        await this.loadSubFolders(folder.id, folder.name, folderInfo);
+      }
+
       if (this.rootFolders.length === 0) {
         this.message = 'No folders found in OneDrive. Please create a folder.';
         this.isSuccess = false;
@@ -327,15 +375,47 @@ export class UploadComponent implements OnInit, OnDestroy {
       let errorMessage = 'Failed to load folders';
       if (err.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
+      } else if (err.status === 404) {
+        errorMessage = 'No folders found for this user.';
       } else if (err.status === 500) {
         errorMessage = 'Server error while fetching folders. Please try again later.';
       } else if (err.error?.message) {
         errorMessage = err.error.message;
+      } else {
+        errorMessage = `Failed to load folders: ${err.message || 'Unknown error'}`;
       }
+      console.error('Error fetching folders:', err);
       this.handleError(new Error(errorMessage));
       this.rootFolders = [];
     }
     this.cdr.detectChanges();
+  }
+
+  async loadSubFolders(parentId: string, parentPath: string, parentFolder: FolderInfo) {
+    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails!.username)}&parentId=${encodeURIComponent(parentId)}`;
+    try {
+      console.log(`Fetching subfolders for parentId ${parentId} from:`, url);
+      const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
+        headers: this.getAuthHeaders()
+      }).toPromise();
+      console.log(`Subfolders response for ${parentPath}:`, response);
+
+      if (response?.folders) {
+        for (const folder of response.folders) {
+          const fullPath = `${parentPath}/${folder.name}`;
+          const folderInfo: FolderInfo = {
+            ...folder,
+            path: fullPath,
+            children: []
+          };
+          parentFolder.children!.push(folderInfo);
+          await this.loadSubFolders(folder.id, fullPath, folderInfo);
+        }
+      }
+    } catch (err: any) {
+      console.warn(`Failed to load subfolders for ${parentPath}:`, err);
+      // Continue without throwing to allow partial folder loading
+    }
   }
 
   async loadFiles(nextLink?: string) {
@@ -356,9 +436,11 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     try {
+      console.log('Fetching files from:', url);
       const response = await this.http.get<{ files: FileInfo[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
       }).toPromise();
+      console.log('Files response:', response);
       this.files = response?.files || [];
       this.nextLink = response?.nextLink || '';
       if (this.files.length === 0) {
@@ -374,6 +456,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       } else if (err.error?.message) {
         errorMessage = err.error.message;
       }
+      console.error('Error fetching files:', err);
       this.handleError(new Error(errorMessage));
       this.files = [];
       this.nextLink = '';
@@ -431,7 +514,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         const formData = new FormData();
         formData.append('username', this.userSessionDetails!.username);
-        formData.append('folderPath', this.folderName); // Use folderPath instead of folderName
+        formData.append('folderPath', this.folderName);
         formData.append('file', chunk, rawFileName);
         formData.append('chunkIndex', chunkIndex.toString());
         formData.append('totalChunks', totalChunks.toString());
@@ -449,6 +532,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         while (retryCount <= maxRetries) {
           try {
+            console.log(`Uploading chunk ${chunkIndex + 1}/${totalChunks} for file ${rawFileName}`);
             const response = await this.uploadChunk(url, formData, chunkIndex, totalChunks, fileSize, totalSize, uploadedSize);
             if (chunkIndex === 0 && response.sessionId) {
               this.uploadSessionId = response.sessionId;
@@ -458,10 +542,12 @@ export class UploadComponent implements OnInit, OnDestroy {
             break;
           } catch (err: any) {
             if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
+              console.warn('Session expired, retrying chunk upload:', err);
               this.uploadSessionId = null;
               retryCount++;
               continue;
             }
+            console.error('Error uploading chunk:', err);
             this.handleError(err);
             this.uploading = false;
             this.cdr.detectChanges();
@@ -494,6 +580,7 @@ export class UploadComponent implements OnInit, OnDestroy {
           }
         },
         error: (err) => {
+          console.error('Upload chunk error:', err);
           reject(err);
         }
       });
@@ -512,15 +599,15 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.scheduling = false;
     this.isSuccess = true;
     this.message = typeof response === 'string' ? response : 'Operation completed successfully!';
-    
+
     // Trigger the success modal
     const modalElement = document.getElementById('successModal');
     if (modalElement) {
-      // Use Bootstrap's modal JavaScript API to show the modal
-      // Ensure Bootstrap JS is included in your project
       // @ts-ignore
       const bootstrapModal = new bootstrap.Modal(modalElement);
       bootstrapModal.show();
+    } else {
+      console.warn('Success modal element not found');
     }
 
     this.resetForm();

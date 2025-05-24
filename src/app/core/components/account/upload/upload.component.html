@@ -58,10 +58,30 @@
 
               <div style="display: flex; flex-direction: column;">
                 <label for="folderName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Select Folder:</label>
-                <select id="folderName" [(ngModel)]="folderName" name="folderName" required (change)="onFolderChange()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-                  <option value="" disabled selected>Select a folder</option>
-                  <option *ngFor="let folder of rootFolders" [value]="folder.path">{{ folder.path }}</option>
-                </select>
+                <div class="dropdown">
+                  <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="folderDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="width: 100%; text-align: left;">
+                    {{ folderName || 'Select a folder' }}
+                  </button>
+                  <ul class="dropdown-menu" aria-labelledby="folderDropdown" style="max-height: 300px; overflow-y: auto;">
+                    <li *ngIf="rootFolders.length === 0" class="dropdown-item disabled">No folders available</li>
+                    <ng-container *ngFor="let folder of rootFolders">
+                      <li>
+                        <a class="dropdown-item" href="#" (click)="selectFolder(folder.path, $event)">{{ folder.name }}</a>
+                        <ul class="dropdown-menu dropdown-submenu" *ngIf="folder.children?.length">
+                          <li *ngFor="let subfolder of folder.children">
+                            <a class="dropdown-item" href="#" (click)="selectFolder(subfolder.path, $event)">{{ subfolder.name }}</a>
+                            <ul class="dropdown-menu dropdown-submenu" *ngIf="subfolder.children?.length">
+                              <li *ngFor="let subsubfolder of subfolder.children">
+                                <a class="dropdown-item" href="#" (click)="selectFolder(subsubfolder.path, $event)">{{ subsubfolder.name }}</a>
+                                <!-- Add more nested levels if needed -->
+                              </li>
+                            </ul>
+                          </li>
+                        </ul>
+                      </li>
+                    </ng-container>
+                  </ul>
+                </div>
                 <small *ngIf="rootFolders.length === 0" style="color: #666; font-size: 12px; margin-top: 5px;">No folders available. Please create a folder in OneDrive or contact your administrator.</small>
               </div>
 
