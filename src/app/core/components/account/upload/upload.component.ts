@@ -511,7 +511,13 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.scheduling = false;
     this.isSuccess = true;
     this.message = typeof response === 'string' ? response : 'Operation completed successfully!';
+    // Show the success modal
+    const modal = new (window as any).bootstrap.Modal(document.getElementById('successModal'));
+    modal.show();
+    // Preserve needsBackup value by not resetting it in resetForm
+    const currentNeedsBackup = this.needsBackup;
     this.resetForm();
+    this.needsBackup = currentNeedsBackup;
     this.cdr.detectChanges();
   }
 
@@ -531,7 +537,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   private resetForm() {
-    this.needsBackup = 'yes';
+    // Do not reset needsBackup here to preserve the user's choice
     this.selectedFiles = [];
     this.fileName = '';
     this.localPath = '';

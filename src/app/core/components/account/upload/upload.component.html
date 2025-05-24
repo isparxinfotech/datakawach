@@ -140,13 +140,6 @@
                   </div>
                 </div>
               </div>
-              <div *ngIf="chunkProgress > 0 && uploading" style="margin-top: 10px;">
-                <div style="background: #ddd; border-radius: 6px; overflow: hidden;">
-                  <div [style.width]="chunkProgress + '%'" style="background: #28a745; padding: 10px; color: #fff; font-size: 14px; text-align: center; transition: width 0.3s;">
-                    Chunk: {{ chunkProgress }}%
-                  </div>
-                </div>
-              </div>
 
               <!-- Messages -->
               <div *ngIf="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}" style="margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 14px; display: flex; align-items: center; gap: 10px;" [style.background]="isSuccess ? '#d4edda' : '#f8d7da'" [style.color]="isSuccess ? '#155724' : '#721c24'">
@@ -154,33 +147,6 @@
                 {{ message }}
               </div>
             </form>
-
-            <!-- File List -->
-            <!-- <div style="margin-top: 30px;">
-              <h3 style="color: #333; font-size: 20px; margin: 0 0 15px;">Files in {{ folderName || 'Selected Folder' }}</h3>
-              <div *ngIf="isFilesLoading" style="text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <p style="color: #333; font-size: 14px; margin: 0;">Loading files...</p>
-              </div>
-              <div *ngIf="!isFilesLoading">
-                <div *ngIf="files.length > 0" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;">
-                  <div *ngFor="let file of files" style="background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="color: #333; font-size: 14px;">
-                      <div><strong>Name:</strong> {{ file.name }}</div>
-                      <div><strong>ID:</strong> {{ file.id }}</div>
-                      <div><strong>Download:</strong> <a [href]="file.downloadUrl" target="_blank" style="color: #28a745; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Download</a></div>
-                    </div>
-                  </div>
-                </div>
-                <p *ngIf="files.length === 0 && folderName" style="color: #666; font-size: 14px; text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                  No files found in the selected folder.
-                </p>
-                <div *ngIf="nextLink" style="text-align: center; margin-top: 20px;">
-                  <button (click)="loadFiles(nextLink)" [disabled]="isFilesLoading" style="padding: 10px 20px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="isFilesLoading ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
-                    Load More Files
-                  </button>
-                </div>
-              </div>
-            </div> -->
 
             <!-- Backup List -->
             <div *ngIf="needsBackup === 'yes'" style="margin-top: 30px;">
@@ -224,6 +190,24 @@
           <!-- Fallback Message -->
           <div *ngIf="!userSessionDetails" style="text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: #e74c3c; font-size: 14px;">
             No valid user session found. Please log in again.
+          </div>
+        </div>
+      </div>
+
+      <!-- Success Modal -->
+      <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header" style="background: #28a745; color: #fff;">
+              <h5 class="modal-title" id="successModalLabel">Upload Successful</h5>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              Your files have been uploaded successfully!
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" data-bs-dismiss="modal" style="background: #28a745; border: none;">OK</button>
+            </div>
           </div>
         </div>
       </div>
