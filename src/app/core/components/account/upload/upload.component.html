@@ -1,232 +1,258 @@
-<div class="container-fluid p-0 d-flex h-100" style="background-color: #f4f4f4; min-height: 100vh;">
-  <app-dynamic-menus></app-dynamic-menus>
+<div class="container-fluid p-0 d-flex h-100">
+  <app-dynamic-menus class="sidebar"></app-dynamic-menus>
 
-  <div style="flex: 1; overflow-y: auto; padding: 20px;">
+  <div class="content-wrapper">
     <!-- Mobile Header -->
-    <div class="d-md-none d-flex text-white bg-success align-items-center" style="padding: 10px 15px; border-radius: 8px; margin-bottom: 20px;">
-      <a href="dashboard" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar" style="font-size: 24px; margin-right: 10px;">
+    <div class="d-md-none d-flex text-white bg-success align-items-center">
+      <a href="dashboard" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
         <i class="fa-solid fa-bars"></i>
       </a>
-      <span style="font-size: 18px; font-weight: 500;">Data Kavach</span>
+      <span>Data Kavach</span>
     </div>
 
-    <!-- Main Content -->
-    <div style="max-width: 900px; margin: 0 auto;">
+    <div class="content-area">
       <!-- Loading State -->
-      <div *ngIf="isLoading" style="text-align: center; padding: 50px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-        <h3 style="color: #333; font-size: 24px; margin: 0;">Loading user data...</h3>
+      <div *ngIf="isLoading" class="upload-card text-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <h3>Loading user data...</h3>
       </div>
 
       <!-- Main UI -->
-      <div *ngIf="!isLoading">
+      <div *ngIf="!isLoading" class="upload-card">
         <!-- Navbar -->
-        <nav style="background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;">
-          <div style="display: flex; align-items: center;">
-            <a href="dashboard" style="color: #333; font-size: 18px; font-weight: 500; text-decoration: none;">
-              Welcome: {{ userSessionDetails?.username || 'Guest' }}
-            </a>
-          </div>
+        <nav class="navbar">
+          <a class="navbar-brand" href="dashboard">
+            Welcome: {{ userSessionDetails?.username || 'Guest' }}
+          </a>
         </nav>
-        <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
+
+        <hr>
 
         <!-- Upload Section -->
-        <div>
-          <div *ngIf="userSessionDetails" style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-            <h2 style="color: #333; font-size: 24px; margin: 0 0 20px;">Add Backup</h2>
+        <div *ngIf="userSessionDetails">
+          <h2 class="card-title">Add Backup</h2>
 
-            <!-- Backup Choice -->
-            <div style="margin-bottom: 20px;">
-              <label style="color: #333; font-size: 16px; font-weight: 500; margin-bottom: 10px; display: block;">Do you need a backup schedule?</label>
-              <div style="display: flex; gap: 20px;">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="yes" style="margin-right: 8px;" (change)="onBackupChoiceChange()">
-                  <span style="color: #333; font-size: 14px;">Yes, schedule backups</span>
-                </label>
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                  <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="no" style="margin-right: 8px;" (change)="onBackupChoiceChange()">
-                  <span style="color: #333; font-size: 14px;">No, just upload files</span>
-                </label>
+          <!-- Backup Choice -->
+          <div class="form-group">
+            <label>Do you need a backup schedule?</label>
+            <div class="d-flex gap-3">
+              <label class="d-flex align-items-center">
+                <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="yes" (change)="onBackupChoiceChange()">
+                <span>Yes, schedule backups</span>
+              </label>
+              <label class="d-flex align-items-center">
+                <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="no" (change)="onBackupChoiceChange()">
+                <span>No, just upload files</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Form -->
+          <form class="backup-form">
+            <div class="form-group">
+              <label>Username:</label>
+              <input type="text" [value]="userSessionDetails.username" disabled>
+            </div>
+
+            <div class="form-group">
+              <label>Select Folder:</label>
+              <!-- Breadcrumbs -->
+              <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                  <li class="breadcrumb-item"><a href="#" (click)="selectFolder('', $event)">Root</a></li>
+                  <li *ngFor="let segment of folderPathSegments; let i = index" class="breadcrumb-item">
+                    <a href="#" (click)="navigateToPathSegment(i, $event)">{{ segment }}</a>
+                  </li>
+                </ol>
+              </nav>
+              <!-- Tree View -->
+              <div class="tree-view" *ngIf="!isLoadingFolders; else loadingFolders">
+                <ul class="list-group">
+                  <li *ngFor="let folder of currentFolders" class="list-group-item">
+                    <div class="d-flex align-items-center">
+                      <i class="fa-solid fa-folder me-2"></i>
+                      <a href="#" (click)="toggleFolder(folder, $event)">{{ folder.name }}</a>
+                      <button class="btn btn-sm btn-primary ms-auto" (click)="selectFolder(folder.path, $event)">Select</button>
+                    </div>
+                    <ul *ngIf="folder.isExpanded && folder.children?.length" class="list-group ms-4">
+                      <li *ngFor="let subfolder of folder.children" class="list-group-item">
+                        <div class="d-flex align-items-center">
+                          <i class="fa-solid fa-folder me-2"></i>
+                          <a href="#" (click)="toggleFolder(subfolder, $event)">{{ subfolder.name }}</a>
+                          <button class="btn btn-sm btn-primary ms-auto" (click)="selectFolder(subfolder.path, $event)">Select</button>
+                        </div>
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+                <p *ngIf="currentFolders.length === 0" class="text-muted">No folders available.</p>
+              </div>
+              <ng-template #loadingFolders>
+                <div class="text-center">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading folders...</span>
+                  </div>
+                  <p>Loading folders...</p>
+                </div>
+              </ng-template>
+            </div>
+
+            <div class="form-group">
+              <label>File Name:</label>
+              <input type="text" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt" required (input)="validateFileNameInput()">
+              <div *ngIf="fileNameError" class="error">{{ fileNameError }}</div>
+            </div>
+
+            <div *ngIf="needsBackup === 'yes'" class="form-group">
+              <label>Local File/Folder Path:</label>
+              <input type="text" [(ngModel)]="localPath" name="localPath" placeholder="e.g., C:\path\to\file">
+            </div>
+
+            <div *ngIf="needsBackup === 'yes'" class="form-group">
+              <label>Backup Time (HH:mm):</label>
+              <input type="time" [(ngModel)]="backupTime" name="backupTime">
+            </div>
+
+            <div *ngIf="needsBackup === 'yes'" class="form-group">
+              <label>Retention Days:</label>
+              <input type="number" [(ngModel)]="retentionDays" name="retentionDays" min="1" value="7">
+            </div>
+
+            <div *ngIf="needsBackup === 'yes'" class="form-group">
+              <label>Backup Frequency:</label>
+              <select [(ngModel)]="backupFrequency" name="backupFrequency" (change)="onFrequencyChange()">
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
+                <option value="Monthly">Monthly</option>
+              </select>
+            </div>
+
+            <div *ngIf="needsBackup === 'yes' && backupFrequency === 'Weekly'" class="form-group">
+              <label>Day of Week:</label>
+              <select [(ngModel)]="dayOfWeek" name="dayOfWeek">
+                <option value="MONDAY">Monday</option>
+                <option value="TUESDAY">Tuesday</option>
+                <option value="WEDNESDAY">Wednesday</option>
+                <option value="THURSDAY">Thursday</option>
+                <option value="FRIDAY">Friday</option>
+                <option value="SATURDAY">Saturday</option>
+                <option value="SUNDAY">Sunday</option>
+              </select>
+            </div>
+
+            <div *ngIf="needsBackup === 'yes' && backupFrequency === 'Monthly'" class="form-group">
+              <label>Day of Month:</label>
+              <input type="number" [(ngModel)]="dayOfMonth" name="dayOfMonth" min="1" max="31">
+            </div>
+
+            <div class="form-group">
+              <label>Select Files {{ needsBackup === 'yes' ? '(Optional)' : '(Required)' }}:</label>
+              <input type="file" (change)="onFilesSelected($event)" name="fileInput" multiple>
+              <small *ngIf="selectedFiles.length > 0" class="text-muted">Selected: {{ selectedFiles.length }} file(s)</small>
+            </div>
+
+            <!-- Buttons -->
+            <div class="button-group">
+              <button *ngIf="needsBackup === 'yes'" type="button" class="btn-primary" (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError">
+                {{ scheduling ? 'Creating Schedule...' : 'Create Backup Schedule' }}
+              </button>
+              <button type="button" class="btn-primary" (click)="onUpload()" [disabled]="!folderName || uploading || fileNameError || (needsBackup === 'no' && selectedFiles.length === 0)">
+                {{ uploading ? 'Uploading...' : 'Upload Files' }}
+              </button>
+            </div>
+
+            <!-- Progress -->
+            <div *ngIf="overallProgress > 0" class="progress-container">
+              <div class="progress-bar">
+                <div class="progress" [style.width]="overallProgress + '%'">
+                  Overall: {{ overallProgress }}% (File {{ currentFileIndex + 1 }} of {{ selectedFiles.length }})
+                </div>
               </div>
             </div>
 
-            <!-- Form -->
-            <form style="display: flex; flex-direction: column; gap: 15px;">
-              <div style="display: flex; flex-direction: column;">
-                <label style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Username:</label>
-                <input type="text" [value]="userSessionDetails.username" disabled style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #f8f8f8; color: #333;">
-              </div>
-
-              <div style="display: flex; flex-direction: column;">
-                <label for="folderName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Select Folder:</label>
-                <div class="dropdown">
-                  <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="folderDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="width: 100%; text-align: left;">
-                    {{ folderName || 'Select a folder' }}
-                  </button>
-                  <ul class="dropdown-menu" aria-labelledby="folderDropdown" style="max-height: 300px; overflow-y: auto;">
-                    <li *ngIf="rootFolders.length === 0" class="dropdown-item disabled">No folders available</li>
-                    <ng-container *ngFor="let folder of rootFolders">
-                      <li>
-                        <a class="dropdown-item" href="#" (click)="selectFolder(folder.path, $event)">{{ folder.name }}</a>
-                        <ul class="dropdown-menu dropdown-submenu" *ngIf="folder.children?.length">
-                          <li *ngFor="let subfolder of folder.children">
-                            <a class="dropdown-item" href="#" (click)="selectFolder(subfolder.path, $event)">{{ subfolder.name }}</a>
-                            <ul class="dropdown-menu dropdown-submenu" *ngIf="subfolder.children?.length">
-                              <li *ngFor="let subsubfolder of subfolder.children">
-                                <a class="dropdown-item" href="#" (click)="selectFolder(subsubfolder.path, $event)">{{ subsubfolder.name }}</a>
-                                <!-- Add more nested levels if needed -->
-                              </li>
-                            </ul>
-                          </li>
-                        </ul>
-                      </li>
-                    </ng-container>
-                  </ul>
-                </div>
-                <small *ngIf="rootFolders.length === 0" style="color: #666; font-size: 12px; margin-top: 5px;">No folders available. Please create a folder in OneDrive or contact your administrator.</small>
-              </div>
-
-              <div style="display: flex; flex-direction: column;">
-                <label for="fileName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">File Name:</label>
-                <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-                <div *ngIf="fileNameError" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">{{ fileNameError }}</div>
-              </div>
-
-              <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
-                <label for="localPath" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Local File/Folder Path:</label>
-                <input type="text" id="localPath" [(ngModel)]="localPath" name="localPath" placeholder="e.g., C:\path\to\file or C:\path\to\folder" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-                <small style="color: #666; font-size: 12px; margin-top: 5px;">Enter the full path to the file or folder to back up.</small>
-              </div>
-
-              <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
-                <label for="backupTime" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Backup Time (HH:mm):</label>
-                <input type="time" id="backupTime" [(ngModel)]="backupTime" name="backupTime" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-              </div>
-
-              <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
-                <label for="retentionDays" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Retention Days:</label>
-                <input type="number" id="retentionDays" [(ngModel)]="retentionDays" name="retentionDays" min="1" value="7" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-              </div>
-
-              <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
-                <label for="backupFrequency" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Backup Frequency:</label>
-                <select id="backupFrequency" [(ngModel)]="backupFrequency" name="backupFrequency" (change)="onFrequencyChange()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-                  <option value="Daily">Daily</option>
-                  <option value="Weekly">Weekly</option>
-                  <option value="Monthly">Monthly</option>
-                </select>
-              </div>
-
-              <div *ngIf="needsBackup === 'yes' && backupFrequency === 'Weekly'" style="display: flex; flex-direction: column;">
-                <label for="dayOfWeek" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Day of Week:</label>
-                <select id="dayOfWeek" [(ngModel)]="dayOfWeek" name="dayOfWeek" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-                  <option value="MONDAY">Monday</option>
-                  <option value="TUESDAY">Tuesday</option>
-                  <option value="WEDNESDAY">Wednesday</option>
-                  <option value="THURSDAY">Thursday</option>
-                  <option value="FRIDAY">Friday</option>
-                  <option value="SATURDAY">Saturday</option>
-                  <option value="SUNDAY">Sunday</option>
-                </select>
-              </div>
-
-              <div *ngIf="needsBackup === 'yes' && backupFrequency === 'Monthly'" style="display: flex; flex-direction: column;">
-                <label for="dayOfMonth" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Day of Month:</label>
-                <input type="number" id="dayOfMonth" [(ngModel)]="dayOfMonth" name="dayOfMonth" min="1" max="31" placeholder="e.g., 1" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-              </div>
-
-              <div style="display: flex; flex-direction: column;">
-                <label for="fileInput" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">
-                  Select Files {{ needsBackup === 'yes' ? '(Optional for Initial Upload)' : '(Required)' }}:
-                </label>
-                <input type="file" id="fileInput" (change)="onFilesSelected($event)" name="fileInput" multiple style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-                <small *ngIf="selectedFiles.length > 0" style="color: #666; font-size: 12px; margin-top: 5px;">Selected: {{ selectedFiles.length }} file(s)</small>
-              </div>
-
-              <!-- Buttons -->
-              <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button *ngIf="needsBackup === 'yes'" type="button" (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0" style="padding: 10px 20px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0 ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
-                  {{ scheduling ? 'Creating Schedule...' : 'Create Backup Schedule' }}
-                </button>
-                <button type="button" (click)="onUpload()" [disabled]="!folderName || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0)" style="padding: 10px 20px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!folderName || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0) ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
-                  {{ uploading ? 'Uploading...' : 'Upload Files' }}
-                </button>
-              </div>
-
-              <!-- Progress Bars -->
-              <div *ngIf="overallProgress > 0" style="margin-top: 20px;">
-                <div style="background: #ddd; border-radius: 6px; overflow: hidden;">
-                  <div [style.width]="overallProgress + '%'" style="background: #28a745; padding: 10px; color: #fff; font-size: 14px; text-align: center; transition: width 0.3s;">
-                    Overall: {{ overallProgress }}% (File {{ currentFileIndex + 1 }} of {{ selectedFiles.length }})
-                  </div>
-                </div>
-              </div>
-
-              <!-- Messages -->
-              <div *ngIf="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}" style="margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 14px; display: flex; align-items: center; gap: 10px;" [style.background]="isSuccess ? '#d4edda' : '#f8d7da'" [style.color]="isSuccess ? '#155724' : '#721c24'">
-                <i [ngClass]="isSuccess ? 'fa-solid fa-check-circle' : 'fa-solid fa-exclamation-circle'" style="font-size: 18px;"></i>
-                {{ message }}
-              </div>
-            </form>
+            <!-- Messages -->
+            <div *ngIf="message" class="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}">
+              <i [ngClass]="isSuccess ? 'fa-solid fa-check-circle' : 'fa-solid fa-exclamation-circle'"></i>
+              {{ message }}
+            </div>
 
             <!-- Backup List -->
-            <div *ngIf="needsBackup === 'yes'" style="margin-top: 30px;">
-              <h3 style="color: #333; font-size: 20px; margin: 0 0 15px;">Scheduled Backups</h3>
-              <div *ngIf="isSchedulesLoading" style="text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                <p style="color: #333; font-size: 14px; margin: 0;">Loading backup schedules...</p>
+            <div *ngIf="needsBackup === 'yes'" class="mt-4">
+              <h3>Scheduled Backups</h3>
+              <div *ngIf="isSchedulesLoading" class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Loading schedules...</span>
+                </div>
+                <p>Loading backup schedules...</p>
               </div>
-              <div *ngIf="!isSchedulesLoading">
-                <div *ngIf="backupSchedules.length > 0" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
-                  <div *ngFor="let schedule of backupSchedules" style="background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <div style="color: #333; font-size: 14px;">
-                      <div><strong>Schedule ID:</strong> {{ schedule.scheduleId }}</div>
-                      <div><strong>Path:</strong> {{ schedule.filePath }}</div>
-                      <div><strong>Local Path:</strong> {{ schedule.localFilePath }}</div>
-                      <div>
-                        <strong>Frequency:</strong> {{ schedule.backupFrequency }}
+              <div *ngIf="!isSchedulesLoading" class="table-container">
+                <table class="backup-table" *ngIf="backupSchedules.length > 0">
+                  <thead>
+                    <tr>
+                      <th>Schedule ID</th>
+                      <th>Path</th>
+                      <th>Local Path</th>
+                      <th>Frequency</th>
+                      <th>Time</th>
+                      <th>Retention Days</th>
+                      <th>Last Backup</th>
+                      <th>Next Run</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let schedule of backupSchedules; let i = index" [ngClass]="{'alternate-row': i % 2 === 1}">
+                      <td>{{ schedule.scheduleId }}</td>
+                      <td>{{ schedule.filePath }}</td>
+                      <td>{{ schedule.localFilePath }}</td>
+                      <td>
+                        {{ schedule.backupFrequency }}
                         <span *ngIf="schedule.backupFrequency === 'Weekly'"> ({{ schedule.dayOfWeek }})</span>
                         <span *ngIf="schedule.backupFrequency === 'Monthly'"> (Day {{ schedule.dayOfMonth }})</span>
-                      </div>
-                      <div><strong>Time:</strong> {{ schedule.backupTime }}</div>
-                      <div><strong>Retention Days:</strong> {{ schedule.retentionDays }}</div>
-                      <div><strong>Last Backup:</strong> {{ schedule.lastBackupTime ? (schedule.lastBackupTime | date:'medium') : 'N/A' }}</div>
-                      <div><strong>Next Run:</strong> {{ schedule.nextBackupTime | date:'medium' }}</div>
-                      <div><strong>Status:</strong> {{ schedule.isActive ? 'Active' : 'Inactive' }}</div>
-                      <div *ngIf="schedule.lastError" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">
-                        <strong>Last Error:</strong> {{ schedule.lastError }}
-                      </div>
-                    </div>
-                    <button (click)="triggerManualBackup(schedule.scheduleId)" [disabled]="!schedule.isActive" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!schedule.isActive ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
-                      Run Now
-                    </button>
-                  </div>
-                </div>
-                <p *ngIf="backupSchedules.length === 0" style="color: #666; font-size: 14px; text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                  No backup schedules found. Create a new schedule above or contact your administrator if you expect existing schedules.
+                      </td>
+                      <td>{{ schedule.backupTime }}</td>
+                      <td>{{ schedule.retentionDays }}</td>
+                      <td>{{ schedule.lastBackupTime ? (schedule.lastBackupTime | date:'medium') : 'N/A' }}</td>
+                      <td>{{ schedule.nextBackupTime | date:'medium' }}</td>
+                      <td>{{ schedule.isActive ? 'Active' : 'Inactive' }}</td>
+                      <td>
+                        <button class="btn-action" (click)="triggerManualBackup(schedule.scheduleId)" [disabled]="!schedule.isActive">
+                          Run Now
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p *ngIf="backupSchedules.length === 0" class="no-data">
+                  No backup schedules found. Create a new schedule above.
                 </p>
               </div>
             </div>
-          </div>
+          </form>
+        </div>
 
-          <!-- Fallback Message -->
-          <div *ngIf="!userSessionDetails" style="text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: #e74c3c; font-size: 14px;">
-            No valid user session found. Please log in again.
-          </div>
+        <!-- Fallback Message -->
+        <div *ngIf="!userSessionDetails" class="error">
+          No valid user session found. Please log in again.
         </div>
       </div>
 
       <!-- Success Modal -->
-      <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+      <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel">
         <div class="modal-dialog modal-dialog-centered">
           <div class="modal-content">
-            <div class="modal-header" style="background: #28a745; color: #fff;">
+            <div class="modal-header">
               <h5 class="modal-title" id="successModalLabel">Upload Successful</h5>
-              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
               Your files have been uploaded successfully!
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-primary" data-bs-dismiss="modal" style="background: #28a745; border: none;">OK</button>
+              <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
             </div>
           </div>
         </div>

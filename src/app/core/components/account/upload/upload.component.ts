@@ -3,8 +3,9 @@ import { HttpClient, HttpEventType, HttpHeaders } from '@angular/common/http';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { Subscription } from 'rxjs';
+import { retry, catchError } from 'rxjs/operators';
+import { throwError } from 'rxjs';
 
-// Interface for BackupSchedule (unchanged)
 interface BackupSchedule {
   scheduleId: number;
   userId: number;
@@ -23,20 +24,20 @@ interface BackupSchedule {
   retryCount: number;
 }
 
-// Interface for File details (unchanged)
 interface FileInfo {
+  type: string;
   name: string;
   id: string;
   downloadUrl: string;
 }
 
-// Interface for Folder details with children for subfolders
 interface FolderInfo {
   name: string;
   id: string;
   size: number;
-  path: string; // Full path, e.g., "rushikeshshinde/rushi"
+  path: string;
   children?: FolderInfo[];
+  isExpanded?: boolean;
 }
 
 @Component({
@@ -45,6 +46,9 @@ interface FolderInfo {
   styleUrls: ['./upload.component.css']
 })
 export class UploadComponent implements OnInit, OnDestroy {
+onFrequencyChange() {
+throw new Error('Method not implemented.');
+}
   folderName: string = '';
   fileName: string = '';
   fileNameError: string = '';
@@ -58,21 +62,21 @@ export class UploadComponent implements OnInit, OnDestroy {
   uploading: boolean = false;
   scheduling: boolean = false;
   overallProgress: number = 0;
-  chunkProgress: number = 0;
   currentFileIndex: number = 0;
   message: string = '';
   isSuccess: boolean = false;
   userSessionDetails: userSessionDetails | null | undefined = null;
-  private readonly CHUNK_SIZE = 20 * 1024 * 1024; // 20MB chunks
+  private readonly CHUNK_SIZE = 20 * 1024 * 1024;
   private uploadSessionId: string | null = null;
   backupSchedules: BackupSchedule[] = [];
   rootFolders: FolderInfo[] = [];
+  currentFolders: FolderInfo[] = [];
+  folderPathSegments: string[] = [];
   needsBackup: 'yes' | 'no' = 'yes';
   isLoading: boolean = true;
+  isLoadingFolders: boolean = false;
   isSchedulesLoading: boolean = false;
-  isFilesLoading: boolean = false;
   files: FileInfo[] = [];
-  nextLink: string = '';
   private subscriptions: Subscription[] = [];
 
   constructor(
@@ -82,7 +86,6 @@ export class UploadComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.isLoading = true;
     this.initializeUser();
   }
 
@@ -93,21 +96,14 @@ export class UploadComponent implements OnInit, OnDestroy {
     if (!this.userSessionDetails?.jwtToken || !this.userSessionDetails?.username) {
       const url = `https://datakavach.com/users/current`;
       try {
-        console.log('Fetching user details from:', url);
+        console.log('Fetching user details:', url);
         const response = await this.http.get<userSessionDetails>(url, {
           headers: this.getAuthHeaders()
         }).toPromise();
-        console.log('User details response:', response);
+        console.log('User details:', response);
         this.userSessionDetails = response;
       } catch (err: any) {
-        let errorMessage = 'Failed to fetch user details';
-        if (err.status === 401) {
-          errorMessage = 'Authentication failed. Please log in again.';
-        } else if (err.error?.message) {
-          errorMessage = err.error.message;
-        }
-        console.error('Error fetching user details:', err);
-        this.handleError(new Error(errorMessage));
+        this.handleError(err, 'Failed to fetch user details');
         this.userSessionDetails = null;
         this.isLoading = false;
         this.cdr.detectChanges();
@@ -115,9 +111,10 @@ export class UploadComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (this.userSessionDetails && this.userSessionDetails.jwtToken && this.userSessionDetails.username) {
+    if (this.userSessionDetails?.jwtToken && this.userSessionDetails?.username) {
       this.loadBackupSchedules();
       await this.loadRootFolders();
+      this.currentFolders = this.rootFolders;
     } else {
       this.message = 'Invalid user session. Please log in again.';
       this.isSuccess = false;
@@ -129,7 +126,6 @@ export class UploadComponent implements OnInit, OnDestroy {
 
   onBackupChoiceChange() {
     if (this.needsBackup === 'no') {
-      // Reset scheduling fields when switching to "No Backup"
       this.localPath = '';
       this.backupTime = '';
       this.retentionDays = 7;
@@ -157,7 +153,6 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.selectedFiles = Array.from(event.target.files);
     this.message = '';
     this.overallProgress = 0;
-    this.chunkProgress = 0;
     this.currentFileIndex = 0;
     this.uploadSessionId = null;
 
@@ -195,9 +190,27 @@ export class UploadComponent implements OnInit, OnDestroy {
   selectFolder(path: string, event: Event) {
     event.preventDefault();
     this.folderName = path;
-    this.files = [];
-    this.nextLink = '';
-    this.loadFiles();
+    this.folderPathSegments = path ? path.split('/') : [];
+    this.loadFolderContents(path);
+    this.cdr.detectChanges();
+  }
+
+  navigateToPathSegment(index: number, event: Event) {
+    event.preventDefault();
+    const newPath = this.folderPathSegments.slice(0, index + 1).join('/');
+    this.folderName = newPath;
+    this.folderPathSegments = newPath ? newPath.split('/') : [];
+    this.loadFolderContents(newPath);
+    this.cdr.detectChanges();
+  }
+
+  async toggleFolder(folder: FolderInfo, event: Event) {
+    event.preventDefault();
+    if (!folder.isExpanded && !folder.children) {
+      await this.loadSubFolders(folder.id, folder.path, folder);
+    }
+    folder.isExpanded = !folder.isExpanded;
+    this.currentFolders = [folder];
     this.cdr.detectChanges();
   }
 
@@ -212,13 +225,6 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.scheduling = true;
     this.message = '';
 
-    if (this.needsBackup === 'no') {
-      await this.onUpload();
-      this.scheduling = false;
-      this.cdr.detectChanges();
-      return;
-    }
-
     const url = 'https://datakavach.com/onedrive/schedule';
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
@@ -232,16 +238,9 @@ export class UploadComponent implements OnInit, OnDestroy {
     if (this.dayOfMonth) body.append('dayOfMonth', this.dayOfMonth.toString());
 
     try {
-      console.log('Creating schedule with:', {
+      console.log('Creating schedule:', {
         username: this.userSessionDetails!.username,
-        folderPath: this.folderName,
-        fileName: this.fileName,
-        localPath: this.localPath,
-        backupTime: this.backupTime + ':00',
-        retentionDays: this.retentionDays,
-        backupFrequency: this.backupFrequency,
-        dayOfWeek: this.dayOfWeek,
-        dayOfMonth: this.dayOfMonth
+        folderPath: this.folderName
       });
       await this.http.post(url, body, {
         headers: this.getAuthHeaders()
@@ -254,11 +253,10 @@ export class UploadComponent implements OnInit, OnDestroy {
       if (this.selectedFiles.length > 0) {
         await this.onUpload();
       } else {
-        this.handleSuccess('Backup schedule created without immediate upload');
+        this.handleSuccess('Backup schedule created');
       }
     } catch (err: any) {
-      console.error('Error creating schedule:', err);
-      this.handleError(err);
+      this.handleError(err, 'Failed to create schedule');
     } finally {
       this.scheduling = false;
       this.cdr.detectChanges();
@@ -266,20 +264,12 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   async triggerManualBackup(scheduleId: number) {
-    if (!this.userSessionDetails?.username) {
-      this.message = 'No user logged in';
-      this.isSuccess = false;
-      this.cdr.detectChanges();
-      return;
-    }
-
     const url = 'https://datakavach.com/onedrive/backup-now';
     const body = new FormData();
     body.append('scheduleId', scheduleId.toString());
-    body.append('username', this.userSessionDetails.username);
+    body.append('username', this.userSessionDetails!.username);
 
     try {
-      console.log('Triggering manual backup for scheduleId:', scheduleId);
       await this.http.post(url, body, {
         headers: this.getAuthHeaders()
       }).toPromise();
@@ -287,8 +277,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       this.isSuccess = true;
       setTimeout(() => this.loadBackupSchedules(), 3000);
     } catch (err: any) {
-      console.error('Error triggering manual backup:', err);
-      this.handleError(err);
+      this.handleError(err, 'Failed to trigger manual backup');
     }
     this.cdr.detectChanges();
   }
@@ -296,7 +285,6 @@ export class UploadComponent implements OnInit, OnDestroy {
   async loadBackupSchedules() {
     if (!this.userSessionDetails?.username) {
       this.backupSchedules = [];
-      this.cdr.detectChanges();
       return;
     }
 
@@ -305,27 +293,18 @@ export class UploadComponent implements OnInit, OnDestroy {
     const url = `https://datakavach.com/onedrive/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
-      console.log('Fetching backup schedules from:', url);
       const response = await this.http.get<{ schedules: BackupSchedule[] }>(url, {
         headers: this.getAuthHeaders()
-      }).toPromise();
-      console.log('Backup schedules response:', response);
+      }).pipe(
+        retry({ count: 2, delay: 1000 }),
+        catchError(err => this.handleApiError(err, 'Failed to load schedules'))
+      ).toPromise();
       this.backupSchedules = response?.schedules || [];
       if (this.backupSchedules.length === 0) {
-        this.message = 'No backup schedules found for this user.';
+        this.message = 'No backup schedules found.';
         this.isSuccess = false;
       }
     } catch (err: any) {
-      let errorMessage = 'Failed to load backup schedules';
-      if (err.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (err.status === 404) {
-        errorMessage = 'No schedules found for this user.';
-      } else if (err.error?.message) {
-        errorMessage = err.error.message;
-      }
-      console.error('Error fetching backup schedules:', err);
-      this.handleError(new Error(errorMessage));
       this.backupSchedules = [];
     } finally {
       this.isSchedulesLoading = false;
@@ -342,146 +321,99 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.isLoadingFolders = true;
     this.rootFolders = [];
     const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
-      console.log('Fetching root folders from:', url);
+      console.log('Fetching root folders:', url);
       const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
-      }).toPromise();
+      }).pipe(
+        retry({ count: 2, delay: 1000 }),
+        catchError(err => this.handleApiError(err, 'Failed to load folders'))
+      ).toPromise();
       console.log('Root folders response:', response);
 
-      if (!response || !response.folders) {
-        throw new Error('Invalid response format: folders array missing');
+      if (!response?.folders) {
+        throw new Error('Invalid response format');
       }
 
-      // Add root folders
-      for (const folder of response.folders) {
-        const folderInfo: FolderInfo = {
-          ...folder,
-          path: folder.name,
-          children: []
-        };
-        this.rootFolders.push(folderInfo);
-        await this.loadSubFolders(folder.id, folder.name, folderInfo);
-      }
+      this.rootFolders = response.folders.map(f => ({
+        ...f,
+        path: f.name,
+        children: [],
+        isExpanded: false
+      }));
 
       if (this.rootFolders.length === 0) {
-        this.message = 'No folders found in OneDrive. Please create a folder.';
+        this.message = 'No folders found in OneDrive.';
         this.isSuccess = false;
       }
     } catch (err: any) {
-      let errorMessage = 'Failed to load folders';
-      if (err.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (err.status === 404) {
-        errorMessage = 'No folders found for this user.';
-      } else if (err.status === 500) {
-        errorMessage = 'Server error while fetching folders. Please try again later.';
-      } else if (err.error?.message) {
-        errorMessage = err.error.message;
-      } else {
-        errorMessage = `Failed to load folders: ${err.message || 'Unknown error'}`;
-      }
-      console.error('Error fetching folders:', err);
-      this.handleError(new Error(errorMessage));
+      this.handleError(err, 'Failed to load folders');
       this.rootFolders = [];
+    } finally {
+      this.isLoadingFolders = false;
+      this.cdr.detectChanges();
     }
-    this.cdr.detectChanges();
   }
 
   async loadSubFolders(parentId: string, parentPath: string, parentFolder: FolderInfo) {
-    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails!.username)}&parentId=${encodeURIComponent(parentId)}`;
+    const url = `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails!.username)}&folderPath=${encodeURIComponent(parentPath)}`;
     try {
-      console.log(`Fetching subfolders for parentId ${parentId} from:`, url);
-      const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
+      console.log(`Fetching subfolders for ${parentPath}:`, url);
+      const response = await this.http.get<{ contents: { name: string, type: 'file' | 'folder', id: string, size?: number }[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
-      }).toPromise();
+      }).pipe(
+        retry({ count: 2, delay: 1000 }),
+        catchError(err => this.handleApiError(err, `Failed to load subfolders for ${parentPath}`))
+      ).toPromise();
       console.log(`Subfolders response for ${parentPath}:`, response);
 
-      if (response?.folders) {
-        for (const folder of response.folders) {
-          const fullPath = `${parentPath}/${folder.name}`;
-          const folderInfo: FolderInfo = {
-            ...folder,
-            path: fullPath,
-            children: []
-          };
-          parentFolder.children!.push(folderInfo);
-          await this.loadSubFolders(folder.id, fullPath, folderInfo);
-        }
-      }
+      parentFolder.children = response?.contents
+        .filter(item => item.type === 'folder')
+        .map(item => ({
+          name: item.name,
+          id: item.id,
+          size: item.size || 0,
+          path: `${parentPath}/${item.name}`,
+          children: [],
+          isExpanded: false
+        })) || [];
     } catch (err: any) {
       console.warn(`Failed to load subfolders for ${parentPath}:`, err);
-      // Continue without throwing to allow partial folder loading
     }
   }
 
-  async loadFiles(nextLink?: string) {
-    if (!this.userSessionDetails?.username || !this.folderName) {
-      this.message = 'Please select a folder to list files';
-      this.isSuccess = false;
+  async loadFolderContents(folderPath: string) {
+    if (!this.userSessionDetails?.username) {
       this.files = [];
-      this.nextLink = '';
-      this.cdr.detectChanges();
       return;
     }
 
-    this.isFilesLoading = true;
-    this.message = '';
-    let url = `https://datakavach.com/onedrive/files?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(this.folderName)}`;
-    if (nextLink) {
-      url = nextLink;
-    }
+    this.files = [];
+    const url = folderPath
+      ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`
+      : `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=root`;
 
     try {
-      console.log('Fetching files from:', url);
-      const response = await this.http.get<{ files: FileInfo[], nextLink: string }>(url, {
+      const response = await this.http.get<{ contents: FileInfo[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
-      }).toPromise();
-      console.log('Files response:', response);
-      this.files = response?.files || [];
-      this.nextLink = response?.nextLink || '';
-      if (this.files.length === 0) {
-        this.message = 'No files found in the selected folder.';
-        this.isSuccess = false;
-      }
+      }).pipe(
+        retry({ count: 2, delay: 1000 }),
+        catchError(err => this.handleApiError(err, 'Failed to load folder contents'))
+      ).toPromise();
+      this.files = response?.contents.filter(item => item.type === 'file') || [];
     } catch (err: any) {
-      let errorMessage = 'Failed to load files';
-      if (err.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (err.status === 404) {
-        errorMessage = 'Folder not found or no files available.';
-      } else if (err.error?.message) {
-        errorMessage = err.error.message;
-      }
-      console.error('Error fetching files:', err);
-      this.handleError(new Error(errorMessage));
+      this.handleError(err, 'Failed to load folder contents');
       this.files = [];
-      this.nextLink = '';
-    } finally {
-      this.isFilesLoading = false;
-      this.cdr.detectChanges();
     }
-  }
-
-  onFolderChange() {
-    this.files = [];
-    this.nextLink = '';
-    this.loadFiles();
-    this.cdr.detectChanges();
-  }
-
-  onFrequencyChange() {
-    this.dayOfWeek = '';
-    this.dayOfMonth = null;
-    this.cdr.detectChanges();
   }
 
   async onUpload() {
     if (!this.userSessionDetails?.username || !this.folderName || this.selectedFiles.length === 0) {
-      this.message = 'Please select a folder and at least one file for upload';
+      this.message = 'Please select a folder and at least one file';
       this.isSuccess = false;
       this.uploading = false;
       this.cdr.detectChanges();
@@ -490,7 +422,6 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.uploading = true;
     this.overallProgress = 0;
-    this.chunkProgress = 0;
     this.currentFileIndex = 0;
     this.message = '';
 
@@ -532,7 +463,6 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         while (retryCount <= maxRetries) {
           try {
-            console.log(`Uploading chunk ${chunkIndex + 1}/${totalChunks} for file ${rawFileName}`);
             const response = await this.uploadChunk(url, formData, chunkIndex, totalChunks, fileSize, totalSize, uploadedSize);
             if (chunkIndex === 0 && response.sessionId) {
               this.uploadSessionId = response.sessionId;
@@ -542,13 +472,11 @@ export class UploadComponent implements OnInit, OnDestroy {
             break;
           } catch (err: any) {
             if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
-              console.warn('Session expired, retrying chunk upload:', err);
               this.uploadSessionId = null;
               retryCount++;
               continue;
             }
-            console.error('Error uploading chunk:', err);
-            this.handleError(err);
+            this.handleError(err, 'Failed to upload chunk');
             this.uploading = false;
             this.cdr.detectChanges();
             return;
@@ -558,7 +486,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     this.handleSuccess('All files uploaded successfully');
-    this.loadFiles();
+    this.loadFolderContents(this.folderName);
     this.cdr.detectChanges();
   }
 
@@ -571,7 +499,6 @@ export class UploadComponent implements OnInit, OnDestroy {
       }).subscribe({
         next: (event: any) => {
           if (event.type === HttpEventType.UploadProgress && event.total) {
-            this.chunkProgress = Math.round(100 * event.loaded / event.total);
             const currentFileUploaded = uploadedSize + event.loaded;
             this.overallProgress = Math.round((currentFileUploaded / totalSize) * 100);
             this.cdr.detectChanges();
@@ -579,63 +506,74 @@ export class UploadComponent implements OnInit, OnDestroy {
             resolve(event.body);
           }
         },
-        error: (err) => {
-          console.error('Upload chunk error:', err);
-          reject(err);
-        }
+        error: (err) => reject(err)
       });
     });
   }
 
   private getAuthHeaders(): HttpHeaders {
-    const token = this.userSessionDetails?.jwtToken || '';
     return new HttpHeaders({
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${this.userSessionDetails?.jwtToken || ''}`
     });
   }
 
-  private handleSuccess(response: any) {
+  private handleSuccess(message: string) {
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = true;
-    this.message = typeof response === 'string' ? response : 'Operation completed successfully!';
+    this.message = message;
 
-    // Trigger the success modal
     const modalElement = document.getElementById('successModal');
     if (modalElement) {
       // @ts-ignore
       const bootstrapModal = new bootstrap.Modal(modalElement);
       bootstrapModal.show();
-    } else {
-      console.warn('Success modal element not found');
     }
 
     this.resetForm();
     this.cdr.detectChanges();
   }
 
-  private handleError(error: any) {
+  private handleError(error: any, defaultMessage: string) {
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = false;
-    let errorMessage = 'An error occurred';
-    if (error.error && error.error.message) {
+    let errorMessage = defaultMessage;
+    if (error.status === 401) {
+      errorMessage = 'Authentication failed. Please log in again.';
+    } else if (error.status === 404) {
+      errorMessage = 'Resource not found.';
+    } else if (error.error?.message) {
       errorMessage = error.error.message;
     } else if (error.message) {
       errorMessage = error.message;
     }
     this.message = errorMessage;
-    this.isLoading = false;
+    console.error(errorMessage, error);
     this.cdr.detectChanges();
   }
 
+  private handleApiError(err: any, defaultMessage: string) {
+    let errorMessage = defaultMessage;
+    if (err.status === 401) {
+      errorMessage = 'Authentication failed. Please log in again.';
+    } else if (err.status === 404) {
+      errorMessage = 'Resource not found.';
+    } else if (err.status === 500) {
+      errorMessage = 'Server error. Please try again later.';
+    } else if (err.error?.error) {
+      errorMessage = err.error.error;
+    }
+    console.error(errorMessage, err);
+    return throwError(() => new Error(errorMessage));
+  }
+
   private resetForm() {
-    // Preserve needsBackup value
     this.selectedFiles = [];
     this.fileName = '';
     this.folderName = '';
+    this.folderPathSegments = [];
     if (this.needsBackup === 'no') {
-      // Only reset fields not related to backup scheduling
       this.localPath = '';
       this.backupTime = '';
       this.retentionDays = 7;
@@ -644,7 +582,6 @@ export class UploadComponent implements OnInit, OnDestroy {
       this.dayOfMonth = null;
     }
     this.overallProgress = 0;
-    this.chunkProgress = 0;
     this.currentFileIndex = 0;
     this.uploadSessionId = null;
     this.fileNameError = '';
