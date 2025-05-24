@@ -60,7 +60,7 @@
                 <label for="folderName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Select Folder:</label>
                 <select id="folderName" [(ngModel)]="folderName" name="folderName" required (change)="onFolderChange()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
                   <option value="" disabled selected>Select a folder</option>
-                  <option *ngFor="let folder of rootFolders" [value]="folder.path">{{ folder.path }}</option>
+                  <option *ngFor="let folder of rootFolders" [value]="folder.name">{{ folder.name }}</option>
                 </select>
                 <small *ngIf="rootFolders.length === 0" style="color: #666; font-size: 12px; margin-top: 5px;">No folders available. Please create a folder in OneDrive or contact your administrator.</small>
               </div>
