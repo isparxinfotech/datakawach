@@ -4,7 +4,7 @@ import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { Subscription } from 'rxjs';
 
-// Interface for BackupSchedule to match backend BackupScheduleEntity
+// Interface for BackupSchedule (unchanged)
 interface BackupSchedule {
   scheduleId: number;
   userId: number;
@@ -23,18 +23,19 @@ interface BackupSchedule {
   retryCount: number;
 }
 
-// Interface for File details from /onedrive/files endpoint
+// Interface for File details (unchanged)
 interface FileInfo {
   name: string;
   id: string;
   downloadUrl: string;
 }
 
-// Interface for Folder details from /onedrive/folders endpoint
+// Interface for Folder details with path for subfolders
 interface FolderInfo {
   name: string;
   id: string;
   size: number;
+  path: string; // Full path, e.g., "rushikeshshinde/rushi"
 }
 
 @Component({
@@ -208,7 +209,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     const url = 'https://datakavach.com/onedrive/schedule';
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
-    body.append('folderName', this.folderName);
+    body.append('folderName', this.folderName); // Now includes full path, e.g., "rushikeshshinde/rushi"
     body.append('fileName', this.fileName);
     body.append('localPath', this.localPath);
     body.append('backupTime', this.backupTime + ':00');
@@ -311,7 +312,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}&includeSubfolders=true`;
 
     try {
       const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
@@ -323,7 +324,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.isSuccess = false;
       }
     } catch (err: any) {
-      let errorMessage = 'Failed to load root folders';
+      let errorMessage = 'Failed to load folders';
       if (err.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
       } else if (err.status === 500) {
@@ -349,7 +350,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isFilesLoading = true;
     this.message = '';
-    let url = `https://datakavach.com/onedrive/files?username=${encodeURIComponent(this.userSessionDetails.username)}&folderName=${encodeURIComponent(this.folderName)}`;
+    let url = `https://datakavach.com/onedrive/files?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(this.folderName)}`;
     if (nextLink) {
       url = nextLink;
     }
@@ -430,7 +431,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         const formData = new FormData();
         formData.append('username', this.userSessionDetails!.username);
-        formData.append('folderName', this.folderName);
+        formData.append('folderPath', this.folderName); // Use folderPath instead of folderName
         formData.append('file', chunk, rawFileName);
         formData.append('chunkIndex', chunkIndex.toString());
         formData.append('totalChunks', totalChunks.toString());
@@ -511,13 +512,18 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.scheduling = false;
     this.isSuccess = true;
     this.message = typeof response === 'string' ? response : 'Operation completed successfully!';
-    // Show the success modal
-    const modal = new (window as any).bootstrap.Modal(document.getElementById('successModal'));
-    modal.show();
-    // Preserve needsBackup value by not resetting it in resetForm
-    const currentNeedsBackup = this.needsBackup;
+    
+    // Trigger the success modal
+    const modalElement = document.getElementById('successModal');
+    if (modalElement) {
+      // Use Bootstrap's modal JavaScript API to show the modal
+      // Ensure Bootstrap JS is included in your project
+      // @ts-ignore
+      const bootstrapModal = new bootstrap.Modal(modalElement);
+      bootstrapModal.show();
+    }
+
     this.resetForm();
-    this.needsBackup = currentNeedsBackup;
     this.cdr.detectChanges();
   }
 
@@ -537,15 +543,19 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   private resetForm() {
-    // Do not reset needsBackup here to preserve the user's choice
+    // Preserve needsBackup value
     this.selectedFiles = [];
     this.fileName = '';
-    this.localPath = '';
-    this.backupTime = '';
-    this.retentionDays = 7;
-    this.backupFrequency = 'Daily';
-    this.dayOfWeek = '';
-    this.dayOfMonth = null;
+    this.folderName = '';
+    if (this.needsBackup === 'no') {
+      // Only reset fields not related to backup scheduling
+      this.localPath = '';
+      this.backupTime = '';
+      this.retentionDays = 7;
+      this.backupFrequency = 'Daily';
+      this.dayOfWeek = '';
+      this.dayOfMonth = null;
+    }
     this.overallProgress = 0;
     this.chunkProgress = 0;
     this.currentFileIndex = 0;
