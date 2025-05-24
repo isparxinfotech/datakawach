@@ -31,31 +31,74 @@
                   <input type="email" id="email" class="form-control" [(ngModel)]="email" placeholder="e.g., user@example.com" readonly>
                 </div>
                 <div class="col-md-5">
-                  <label for="folderName" class="form-label fw-semibold" style="color: black;">Select Folder</label>
-                  <select id="folderName" class="form-control" [(ngModel)]="folderName" required>
+                  <label for="folderName" class="form-label fw-semibold" style="color: black;">Select Root Folder</label>
+                  <select id="folderName" class="form-control" [(ngModel)]="folderName" (ngModelChange)="listOneDriveContents()">
                     <option value="" disabled selected>Select a folder</option>
-                    <option *ngFor="let folder of oneDriveFolders" [value]="folder.name">{{ folder.name }}</option>
+                    <option *ngFor="let folder of oneDriveFolders" [value]="folder.name">
+                      {{ folder.name }} ({{ formatSize(folder.size) }})
+                    </option>
                   </select>
-                  <small *ngIf="oneDriveFolders.length === 0" class="text-muted">No folders found. Please create a folder in OneDrive.</small>
+                  <small *ngIf="oneDriveFolders.length === 0 && !loadingOneDrive" class="text-muted">
+                    No folders found. Please create a folder in OneDrive or check your account settings.
+                  </small>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
-                  <button class="btn btn-primary w-100" (click)="listOneDriveFiles()" [disabled]="!email || !folderName || loadingOneDrive">
-                    {{ loadingOneDrive ? 'Loading...' : 'List Files' }}
+                  <button class="btn btn-primary w-100" (click)="listOneDriveContents()" [disabled]="!email || !folderName || loadingOneDrive || oneDriveFolders.length === 0">
+                    {{ loadingOneDrive ? 'Loading...' : 'List Contents' }}
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- File Cards -->
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" *ngIf="oneDriveFiles.length > 0">
-              <div class="col" *ngFor="let file of oneDriveFiles">
+            <!-- Breadcrumbs and Back Button -->
+            <div class="d-flex justify-content-between align-items-center mb-3" *ngIf="currentPath || pathHistory.length > 0">
+              <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                  <li class="breadcrumb-item">
+                    <a href="javascript:void(0)" class="text-primary" (click)="listRootFolders()">Root</a>
+                  </li>
+                  <li *ngFor="let pathSegment of currentPath.split('/'); let i = index" class="breadcrumb-item">
+                    <a href="javascript:void(0)" class="text-primary" (click)="navigateToPathSegment(i)">{{ pathSegment }}</a>
+                  </li>
+                </ol>
+              </nav>
+              <button *ngIf="pathHistory.length > 0" class="btn btn-outline-primary" (click)="navigateBack()">
+                <i class="bi bi-arrow-left me-1"></i> Back
+              </button>
+            </div>
+
+            <!-- Content Cards -->
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" *ngIf="oneDriveContents.length > 0">
+              <div class="col" *ngFor="let item of oneDriveContents">
                 <div class="card h-100 shadow-sm file-card">
                   <div class="card-body text-center">
-                    <i class="bi bi-file-earmark-text fs-2 text-muted mb-3"></i>
-                    <h5 class="card-title text-truncate" title="{{file.name}}">{{file.name}}</h5>
+                    <i [ngClass]="{
+                      'bi bi-file-earmark-text': item.type === 'file',
+                      'bi bi-folder-fill': item.type === 'folder',
+                      'fs-2': true,
+                      'text-muted': true,
+                      'mb-3': true
+                    }"></i>
+                    <h5 class="card-title text-truncate" title="{{item.name}}">{{item.name}}</h5>
+                    <p class="card-text text-muted small">
+                      Type: {{item.type | titlecase}}<br>
+                      Size: {{item.size !== undefined ? formatSize(item.size) : 'N/A'}}
+                    </p>
                     <div class="btn-group mt-3">
-                      <button class="btn btn-sm btn-outline-success" (click)="requestOtpForDownload(file.downloadUrl, file.name)" [disabled]="loadingOtp">
-                        <i class="bi bi-download me-1"></i> {{ loadingOtp ? 'Requesting OTP...' : 'Restore' }}
+                      <button *ngIf="item.type === 'file' && item.downloadUrl" class="btn btn-sm btn-outline-success" (click)="downloadFile(item.downloadUrl, item.name)" title="Download file">
+                        <i class="bi bi-download me-1"></i> Download
+                      </button>
+                      <button *ngIf="item.type === 'file' && !item.downloadUrl" class="btn btn-sm btn-outline-secondary" disabled title="Download not available">
+                        <i class="bi bi-download me-1"></i> Download
+                      </button>
+                      <button *ngIf="item.type === 'file' && item.downloadUrl" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)" title="View file">
+                        <i class="bi bi-eye me-1"></i> View
+                      </button>
+                      <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listFolderContents(item.name)" title="View folder contents">
+                        <i class="bi bi-folder me-1"></i> View Folder
+                      </button>
+                      <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-success" (click)="downloadFolder(item.name)" title="Download folder as ZIP">
+                        <i class="bi bi-download me-1"></i> Download
                       </button>
                     </div>
                   </div>
@@ -64,9 +107,9 @@
             </div>
 
             <!-- Messages -->
-            <div class="mt-4" *ngIf="oneDriveFiles.length === 0 && !loadingOneDrive && (email || folderName)">
+            <div class="mt-4" *ngIf="oneDriveContents.length === 0 && !loadingOneDrive && (email || currentPath)">
               <div class="alert alert-info text-center" *ngIf="!oneDriveErrorMessage">
-                No files found in "{{folderName}}" for "{{email}}".
+                No contents found in "{{currentPath || folderName}}" for "{{email}}".
               </div>
               <div class="alert alert-danger text-center" *ngIf="oneDriveErrorMessage">
                 {{oneDriveErrorMessage}}
@@ -140,13 +183,13 @@
                         Size: {{item.size !== undefined ? formatSize(item.size) : 'N/A'}}
                       </p>
                       <div class="btn-group mt-3">
-                        <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-success" (click)="requestOtpForDownload(item.downloadUrl, item.name)" [disabled]="loadingOtp">
+                        <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-success" (click)="downloadFile(item.downloadUrl, item.name)">
                           <i class="bi bi-download me-1"></i> Download
                         </button>
                         <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
                           <i class="bi bi-eye me-1"></i> View
                         </button>
-                        <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.prefix)">
+                        <button *ngIf="item.type === 'folder' && item.prefix" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.prefix)">
                           <i class="bi bi-folder me-1"></i> View Folder
                         </button>
                       </div>
@@ -179,33 +222,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Custom OTP Modal -->
-      <div class="custom-modal" *ngIf="showOtpModal" (click)="closeOtpModal()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h5>Enter OTP</h5>
-            <button class="close-button" (click)="closeOtpModal()">×</button>
-          </div>
-          <div class="modal-body">
-            <p *ngIf="!otpErrorMessage">An OTP has been sent to Admin. Please enter it below to download "{{selectedFileName}}".</p>
-            <div class="form-group">
-              <label for="otpInput">OTP</label>
-              <input #otpInputElement type="text" id="otpInput" class="form-control" [(ngModel)]="otpInput" placeholder="Enter 6-digit OTP" maxlength="6">
-            </div>
-            <div class="error-message" *ngIf="otpErrorMessage">
-              {{otpErrorMessage}}
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" (click)="closeOtpModal()">Cancel</button>
-            <button class="btn btn-primary" (click)="verifyOtpAndDownload()" [disabled]="!otpInput || loadingOtp">
-              {{ loadingOtp ? 'Verifying...' : 'Verify and Download' }}
-            </button>
-          </div>
-        </div>
-      </div>
-      <div class="modal-backdrop" *ngIf="showOtpModal"></div>
     </div>
   </div>
 </div>
