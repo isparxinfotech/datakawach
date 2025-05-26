@@ -1,6 +1,8 @@
-import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { throwError } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { SuperAdminService } from 'src/app/services/super-admin.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
@@ -36,7 +38,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   errorMessage: string = '';
   successMessage: string = '';
   totalSize: number = 0;
-  totalStorage: number = 5_000_000_000_000; // 1 TB in bytes
+  totalStorage: number = 5_000_000_000_000; // 5 TB in bytes
   remainingStorage: number = this.totalStorage;
   nextLink: string = ''; // Store pagination link
 
@@ -54,16 +56,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   private storageChart: Chart<'doughnut', number[], string> | undefined;
   private folderUsageChart: Chart | undefined;
 
-  private subscription?: Subscription;
-  private userSubscription?: Subscription;
+  private subscriptions: Subscription[] = [];
   totalUsers: number = 0;
   isBlackAndWhiteTheme: boolean = false;
-  filteredContents: OneDriveItem[] = []; // Fixed type from never[] to OneDriveItem[]
+  filteredContents: OneDriveItem[] = [];
 
   constructor(
     private authService: AuthService,
     private http: HttpClient,
-    private superAdminService: SuperAdminService
+    private superAdminService: SuperAdminService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -75,9 +77,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         this.listRootFolders();
       } else {
         this.errorMessage = 'Only OneDrive is supported for corporate dashboard.';
+        this.cdr.detectChanges();
       }
     } else {
       this.errorMessage = 'User session details are incomplete. Please log in again.';
+      this.cdr.detectChanges();
     }
 
     // Fetch total corporate users
@@ -88,6 +92,14 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     // Delay chart initialization to ensure DOM is fully rendered
     setTimeout(() => {
       this.initializeCharts();
+      // Initialize Bootstrap modal
+      const modalElement = document.getElementById('renameModal');
+      if (modalElement) {
+        modalElement.addEventListener('hidden.bs.modal', () => {
+          this.closeRenameModal();
+        });
+      }
+      this.cdr.detectChanges();
     }, 0);
   }
 
@@ -101,31 +113,40 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     if (!this.userSessionDetails) {
       this.errorMessage = 'User session details are missing. Cannot fetch user list.';
       this.totalUsers = 0;
+      this.cdr.detectChanges();
       return;
     }
 
     this.userSessionDetails.userType = 5;
-    this.userSubscription = this.superAdminService.getUsersList(this.userSessionDetails).subscribe({
-      next: (response) => {
-        if (response && response.userInfo && Array.isArray(response.userInfo)) {
-          this.totalUsers = response.userInfo.length;
-        } else {
-          this.errorMessage = 'Failed to fetch user count: Invalid response from server.';
+    const sub = this.superAdminService.getUsersList(this.userSessionDetails)
+      .pipe(
+        catchError((err) => {
+          this.errorMessage = 'Failed to fetch user count. Please try again later.';
           this.totalUsers = 0;
+          console.error('Error fetching user list:', err);
+          this.cdr.detectChanges();
+          return throwError(() => new Error(this.errorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          if (response && response.userInfo && Array.isArray(response.userInfo)) {
+            this.totalUsers = response.userInfo.length;
+          } else {
+            this.errorMessage = 'Failed to fetch user count: Invalid response from server.';
+            this.totalUsers = 0;
+          }
+          this.cdr.detectChanges();
         }
-      },
-      error: (err) => {
-        this.errorMessage = 'Failed to fetch user count. Please try again later.';
-        this.totalUsers = 0;
-        console.error('Error fetching user list:', err);
-      }
-    });
+      });
+    this.subscriptions.push(sub);
   }
 
   toggleTheme(): void {
     this.isBlackAndWhiteTheme = !this.isBlackAndWhiteTheme;
     this.updateStorageChart();
     this.initFolderUsageChart();
+    this.cdr.detectChanges();
   }
 
   listRootFolders(): void {
@@ -138,6 +159,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   listFolderContents(folderName: string): void {
     if (!folderName) {
       this.errorMessage = 'Invalid folder name.';
+      this.cdr.detectChanges();
       return;
     }
     const newPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
@@ -158,6 +180,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     const pathSegments = this.currentPath.split('/');
     if (index >= pathSegments.length) {
       this.errorMessage = 'Invalid navigation path.';
+      this.cdr.detectChanges();
       return;
     }
     const newPath = pathSegments.slice(0, index + 1).join('/');
@@ -167,9 +190,10 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.loadFolderContents(newPath);
   }
 
-  async downloadFolder(folderName: string): Promise<void> {
+  downloadFolder(folderName: string): void {
     if (!this.username) {
       this.errorMessage = 'Please provide a username.';
+      this.cdr.detectChanges();
       return;
     }
 
@@ -179,67 +203,93 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
     const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
-    try {
-      const response = await this.http.get<any>(url).toPromise();
-      console.log('Download folder response:', response);
+    console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
 
-      if (!response || response.error) {
-        throw new Error(response?.error || 'Invalid response from server.');
-      }
+    const sub = this.http.get<{ files: OneDriveItem[] }>(url, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError((err) => {
+          this.handleDownloadError(err, folderPath);
+          return throwError(() => new Error(this.errorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          this.processFolderDownload(response, folderName, folderPath);
+        },
+        complete: () => {
+          this.loading = false;
+          this.cdr.detectChanges();
+        }
+      });
+    this.subscriptions.push(sub);
+  }
 
-      const files = response.files || [];
-      if (!Array.isArray(files) || files.length === 0) {
-        this.errorMessage = `No files found in folder "${folderPath}".`;
-        this.loading = false;
-        return;
-      }
+  private async processFolderDownload(response: { files: OneDriveItem[] }, folderName: string, folderPath: string): Promise<void> {
+    const files = response.files || [];
+    if (!Array.isArray(files) || files.length === 0) {
+      this.errorMessage = `No files found in folder "${folderPath}".`;
+      this.loading = false;
+      this.cdr.detectChanges();
+      return;
+    }
 
-      const zip = new JSZip();
-      let hasFiles = false;
-      for (const file of files) {
-        if (file.type === 'file' && file.downloadUrl) {
-          console.log(`Fetching file: ${file.name}`);
-          try {
-            const fileResponse = await this.http.get(file.downloadUrl, { responseType: 'blob' }).toPromise();
-            if (fileResponse) {
-              zip.file(file.name, fileResponse);
-              hasFiles = true;
-            } else {
-              console.warn(`No content received for file: ${file.name}`);
-              this.errorMessage += `Skipped ${file.name} (no content). `;
-            }
-          } catch (err: any) {
-            console.error(`Failed to fetch file ${file.name}:`, err);
-            this.errorMessage += `Failed to include ${file.name} in ZIP. `;
+    const zip = new JSZip();
+    let hasFiles = false;
+
+    for (const file of files) {
+      if (file.type === 'file' && file.downloadUrl) {
+        console.log(`Fetching file: ${file.name}`);
+        try {
+          const fileResponse = await this.http.get(file.downloadUrl, { responseType: 'blob' }).toPromise();
+          if (fileResponse) {
+            zip.file(file.name, fileResponse);
+            hasFiles = true;
+          } else {
+            console.warn(`No content received for file: ${file.name}`);
+            this.errorMessage += `Skipped ${file.name} (no content). `;
           }
+        } catch (err: any) {
+          console.error(`Failed to fetch file ${file.name}:`, err);
+          this.errorMessage += `Failed to include ${file.name} in ZIP. `;
         }
       }
+    }
 
-      if (!hasFiles) {
-        this.errorMessage = this.errorMessage || `No valid files were included in the ZIP for "${folderPath}".`;
-        this.loading = false;
-        return;
-      }
+    if (!hasFiles) {
+      this.errorMessage = this.errorMessage || `No valid files were included in the ZIP for "${folderPath}".`;
+      this.loading = false;
+      this.cdr.detectChanges();
+      return;
+    }
 
+    try {
       const zipBlob = await zip.generateAsync({ type: 'blob' });
       saveAs(zipBlob, `${folderName}.zip`);
       console.log(`ZIP file created for folder: ${folderPath}`);
       this.successMessage = `Folder "${folderName}" downloaded as ZIP successfully.`;
-      this.loading = false;
     } catch (err: any) {
+      this.errorMessage = 'Failed to generate ZIP file.';
+      console.error('Error generating ZIP:', err);
+    } finally {
       this.loading = false;
-      let errorMessage = err.message || 'Failed to download folder. Please try again.';
-      if (err.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (err.status === 404) {
-        errorMessage = `Folder "${folderPath}" not found.`;
-      } else if (err.message?.includes('multi-factor authentication')) {
-        errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
-      }
-      this.errorMessage = errorMessage;
-      console.error(`Error downloading folder: ${errorMessage}`, err);
+      this.cdr.detectChanges();
     }
   }
+
+  private handleDownloadError(err: any, folderPath: string): void {
+    this.loading = false;
+    let errorMessage = err.error?.message || 'Failed to download folder. Please try again.';
+    if (err.status === 401) {
+      errorMessage = 'Authentication failed. Please log in again.';
+    } else if (err.status === 404) {
+        errorMessage = `Folder "${folderPath}"` + ' does not exist.';
+    } else if (err.error?.includes('multi-factor authentication')) {
+      errorMessage = 'Multi-factor authentication is required for OneDrive. Contact your administrator to enable this.';
+    }
+    this.errorMessage = errorMessage;
+    console.error(`Failed to download folder "${folderPath}": ${errorMessage}`, err);
+    this.cdr.detectChanges();
+}
 
   openRenameModal(folderName: string): void {
     this.selectedFolder = folderName;
@@ -247,6 +297,15 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.renameError = '';
     this.successMessage = '';
     this.showRenameModal = true;
+    const modalElement = document.getElementById('renameModal');
+    if (modalElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Modal) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+      }
+    }
+    this.cdr.detectChanges();
   }
 
   closeRenameModal(): void {
@@ -254,44 +313,77 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.selectedFolder = '';
     this.newFolderName = '';
     this.renameError = '';
+    const modalElement = document.getElementById('renameModal');
+    if (modalElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Modal) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+          modal.hide();
+        }
+      }
+    }
+    this.cdr.detectChanges();
   }
 
-  async renameFolder(): Promise<void> {
+  renameFolder(): void {
     if (!this.username || !this.newFolderName.trim()) {
-      this.renameError = 'Please provide a valid folder name.';
+      this.renameError = 'Please enter a valid folder name.';
+      this.cdr.detectChanges();
       return;
     }
 
     const folderPath = this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder;
-    const url = `https://datakavach.com/onedrive/rename-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}&newFolderName=${encodeURIComponent(this.newFolderName)}`;
+    const url = 'https://datakavach.com/onedrive/rename-folder';
+
+    const requestBody = {
+      username: this.username,
+      folderPath: folderPath,
+      newFolderName: this.newFolderName
+    };
 
     this.loading = true;
     this.renameError = '';
     this.successMessage = '';
 
-    try {
-      const response = await this.http.patch<any>(url, {}, { observe: 'response' }).toPromise();
-      if (response && response.status >= 200 && response.status < 300) {
-        this.closeRenameModal();
-        this.loadFolderContents(this.currentPath);
-        this.successMessage = response.body?.message || 'Folder renamed successfully.';
-        console.log(`Folder renamed: ${folderPath} to ${this.newFolderName}`);
-      } else {
-        throw new Error(`Unexpected response: ${response ? response.status : 'undefined'}`);
-      }
-      this.loading = false;
-    } catch (err: any) {
-      this.loading = false;
-      let errorMessage = err.error?.message || err.message || 'Failed to rename folder. Please try again.';
-      if (err.status === 401) {
-        errorMessage = 'Authentication failed. Please log in again.';
-      } else if (err.status === 404) {
-        errorMessage = `Folder "${folderPath}" not found.`;
-      } else if (err.error?.message?.includes('multi-factor authentication')) {
-        errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
-      }
-      this.renameError = errorMessage;
-    }
+    const sub = this.http.patch<{ message?: string }>(url, requestBody, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError((err) => {
+          this.loading = false;
+          let errorMessage = err.error?.message || 'Failed to rename folder. Please try again.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+          } else if (err.status === 404) {
+            errorMessage = `Folder "${folderPath}" not found.`;
+          } else if (err.status === 400) {
+            errorMessage = err.error.message || 'Invalid request. Please check the folder name and try again.';
+          } else if (err.error?.includes('multi-factor authentication')) {
+            errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
+          }
+          this.renameError = errorMessage;
+          console.error(`Error renaming folder "${folderPath}" to "${this.newFolderName}": ${errorMessage}`, err);
+          this.cdr.detectChanges();
+          return throwError(() => new Error(errorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          this.successMessage = response.message || `Folder "${this.selectedFolder}" renamed to "${this.newFolderName}" successfully.`;
+          this.closeRenameModal();
+          this.loadFolderContents(this.currentPath);
+          this.loading = false;
+          this.cdr.detectChanges();
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  private getAuthHeaders(): HttpHeaders {
+    const token = this.userSessionDetails?.jwtToken || '';
+    return new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
   }
 
   private loadFolderContents(folderPath: string): void {
@@ -299,7 +391,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.errorMessage = 'Please provide a username.';
       this.loading = false;
       this.oneDriveContents = [];
-      this.filteredContents = [];
+      this.cdr.detectChanges();
       return;
     }
 
@@ -316,74 +408,129 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     console.log(`Loading contents for folder path: ${folderPath || 'root'} (URL: ${url})`);
 
-    this.subscription = this.http.get<any>(url).subscribe({
-      next: (response) => {
-        console.log('Folder contents response:', response, 'Type:', typeof response);
-        if (response && response.error) {
-          let errorMessage = response.error || 'Error fetching folder contents.';
-          if (response.error?.includes('multi-factor authentication')) {
+    const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(url, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError((err) => {
+          this.loading = false;
+          let errorMessage = err.error?.error || 'Failed to list contents. Please try again.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+          } else if (err.status === 404) {
+            errorMessage = `The folder "${folderPath || 'root'}" does not exist in your OneDrive.`;
+          } else if (err.error?.error?.includes('multi-factor authentication')) {
             errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
           }
           this.errorMessage = errorMessage;
-          this.loading = false;
           this.oneDriveContents = [];
-          this.filteredContents = [];
-          return;
-        }
+          console.error(`Error loading folder contents: ${errorMessage}`, err);
+          this.cdr.detectChanges();
+          return throwError(() => new Error(errorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          let items: OneDriveItem[] = [];
+          if (folderPath) {
+            items = response.contents || [];
+            this.nextLink = response.nextLink || '';
+          } else {
+            items = response.folders || [];
+            this.nextLink = response.nextLink || '';
+          }
 
-        let items: any[] = [];
-        if (folderPath) {
-          items = response.contents || [];
-          this.nextLink = response.nextLink || '';
-        } else {
-          items = response.folders || [];
-          this.nextLink = response.nextLink || '';
-        }
+          if (!Array.isArray(items)) {
+            this.errorMessage = `Invalid response format from server. Expected an array of items.`;
+            console.error('Invalid response:', response);
+            this.loading = false;
+            this.oneDriveContents = [];
+            this.cdr.detectChanges();
+            return;
+          }
 
-        if (!Array.isArray(items)) {
-          this.errorMessage = `Invalid response format from server. Expected an array of items. Received: ${JSON.stringify(response, null, 2)}`;
-          console.error('Invalid response:', response);
+          this.oneDriveContents = items.map(item => ({
+            name: item.name || 'Unknown',
+            id: item.id || 'N/A',
+            size: item.size || 0,
+            type: item.type || 'folder',
+            downloadUrl: item.downloadUrl
+          }));
+          this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
+          this.remainingStorage = this.totalStorage - this.totalSize;
+          this.filteredContents = [...this.oneDriveContents];
+          this.sortContents();
           this.loading = false;
-          this.oneDriveContents = [];
-          this.filteredContents = [];
-          return;
+          this.updateStorageChart();
+          this.initFolderUsageChart();
+          if (this.oneDriveContents.length === 0) {
+            this.errorMessage = `No items found in ${folderPath || 'root'}.`;
+          }
+          console.log('Processed oneDriveContents:', this.oneDriveContents, 'NextLink:', this.nextLink);
+          this.cdr.detectChanges();
         }
+      });
+    this.subscriptions.push(sub);
+  }
 
-        this.oneDriveContents = items.map(item => ({
-          name: item.name || 'Unknown',
-          id: item.id || 'N/A',
-          size: item.size || 0,
-          type: item.type || 'folder', // Default to 'folder' if type is missing
-          downloadUrl: item.downloadUrl
-        }));
-        this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
-        this.remainingStorage = this.totalStorage - this.totalSize;
-        this.filteredContents = [...this.oneDriveContents];
-        this.sortContents();
-        this.loading = false;
-        this.updateStorageChart();
-        this.initFolderUsageChart();
-        if (this.oneDriveContents.length === 0) {
-          this.errorMessage = `No items found in ${folderPath || 'root'}.`;
+  // New method to handle pagination
+  loadMoreContents(): void {
+    if (!this.nextLink || this.loading) {
+      return;
+    }
+
+    this.loading = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(this.nextLink, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError((err) => {
+          this.loading = false;
+          let errorMessage = err.error?.error || 'Failed to load more contents. Please try again.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+          } else if (err.status === 404) {
+            errorMessage = `No more contents available.`;
+          }
+          this.errorMessage = errorMessage;
+          console.error(`Error loading more contents: ${errorMessage}`, err);
+          this.cdr.detectChanges();
+          return throwError(() => new Error(errorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          let items: OneDriveItem[] = response.contents || response.folders || [];
+          this.nextLink = response.nextLink || '';
+
+          if (!Array.isArray(items)) {
+            this.errorMessage = `Invalid response format from server. Expected an array of items.`;
+            console.error('Invalid response:', response);
+            this.loading = false;
+            this.cdr.detectChanges();
+            return;
+          }
+
+          const newItems = items.map(item => ({
+            name: item.name || 'Unknown',
+            id: item.id || 'N/A',
+            size: item.size || 0,
+            type: item.type || 'folder',
+            downloadUrl: item.downloadUrl
+          }));
+
+          this.oneDriveContents = [...this.oneDriveContents, ...newItems];
+          this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
+          this.remainingStorage = this.totalStorage - this.totalSize;
+          this.filteredContents = [...this.oneDriveContents];
+          this.sortContents();
+          this.loading = false;
+          this.updateStorageChart();
+          this.initFolderUsageChart();
+          console.log('Loaded more contents:', newItems, 'NextLink:', this.nextLink);
+          this.cdr.detectChanges();
         }
-        console.log('Processed oneDriveContents:', this.oneDriveContents, 'NextLink:', this.nextLink);
-      },
-      error: (err) => {
-        this.loading = false;
-        let errorMessage = err.error?.error || 'Failed to list contents. Please try again.';
-        if (err.status === 401) {
-          errorMessage = 'Authentication failed. Please log in again.';
-        } else if (err.status === 404) {
-          errorMessage = `The folder "${folderPath || 'root'}" does not exist in your OneDrive.`;
-        } else if (err.error?.error?.includes('multi-factor authentication')) {
-          errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
-        }
-        this.errorMessage = errorMessage;
-        this.oneDriveContents = [];
-        this.filteredContents = [];
-        console.error(`Error loading folder contents: ${errorMessage}`, err);
-      }
-    });
+      });
+    this.subscriptions.push(sub);
   }
 
   updateStorageChart(): void {
@@ -523,7 +670,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
   }
 
-  // Method to check if there are any folders
   hasFolders(): boolean {
     return this.filteredContents.some(item => item.type === 'folder');
   }
@@ -542,6 +688,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     );
     this.sortContents();
     this.initFolderUsageChart();
+    this.cdr.detectChanges();
   }
 
   sortContents(): void {
@@ -556,15 +703,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       return 0;
     });
     this.initFolderUsageChart();
+    this.cdr.detectChanges();
   }
 
   ngOnDestroy(): void {
-    if (this.subscription) {
-      this.subscription.unsubscribe();
-    }
-    if (this.userSubscription) {
-      this.userSubscription.unsubscribe();
-    }
+    this.subscriptions.forEach(sub => sub.unsubscribe());
     if (this.storageChart) {
       this.storageChart.destroy();
     }
