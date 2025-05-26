@@ -188,9 +188,9 @@
                     <label for="newFolderName" class="form-label">New Folder Name</label>
                     <input type="text" class="form-control" id="newFolderName" [(ngModel)]="newFolderName" placeholder="Enter new folder name" required>
                   </div>
-                  <!-- <div *ngIf="renameError" class="alert alert-danger" role="alert">
-                    {{ renameError }}
-                  </div> -->
+                  <div *ngIf="renameError" class="alert alert-danger" role="alert">
+                    <!-- {{ renameError }} --> Techinal issue, please try again later, or contact support.
+                  </div>
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-secondary" (click)="closeRenameModal()">Cancel</button>
