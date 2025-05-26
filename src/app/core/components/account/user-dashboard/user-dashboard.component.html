@@ -186,9 +186,9 @@
                         <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-success" (click)="downloadFile(item.downloadUrl, item.name)">
                           <i class="bi bi-download me-1"></i> Download
                         </button>
-                        <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
+                        <!-- <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
                           <i class="bi bi-eye me-1"></i> View
-                        </button>
+                        </button> -->
                         <button *ngIf="item.type === 'folder' && item.prefix" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.prefix)">
                           <i class="bi bi-folder me-1"></i> View Folder
                         </button>
