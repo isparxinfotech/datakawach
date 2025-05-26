@@ -23,11 +23,13 @@ interface BackupSchedule {
   retryCount: number;
 }
 
-// Interface for File details from /onedrive/files endpoint
-interface FileInfo {
+// Interface for File/Folder details from /onedrive/folder-contents endpoint
+interface ContentInfo {
   name: string;
   id: string;
-  downloadUrl: string;
+  size: number;
+  type: 'file' | 'folder';
+  downloadUrl?: string;
 }
 
 // Interface for Folder details from /onedrive/folders endpoint
@@ -43,7 +45,11 @@ interface FolderInfo {
   styleUrls: []
 })
 export class UploadComponent implements OnInit, OnDestroy {
-  folderName: string = '';
+  folderName: string = ''; // Legacy field, kept for compatibility
+  selectedRootFolder: string = ''; // Selected root folder
+  folderPath: string = ''; // Full path including subfolders
+  folderPathSegments: string[] = []; // For breadcrumb navigation
+  folderContents: ContentInfo[] = []; // Contents of current folder
   fileName: string = '';
   fileNameError: string = '';
   localPath: string = '';
@@ -68,8 +74,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   needsBackup: 'yes' | 'no' = 'yes';
   isLoading: boolean = true;
   isSchedulesLoading: boolean = false;
-  isFilesLoading: boolean = false;
-  files: FileInfo[] = [];
+  isFolderContentsLoading: boolean = false;
   nextLink: string = '';
   private subscriptions: Subscription[] = [];
 
@@ -124,7 +129,6 @@ export class UploadComponent implements OnInit, OnDestroy {
 
   onBackupChoiceChange() {
     if (this.needsBackup === 'no') {
-      // Reset scheduling fields when switching to "No Backup"
       this.localPath = '';
       this.backupTime = '';
       this.retentionDays = 7;
@@ -167,7 +171,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     if (this.needsBackup === 'no') {
       return !!(
         this.userSessionDetails?.username &&
-        this.folderName &&
+        this.folderPath &&
         this.fileName &&
         !this.fileNameError &&
         this.selectedFiles.length > 0
@@ -175,7 +179,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
     return !!(
       this.userSessionDetails?.username &&
-      this.folderName &&
+      this.folderPath &&
       this.fileName &&
       !this.fileNameError &&
       this.localPath &&
@@ -208,7 +212,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     const url = 'https://datakavach.com/onedrive/schedule';
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
-    body.append('folderName', this.folderName);
+    body.append('folderName', this.folderPath); // Use full folder path
     body.append('fileName', this.fileName);
     body.append('localPath', this.localPath);
     body.append('backupTime', this.backupTime + ':00');
@@ -337,56 +341,77 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  async loadFiles(nextLink?: string) {
-    if (!this.userSessionDetails?.username || !this.folderName) {
-      this.message = 'Please select a folder to list files';
+  async loadFolderContents(folderPath: string, nextLink?: string) {
+    if (!this.userSessionDetails?.username) {
+      this.message = 'No user logged in';
       this.isSuccess = false;
-      this.files = [];
+      this.folderContents = [];
       this.nextLink = '';
       this.cdr.detectChanges();
       return;
     }
 
-    this.isFilesLoading = true;
+    this.isFolderContentsLoading = true;
     this.message = '';
-    let url = `https://datakavach.com/onedrive/files?username=${encodeURIComponent(this.userSessionDetails.username)}&folderName=${encodeURIComponent(this.folderName)}`;
+    let url = `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
     if (nextLink) {
       url = nextLink;
     }
 
     try {
-      const response = await this.http.get<{ files: FileInfo[], nextLink: string }>(url, {
+      const response = await this.http.get<{ contents: ContentInfo[], nextLink: string }>(url, {
         headers: this.getAuthHeaders()
       }).toPromise();
-      this.files = response?.files || [];
+      this.folderContents = response?.contents || [];
       this.nextLink = response?.nextLink || '';
-      if (this.files.length === 0) {
-        this.message = 'No files found in the selected folder.';
+      if (this.folderContents.length === 0) {
+        this.message = 'No contents found in the selected folder.';
         this.isSuccess = false;
       }
     } catch (err: any) {
-      let errorMessage = 'Failed to load files';
+      let errorMessage = 'Failed to load folder contents';
       if (err.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
       } else if (err.status === 404) {
-        errorMessage = 'Folder not found or no files available.';
+        errorMessage = 'Folder not found.';
       } else if (err.error?.message) {
         errorMessage = err.error.message;
       }
       this.handleError(new Error(errorMessage));
-      this.files = [];
+      this.folderContents = [];
       this.nextLink = '';
     } finally {
-      this.isFilesLoading = false;
+      this.isFolderContentsLoading = false;
       this.cdr.detectChanges();
     }
   }
 
-  onFolderChange() {
-    this.files = [];
-    this.nextLink = '';
-    this.loadFiles();
+  onRootFolderChange() {
+    this.folderPath = this.selectedRootFolder;
+    this.folderPathSegments = this.folderPath ? this.folderPath.split('/') : [];
+    this.folderName = this.folderPath; // For backward compatibility
+    this.loadFolderContents(this.folderPath);
     this.cdr.detectChanges();
+  }
+
+  selectSubFolder(subFolderName: string) {
+    this.folderPath = this.folderPath ? `${this.folderPath}/${subFolderName}` : subFolderName;
+    this.folderPathSegments = this.folderPath.split('/');
+    this.folderName = this.folderPath; // For backward compatibility
+    this.loadFolderContents(this.folderPath);
+    this.cdr.detectChanges();
+  }
+
+  navigateToFolder(path: string) {
+    this.folderPath = path;
+    this.folderPathSegments = path ? path.split('/') : [];
+    this.folderName = this.folderPath; // For backward compatibility
+    this.loadFolderContents(this.folderPath);
+    this.cdr.detectChanges();
+  }
+
+  getPathUpToIndex(index: number): string {
+    return this.folderPathSegments.slice(0, index + 1).join('/');
   }
 
   onFrequencyChange() {
@@ -396,7 +421,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   async onUpload() {
-    if (!this.userSessionDetails?.username || !this.folderName || this.selectedFiles.length === 0) {
+    if (!this.userSessionDetails?.username || !this.folderPath || this.selectedFiles.length === 0) {
       this.message = 'Please select a folder and at least one file for upload';
       this.isSuccess = false;
       this.uploading = false;
@@ -430,7 +455,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         const formData = new FormData();
         formData.append('username', this.userSessionDetails!.username);
-        formData.append('folderName', this.folderName);
+        formData.append('folderName', this.folderPath); // Use full folder path
         formData.append('file', chunk, rawFileName);
         formData.append('chunkIndex', chunkIndex.toString());
         formData.append('totalChunks', totalChunks.toString());
@@ -471,7 +496,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     this.handleSuccess('All files uploaded successfully');
-    this.loadFiles();
+    this.loadFolderContents(this.folderPath);
     this.cdr.detectChanges();
   }
 
@@ -511,10 +536,8 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.scheduling = false;
     this.isSuccess = true;
     this.message = typeof response === 'string' ? response : 'Operation completed successfully!';
-    // Show the success modal
     const modal = new (window as any).bootstrap.Modal(document.getElementById('successModal'));
     modal.show();
-    // Preserve needsBackup value by not resetting it in resetForm
     const currentNeedsBackup = this.needsBackup;
     this.resetForm();
     this.needsBackup = currentNeedsBackup;
@@ -537,7 +560,6 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   private resetForm() {
-    // Do not reset needsBackup here to preserve the user's choice
     this.selectedFiles = [];
     this.fileName = '';
     this.localPath = '';

@@ -16,7 +16,7 @@ export class ChatComponent implements OnInit {
   isLoading: boolean = false;
 
   constructor(private chatService: ChatService, private http: HttpClient) {
-    // Updated to new backend URL
+    // Updated to new backend URLhttps://da
     const apiUrl = 'https://datakavach-chatbot.onrender.com/chatbot-api/user';
     this.http.get<{ userId: string }>(apiUrl).subscribe({
       next: (data) => {
