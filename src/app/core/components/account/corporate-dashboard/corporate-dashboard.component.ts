@@ -1,14 +1,13 @@
 import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, retry } from 'rxjs/operators'; // Added retry
 import { throwError } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { SuperAdminService } from 'src/app/services/super-admin.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { Chart, registerables } from 'chart.js';
-import * as JSZip from 'jszip';
-import { saveAs } from 'file-saver';
+import { saveAs } from 'file-saver'; // Removed JSZip
 
 // Register Chart.js components
 Chart.register(...registerables);
@@ -191,8 +190,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   downloadFolder(folderName: string): void {
-    if (!this.username) {
-      this.errorMessage = 'Please provide a username.';
+    if (!this.username || !folderName) {
+      this.errorMessage = 'Invalid folder or user email.';
+      console.error('Invalid parameters:', { folderName, username: this.username });
       this.cdr.detectChanges();
       return;
     }
@@ -200,96 +200,44 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.loading = true;
     this.errorMessage = '';
     this.successMessage = '';
+
     const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
     const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
     console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
 
-    const sub = this.http.get<{ files: OneDriveItem[] }>(url, { headers: this.getAuthHeaders() })
+    const sub = this.http
+      .get(url, { headers: this.getAuthHeaders(), responseType: 'blob' })
       .pipe(
+        retry({ count: 2, delay: 1000 }),
         catchError((err) => {
-          this.handleDownloadError(err, folderPath);
-          return throwError(() => new Error(this.errorMessage));
+          this.loading = false;
+          let errorMessage = err.error?.message || 'Failed to download folder. Please try again.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+          } else if (err.status === 404) {
+            errorMessage = `Folder "${folderPath}" not found.`;
+          } else if (err.status === 500) {
+            errorMessage = 'Server error. Please contact support.';
+          }
+          this.errorMessage = errorMessage;
+          console.error(`Failed to download folder "${folderPath}": ${errorMessage}`, err);
+          this.cdr.detectChanges();
+          return throwError(() => new Error(errorMessage));
         })
       )
       .subscribe({
         next: (response) => {
-          this.processFolderDownload(response, folderName, folderPath);
-        },
-        complete: () => {
+          const blob = new Blob([response], { type: 'application/zip' });
+          saveAs(blob, `${folderName}.zip`);
+          this.successMessage = `Folder "${folderName}" downloaded successfully as ZIP.`;
+          console.log(`Folder "${folderName}" downloaded successfully as ZIP.`);
           this.loading = false;
           this.cdr.detectChanges();
         }
       });
     this.subscriptions.push(sub);
   }
-
-  private async processFolderDownload(response: { files: OneDriveItem[] }, folderName: string, folderPath: string): Promise<void> {
-    const files = response.files || [];
-    if (!Array.isArray(files) || files.length === 0) {
-      this.errorMessage = `No files found in folder "${folderPath}".`;
-      this.loading = false;
-      this.cdr.detectChanges();
-      return;
-    }
-
-    const zip = new JSZip();
-    let hasFiles = false;
-
-    for (const file of files) {
-      if (file.type === 'file' && file.downloadUrl) {
-        console.log(`Fetching file: ${file.name}`);
-        try {
-          const fileResponse = await this.http.get(file.downloadUrl, { responseType: 'blob' }).toPromise();
-          if (fileResponse) {
-            zip.file(file.name, fileResponse);
-            hasFiles = true;
-          } else {
-            console.warn(`No content received for file: ${file.name}`);
-            this.errorMessage += `Skipped ${file.name} (no content). `;
-          }
-        } catch (err: any) {
-          console.error(`Failed to fetch file ${file.name}:`, err);
-          this.errorMessage += `Failed to include ${file.name} in ZIP. `;
-        }
-      }
-    }
-
-    if (!hasFiles) {
-      this.errorMessage = this.errorMessage || `No valid files were included in the ZIP for "${folderPath}".`;
-      this.loading = false;
-      this.cdr.detectChanges();
-      return;
-    }
-
-    try {
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      saveAs(zipBlob, `${folderName}.zip`);
-      console.log(`ZIP file created for folder: ${folderPath}`);
-      this.successMessage = `Folder "${folderName}" downloaded as ZIP successfully.`;
-    } catch (err: any) {
-      this.errorMessage = 'Failed to generate ZIP file.';
-      console.error('Error generating ZIP:', err);
-    } finally {
-      this.loading = false;
-      this.cdr.detectChanges();
-    }
-  }
-
-  private handleDownloadError(err: any, folderPath: string): void {
-    this.loading = false;
-    let errorMessage = err.error?.message || 'Failed to download folder. Please try again.';
-    if (err.status === 401) {
-      errorMessage = 'Authentication failed. Please log in again.';
-    } else if (err.status === 404) {
-        errorMessage = `Folder "${folderPath}"` + ' does not exist.';
-    } else if (err.error?.includes('multi-factor authentication')) {
-      errorMessage = 'Multi-factor authentication is required for OneDrive. Contact your administrator to enable this.';
-    }
-    this.errorMessage = errorMessage;
-    console.error(`Failed to download folder "${folderPath}": ${errorMessage}`, err);
-    this.cdr.detectChanges();
-}
 
   openRenameModal(folderName: string): void {
     this.selectedFolder = folderName;
