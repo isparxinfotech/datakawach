@@ -7,7 +7,7 @@ import { catchError, map } from 'rxjs/operators';
   providedIn: 'root'
 })
 export class S3Service {
-  private apiUrl = 'http://localhost:8080/api/AWSs3'; // Base URL for AdminDashboardComponent
+  private apiUrl = 'https://datakavach.com/api/AWSs3'; // Base URL for AdminDashboardComponent
 
   constructor(private http: HttpClient) {}
 
