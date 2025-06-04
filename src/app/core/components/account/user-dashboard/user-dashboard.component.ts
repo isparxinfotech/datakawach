@@ -40,7 +40,7 @@ interface S3Content {
 @Component({
   selector: 'app-user-dashboard',
   templateUrl: './user-dashboard.component.html',
-  styleUrls: ['./user-dashboard.component.css']
+  styleUrls: ['./user-dashboard.component.css'],
 })
 export class UserDashboardComponent implements OnInit, OnDestroy {
   userSessionDetails: userSessionDetails | null | undefined;
@@ -69,15 +69,20 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
     if (!this.userSessionDetails) {
       console.warn('No user session found. Skipping dashboard load.');
-      this.oneDriveErrorMessage = 'User session not found. Please log in again.';
+      this.oneDriveErrorMessage =
+        'User session not found. Please log in again.';
       return;
     }
 
     const { username, cloudProvider } = this.userSessionDetails;
 
     if (!username || !cloudProvider) {
-      console.error('User session details incomplete:', this.userSessionDetails);
-      this.oneDriveErrorMessage = 'Session details incomplete. Please log in again.';
+      console.error(
+        'User session details incomplete:',
+        this.userSessionDetails
+      );
+      this.oneDriveErrorMessage =
+        'Session details incomplete. Please log in again.';
       return;
     }
 
@@ -97,8 +102,8 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   private getAuthHeaders(): HttpHeaders {
     const token = this.userSessionDetails?.jwtToken || '';
     return new HttpHeaders({
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
     });
   }
 
@@ -114,7 +119,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       this.oneDriveErrorMessage = 'Invalid folder name.';
       return;
     }
-    const newPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
+    const newPath = this.currentPath
+      ? `${this.currentPath}/${folderName}`
+      : folderName;
     this.pathHistory.push(this.currentPath);
     this.currentPath = newPath;
     this.loadFolderContents(newPath);
@@ -149,29 +156,35 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.oneDriveErrorMessage = '';
     this.oneDriveFolders = [];
 
-    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.email)}`;
+    const url = `http://13.203.227.138/onedrive/folders?username=${encodeURIComponent(
+      this.email
+    )}`;
     console.log('Fetching OneDrive root folders:', { url, email: this.email });
 
     this.folderSubscription = this.http
       .get<{ folders: OneDriveFolder[]; nextLink: string }>(url, {
-        headers: this.getAuthHeaders()
+        headers: this.getAuthHeaders(),
       })
       .pipe(
         retry({
           count: 2,
-          delay: 1000
+          delay: 1000,
         }),
         catchError((err) => {
           this.loadingOneDrive = false;
-          let errorMessage = 'Failed to fetch OneDrive folders. Please try again later or contact support.';
+          let errorMessage =
+            'Failed to fetch OneDrive folders. Please try again later or contact support.';
           if (err.status === 500) {
-            errorMessage = 'Server error fetching OneDrive folders. This may be due to OneDrive configuration issues. Please contact support.';
+            errorMessage =
+              'Server error fetching OneDrive folders. This may be due to OneDrive configuration issues. Please contact support.';
           } else if (err.status === 401) {
             errorMessage = 'Authentication failed. Please log in again.';
           } else if (err.status === 404) {
-            errorMessage = 'User account not found or no OneDrive data available. Please register or contact support.';
+            errorMessage =
+              'User account not found or no OneDrive data available. Please register or contact support.';
           } else if (err.status === 0) {
-            errorMessage = 'Network or CORS error. Please check your internet connection or server configuration.';
+            errorMessage =
+              'Network or CORS error. Please check your internet connection or server configuration.';
           }
           this.oneDriveErrorMessage = err.error?.error || errorMessage;
           console.error('OneDrive folder error:', {
@@ -180,48 +193,64 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             url: err.url,
             message: err.message,
             error: err.error,
-            email: this.email
+            email: this.email,
           });
           return throwError(() => new Error(this.oneDriveErrorMessage));
         })
       )
       .subscribe({
         next: (response) => {
-          console.log('Raw response from /folders:', JSON.stringify(response, null, 2));
+          console.log(
+            'Raw response from /folders:',
+            JSON.stringify(response, null, 2)
+          );
           try {
-            if (!response || typeof response !== 'object' || !Array.isArray(response.folders)) {
-              throw new Error('Invalid response format: Expected { folders: [{ name, id, size }], nextLink: string }');
+            if (
+              !response ||
+              typeof response !== 'object' ||
+              !Array.isArray(response.folders)
+            ) {
+              throw new Error(
+                'Invalid response format: Expected { folders: [{ name, id, size }], nextLink: string }'
+              );
             }
             this.oneDriveFolders = response.folders.map((folder) => ({
               name: folder.name || 'Unknown Folder',
               id: folder.id || '',
-              size: folder.size || 0
+              size: folder.size || 0,
             }));
             if (this.oneDriveFolders.length === 0) {
-              this.oneDriveErrorMessage = 'No folders found in your OneDrive account. Please create a folder or verify your account.';
+              this.oneDriveErrorMessage =
+                'No folders found in your OneDrive account. Please create a folder or verify your account.';
             }
           } catch (parseError: any) {
             console.error('Error parsing /folders response:', {
               error: parseError.message,
-              response: JSON.stringify(response, null, 2)
+              response: JSON.stringify(response, null, 2),
             });
-            this.oneDriveErrorMessage = 'Invalid server response from OneDrive. Please try again or contact support.';
+            this.oneDriveErrorMessage =
+              'Invalid server response from OneDrive. Please try again or contact support.';
             this.oneDriveFolders = [];
           }
           this.loadingOneDrive = false;
           console.log('OneDrive folders loaded:', this.oneDriveFolders);
-        }
+        },
       });
   }
 
   listOneDriveContents(): void {
     if (!this.email || !this.folderName) {
       this.oneDriveErrorMessage = 'Please select a folder from the dropdown.';
-      console.error('Missing parameters:', { email: this.email, folderName: this.folderName });
+      console.error('Missing parameters:', {
+        email: this.email,
+        folderName: this.folderName,
+      });
       return;
     }
 
-    const isValidFolder = this.oneDriveFolders.some((folder) => folder.name === this.folderName);
+    const isValidFolder = this.oneDriveFolders.some(
+      (folder) => folder.name === this.folderName
+    );
     if (!isValidFolder) {
       this.oneDriveErrorMessage = `Invalid folder selected: "${this.folderName}". Please select a valid folder.`;
       console.error('Invalid folderName:', this.folderName);
@@ -246,31 +275,44 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
     const encodedFolderPath = encodeURIComponent(folderPath);
     const url = folderPath
-      ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=${encodedFolderPath}`
-      : `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=root`;
+      ? `http://13.203.227.138/onedrive/folder-contents?username=${encodeURIComponent(
+          this.email
+        )}&folderPath=${encodedFolderPath}`
+      : `http://13.203.227.138/onedrive/folder-contents?username=${encodeURIComponent(
+          this.email
+        )}&folderPath=root`;
 
-    console.log('Fetching OneDrive contents:', { url, email: this.email, folderPath });
+    console.log('Fetching OneDrive contents:', {
+      url,
+      email: this.email,
+      folderPath,
+    });
 
     this.contentsSubscription = this.http
       .get<{ contents: OneDriveContent[]; nextLink: string }>(url, {
-        headers: this.getAuthHeaders()
+        headers: this.getAuthHeaders(),
       })
       .pipe(
         retry({
           count: 2,
-          delay: 1000
+          delay: 1000,
         }),
         catchError((err) => {
           this.loadingOneDrive = false;
-          let errorMessage = 'Failed to fetch OneDrive contents. Please try again or contact support.';
+          let errorMessage =
+            'Failed to fetch OneDrive contents. Please try again or contact support.';
           if (err.status === 500) {
-            errorMessage = 'Server error fetching OneDrive contents. Please verify the folder or contact support.';
+            errorMessage =
+              'Server error fetching OneDrive contents. Please verify the folder or contact support.';
           } else if (err.status === 404) {
-            errorMessage = `Folder "${folderPath || 'root'}" not found in OneDrive for "${this.email}".`;
+            errorMessage = `Folder "${
+              folderPath || 'root'
+            }" not found in OneDrive for "${this.email}".`;
           } else if (err.status === 401) {
             errorMessage = 'Authentication failed. Please log in again.';
           } else if (err.status === 0) {
-            errorMessage = 'Network or CORS error. Please check your internet connection or server configuration.';
+            errorMessage =
+              'Network or CORS error. Please check your internet connection or server configuration.';
           }
           this.oneDriveErrorMessage = err.error?.error || errorMessage;
           console.error('OneDrive contents error:', {
@@ -280,17 +322,26 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             message: err.message,
             error: err.error,
             email: this.email,
-            folderPath
+            folderPath,
           });
           return throwError(() => new Error(this.oneDriveErrorMessage));
         })
       )
       .subscribe({
         next: (response) => {
-          console.log('Raw response from /folder-contents:', JSON.stringify(response, null, 2));
+          console.log(
+            'Raw response from /folder-contents:',
+            JSON.stringify(response, null, 2)
+          );
           try {
-            if (!response || typeof response !== 'object' || !Array.isArray(response.contents)) {
-              throw new Error('Invalid response format: Expected { contents: [{ name, type, id, size, downloadUrl }], nextLink: string }');
+            if (
+              !response ||
+              typeof response !== 'object' ||
+              !Array.isArray(response.contents)
+            ) {
+              throw new Error(
+                'Invalid response format: Expected { contents: [{ name, type, id, size, downloadUrl }], nextLink: string }'
+              );
             }
             this.oneDriveContents = response.contents.map((item) => {
               if (item.type === 'file' && !item.downloadUrl) {
@@ -301,23 +352,26 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
                 type: item.type || 'file',
                 id: item.id || '',
                 size: item.size,
-                downloadUrl: item.downloadUrl
+                downloadUrl: item.downloadUrl,
               };
             });
             if (this.oneDriveContents.length === 0) {
-              this.oneDriveErrorMessage = `No contents found in "${folderPath || 'root'}" for "${this.email}".`;
+              this.oneDriveErrorMessage = `No contents found in "${
+                folderPath || 'root'
+              }" for "${this.email}".`;
             }
           } catch (parseError: any) {
             console.error('Error parsing /folder-contents response:', {
               error: parseError.message,
-              response: JSON.stringify(response, null, 2)
+              response: JSON.stringify(response, null, 2),
             });
-            this.oneDriveErrorMessage = 'Invalid server response from OneDrive. Please try again or contact support.';
+            this.oneDriveErrorMessage =
+              'Invalid server response from OneDrive. Please try again or contact support.';
             this.oneDriveContents = [];
           }
           this.loadingOneDrive = false;
           console.log('OneDrive contents loaded:', this.oneDriveContents);
-        }
+        },
       });
   }
 
@@ -332,28 +386,32 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.s3ErrorMessage = '';
     this.buckets = [];
 
-    const url = `https://datakavach.com/s3/buckets?username=${encodeURIComponent(this.email)}`;
+    const url = `http://13.203.227.138/s3/buckets?username=${encodeURIComponent(
+      this.email
+    )}`;
     console.log('Fetching S3 buckets:', { url, email: this.email });
 
     this.bucketSubscription = this.http
       .get<{ buckets: S3Bucket[] }>(url, {
-        headers: this.getAuthHeaders()
+        headers: this.getAuthHeaders(),
       })
       .pipe(
         retry({
           count: 2,
-          delay: 1000
+          delay: 1000,
         }),
         catchError((err) => {
           this.loadingS3 = false;
-          this.s3ErrorMessage = err.error?.error || 'Failed to fetch S3 buckets. Please try again or contact support.';
+          this.s3ErrorMessage =
+            err.error?.error ||
+            'Failed to fetch S3 buckets. Please try again or contact support.';
           console.error('S3 bucket error:', {
             status: err.status,
             statusText: err.statusText,
             url: err.url,
             message: err.message,
             error: err.error,
-            email: this.email
+            email: this.email,
           });
           return throwError(() => new Error(this.s3ErrorMessage));
         })
@@ -366,7 +424,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           }
           this.loadingS3 = false;
           console.log('S3 buckets loaded:', this.buckets);
-        }
+        },
       });
   }
 
@@ -382,21 +440,29 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.s3ErrorMessage = '';
     this.s3Contents = [];
 
-    const url = `https://datakavach.com/s3/contents?username=${encodeURIComponent(this.email)}&bucketName=${encodeURIComponent(bucketName)}`;
-    console.log('Fetching S3 bucket contents:', { url, email: this.email, bucketName });
+    const url = `http://13.203.227.138/s3/contents?username=${encodeURIComponent(
+      this.email
+    )}&bucketName=${encodeURIComponent(bucketName)}`;
+    console.log('Fetching S3 bucket contents:', {
+      url,
+      email: this.email,
+      bucketName,
+    });
 
     this.contentsSubscription = this.http
       .get<{ contents: S3Content[] }>(url, {
-        headers: this.getAuthHeaders()
+        headers: this.getAuthHeaders(),
       })
       .pipe(
         retry({
           count: 2,
-          delay: 1000
+          delay: 1000,
         }),
         catchError((err) => {
           this.loadingS3 = false;
-          this.s3ErrorMessage = err.error?.error || 'Failed to fetch S3 contents. Please try again or contact support.';
+          this.s3ErrorMessage =
+            err.error?.error ||
+            'Failed to fetch S3 contents. Please try again or contact support.';
           console.error('S3 contents error:', {
             status: err.status,
             statusText: err.statusText,
@@ -404,7 +470,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             message: err.message,
             error: err.error,
             email: this.email,
-            bucketName
+            bucketName,
           });
           return throwError(() => new Error(this.s3ErrorMessage));
         })
@@ -417,14 +483,18 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           }
           this.loadingS3 = false;
           console.log('S3 contents loaded:', this.s3Contents);
-        }
+        },
       });
   }
 
   listS3FolderContents(bucketName: string, prefix: string): void {
     if (!this.email || !bucketName || !prefix) {
       this.s3ErrorMessage = 'Invalid bucket or folder path.';
-      console.error('Missing parameters:', { email: this.email, bucketName, prefix });
+      console.error('Missing parameters:', {
+        email: this.email,
+        bucketName,
+        prefix,
+      });
       return;
     }
 
@@ -433,21 +503,32 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.s3ErrorMessage = '';
     this.s3Contents = [];
 
-    const url = `https://datakavach.com/s3/contents?username=${encodeURIComponent(this.email)}&bucketName=${encodeURIComponent(bucketName)}&prefix=${encodeURIComponent(prefix)}`;
-    console.log('Fetching S3 folder contents:', { url, email: this.email, bucketName, prefix });
+    const url = `http://13.203.227.138/s3/contents?username=${encodeURIComponent(
+      this.email
+    )}&bucketName=${encodeURIComponent(bucketName)}&prefix=${encodeURIComponent(
+      prefix
+    )}`;
+    console.log('Fetching S3 folder contents:', {
+      url,
+      email: this.email,
+      bucketName,
+      prefix,
+    });
 
     this.contentsSubscription = this.http
       .get<{ contents: S3Content[] }>(url, {
-        headers: this.getAuthHeaders()
+        headers: this.getAuthHeaders(),
       })
       .pipe(
         retry({
           count: 2,
-          delay: 1000
+          delay: 1000,
         }),
         catchError((err) => {
           this.loadingS3 = false;
-          this.s3ErrorMessage = err.error?.error || 'Failed to fetch S3 folder contents. Please try again or contact support.';
+          this.s3ErrorMessage =
+            err.error?.error ||
+            'Failed to fetch S3 folder contents. Please try again or contact support.';
           console.error('S3 folder contents error:', {
             status: err.status,
             statusText: err.statusText,
@@ -456,7 +537,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             error: err.error,
             email: this.email,
             bucketName,
-            prefix
+            prefix,
           });
           return throwError(() => new Error(this.s3ErrorMessage));
         })
@@ -469,7 +550,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           }
           this.loadingS3 = false;
           console.log('S3 folder contents loaded:', this.s3Contents);
-        }
+        },
       });
   }
 
@@ -525,15 +606,19 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
-    const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const folderPath = this.currentPath
+      ? `${this.currentPath}/${folderName}`
+      : folderName;
+    const url = `http://13.203.227.138/onedrive/download-folder?username=${encodeURIComponent(
+      this.email
+    )}&folderPath=${encodeURIComponent(folderPath)}`;
 
     this.http
       .get(url, { headers: this.getAuthHeaders(), responseType: 'blob' })
       .pipe(
         retry({
           count: 2,
-          delay: 1000
+          delay: 1000,
         }),
         catchError((err) => {
           let errorMessage = 'Failed to download folder. Please try again.';
@@ -552,7 +637,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           const blob = new Blob([response], { type: 'application/zip' });
           saveAs(blob, `${folderName}.zip`);
           console.log(`Folder "${folderName}" downloaded successfully.`);
-        }
+        },
       });
   }
 

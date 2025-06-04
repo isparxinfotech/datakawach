@@ -3,10 +3,10 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class OneDriveService {
-  private apiUrl = 'https://datakavach.com/onedrive'; // Adjust to your backend URL
+  private apiUrl = 'http://13.203.227.138/onedrive'; // Adjust to your backend URL
 
   constructor(private http: HttpClient) {}
 

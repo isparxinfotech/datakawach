@@ -4,23 +4,27 @@ import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class S3Service {
-  private apiUrl = 'https://datakavach.com/api/AWSs3'; // Base URL for AdminDashboardComponent
+  private apiUrl = 'http://13.203.227.138/api/AWSs3'; // Base URL for AdminDashboardComponent
 
   constructor(private http: HttpClient) {}
 
   getS3Buckets(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/buckets`).pipe(
-      map(buckets =>
-        buckets.map(bucket => ({
+      map((buckets) =>
+        buckets.map((bucket) => ({
           name: bucket.name || bucket || 'Unknown', // Handle string or object
           region: bucket.region || 'N/A',
           size: bucket.size || 0,
           objectCount: bucket.objectCount || 0,
-          creationDate: bucket.creationDate ? new Date(bucket.creationDate) : new Date(),
-          lastModified: bucket.lastModified ? new Date(bucket.lastModified) : new Date()
+          creationDate: bucket.creationDate
+            ? new Date(bucket.creationDate)
+            : new Date(),
+          lastModified: bucket.lastModified
+            ? new Date(bucket.lastModified)
+            : new Date(),
         }))
       ),
       catchError(this.handleError)
@@ -28,18 +32,22 @@ export class S3Service {
   }
 
   getBucketContents(bucketName: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/buckets/${bucketName}/contents`).pipe(
-      map(contents =>
-        contents.map(item => ({
-          name: item.name || 'Unknown',
-          type: item.isFolder ? 'folder' : 'file',
-          size: item.size || 0,
-          lastModified: item.lastModified ? new Date(item.lastModified) : new Date(),
-          downloadUrl: item.downloadUrl || null
-        }))
-      ),
-      catchError(this.handleError)
-    );
+    return this.http
+      .get<any[]>(`${this.apiUrl}/buckets/${bucketName}/contents`)
+      .pipe(
+        map((contents) =>
+          contents.map((item) => ({
+            name: item.name || 'Unknown',
+            type: item.isFolder ? 'folder' : 'file',
+            size: item.size || 0,
+            lastModified: item.lastModified
+              ? new Date(item.lastModified)
+              : new Date(),
+            downloadUrl: item.downloadUrl || null,
+          }))
+        ),
+        catchError(this.handleError)
+      );
   }
 
   private handleError(error: HttpErrorResponse): Observable<never> {

@@ -42,7 +42,7 @@ interface FolderInfo {
 @Component({
   selector: 'app-upload',
   templateUrl: './upload.component.html',
-  styleUrls: []
+  styleUrls: ['./upload.component.css'],
 })
 export class UploadComponent implements OnInit, OnDestroy {
   folderName: string = ''; // Legacy field, kept for compatibility
@@ -93,12 +93,17 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.message = '';
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
 
-    if (!this.userSessionDetails?.jwtToken || !this.userSessionDetails?.username) {
-      const url = `https://datakavach.com/users/current`;
+    if (
+      !this.userSessionDetails?.jwtToken ||
+      !this.userSessionDetails?.username
+    ) {
+      const url = `http://13.203.227.138/users/current`;
       try {
-        const response = await this.http.get<userSessionDetails>(url, {
-          headers: this.getAuthHeaders()
-        }).toPromise();
+        const response = await this.http
+          .get<userSessionDetails>(url, {
+            headers: this.getAuthHeaders(),
+          })
+          .toPromise();
         this.userSessionDetails = response;
       } catch (err: any) {
         let errorMessage = 'Failed to fetch user details';
@@ -115,7 +120,11 @@ export class UploadComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (this.userSessionDetails && this.userSessionDetails.jwtToken && this.userSessionDetails.username) {
+    if (
+      this.userSessionDetails &&
+      this.userSessionDetails.jwtToken &&
+      this.userSessionDetails.username
+    ) {
       this.loadBackupSchedules();
       await this.loadRootFolders();
     } else {
@@ -187,7 +196,8 @@ export class UploadComponent implements OnInit, OnDestroy {
       this.retentionDays > 0 &&
       this.backupFrequency &&
       (this.backupFrequency !== 'Weekly' || this.dayOfWeek) &&
-      (this.backupFrequency !== 'Monthly' || (this.dayOfMonth && this.dayOfMonth >= 1 && this.dayOfMonth <= 31))
+      (this.backupFrequency !== 'Monthly' ||
+        (this.dayOfMonth && this.dayOfMonth >= 1 && this.dayOfMonth <= 31))
     );
   }
 
@@ -209,7 +219,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = 'https://datakavach.com/onedrive/schedule';
+    const url = 'http://13.203.227.138/onedrive/schedule';
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
     body.append('folderName', this.folderPath); // Use full folder path
@@ -222,9 +232,11 @@ export class UploadComponent implements OnInit, OnDestroy {
     if (this.dayOfMonth) body.append('dayOfMonth', this.dayOfMonth.toString());
 
     try {
-      await this.http.post(url, body, {
-        headers: this.getAuthHeaders()
-      }).toPromise();
+      await this.http
+        .post(url, body, {
+          headers: this.getAuthHeaders(),
+        })
+        .toPromise();
       this.message = 'Backup schedule created successfully';
       this.isSuccess = true;
 
@@ -251,15 +263,17 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = 'https://datakavach.com/onedrive/backup-now';
+    const url = 'http://13.203.227.138/onedrive/backup-now';
     const body = new FormData();
     body.append('scheduleId', scheduleId.toString());
     body.append('username', this.userSessionDetails.username);
 
     try {
-      await this.http.post(url, body, {
-        headers: this.getAuthHeaders()
-      }).toPromise();
+      await this.http
+        .post(url, body, {
+          headers: this.getAuthHeaders(),
+        })
+        .toPromise();
       this.message = `Manual backup triggered for schedule ID: ${scheduleId}`;
       this.isSuccess = true;
       setTimeout(() => this.loadBackupSchedules(), 3000);
@@ -278,12 +292,16 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isSchedulesLoading = true;
     this.message = '';
-    const url = `https://datakavach.com/onedrive/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `http://13.203.227.138/onedrive/schedules?username=${encodeURIComponent(
+      this.userSessionDetails.username
+    )}`;
 
     try {
-      const response = await this.http.get<{ schedules: BackupSchedule[] }>(url, {
-        headers: this.getAuthHeaders()
-      }).toPromise();
+      const response = await this.http
+        .get<{ schedules: BackupSchedule[] }>(url, {
+          headers: this.getAuthHeaders(),
+        })
+        .toPromise();
       this.backupSchedules = response?.schedules || [];
       if (this.backupSchedules.length === 0) {
         this.message = 'No backup schedules found for this user.';
@@ -315,12 +333,16 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `http://13.203.227.138/onedrive/folders?username=${encodeURIComponent(
+      this.userSessionDetails.username
+    )}`;
 
     try {
-      const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
-        headers: this.getAuthHeaders()
-      }).toPromise();
+      const response = await this.http
+        .get<{ folders: FolderInfo[]; nextLink: string }>(url, {
+          headers: this.getAuthHeaders(),
+        })
+        .toPromise();
       this.rootFolders = response?.folders || [];
       if (this.rootFolders.length === 0) {
         this.message = 'No folders found in OneDrive. Please create a folder.';
@@ -331,7 +353,8 @@ export class UploadComponent implements OnInit, OnDestroy {
       if (err.status === 401) {
         errorMessage = 'Authentication failed. Please log in again.';
       } else if (err.status === 500) {
-        errorMessage = 'Server error while fetching folders. Please try again later.';
+        errorMessage =
+          'Server error while fetching folders. Please try again later.';
       } else if (err.error?.message) {
         errorMessage = err.error.message;
       }
@@ -353,15 +376,19 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isFolderContentsLoading = true;
     this.message = '';
-    let url = `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    let url = `http://13.203.227.138/onedrive/folder-contents?username=${encodeURIComponent(
+      this.userSessionDetails.username
+    )}&folderPath=${encodeURIComponent(folderPath)}`;
     if (nextLink) {
       url = nextLink;
     }
 
     try {
-      const response = await this.http.get<{ contents: ContentInfo[], nextLink: string }>(url, {
-        headers: this.getAuthHeaders()
-      }).toPromise();
+      const response = await this.http
+        .get<{ contents: ContentInfo[]; nextLink: string }>(url, {
+          headers: this.getAuthHeaders(),
+        })
+        .toPromise();
       this.folderContents = response?.contents || [];
       this.nextLink = response?.nextLink || '';
       if (this.folderContents.length === 0) {
@@ -395,7 +422,9 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   selectSubFolder(subFolderName: string) {
-    this.folderPath = this.folderPath ? `${this.folderPath}/${subFolderName}` : subFolderName;
+    this.folderPath = this.folderPath
+      ? `${this.folderPath}/${subFolderName}`
+      : subFolderName;
     this.folderPathSegments = this.folderPath.split('/');
     this.folderName = this.folderPath; // For backward compatibility
     this.loadFolderContents(this.folderPath);
@@ -420,8 +449,12 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  async onUpload() {
-    if (!this.userSessionDetails?.username || !this.folderPath || this.selectedFiles.length === 0) {
+  async onUpload(): Promise<void> {
+    if (
+      !this.userSessionDetails?.username ||
+      !this.folderPath ||
+      this.selectedFiles.length === 0
+    ) {
       this.message = 'Please select a folder and at least one file for upload';
       this.isSuccess = false;
       this.uploading = false;
@@ -435,7 +468,10 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.currentFileIndex = 0;
     this.message = '';
 
-    const totalSize = this.selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    const totalSize = this.selectedFiles.reduce(
+      (sum, file) => sum + file.size,
+      0
+    );
     let uploadedSize = 0;
 
     for (let i = 0; i < this.selectedFiles.length; i++) {
@@ -455,7 +491,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         const formData = new FormData();
         formData.append('username', this.userSessionDetails!.username);
-        formData.append('folderName', this.folderPath); // Use full folder path
+        formData.append('folderName', this.folderPath);
         formData.append('file', chunk, rawFileName);
         formData.append('chunkIndex', chunkIndex.toString());
         formData.append('totalChunks', totalChunks.toString());
@@ -466,27 +502,46 @@ export class UploadComponent implements OnInit, OnDestroy {
           formData.append('sessionId', this.uploadSessionId);
         }
 
-        const url = `https://datakavach.com/onedrive/upload/${encodeURIComponent(rawFileName)}`;
+        const url = `http://13.203.227.138/onedrive/upload/${encodeURIComponent(
+          rawFileName
+        )}`;
 
         let retryCount = 0;
         const maxRetries = 2;
 
         while (retryCount <= maxRetries) {
           try {
-            const response = await this.uploadChunk(url, formData, chunkIndex, totalChunks, fileSize, totalSize, uploadedSize);
+            const response = await this.uploadChunk(
+              url,
+              formData,
+              chunkIndex,
+              totalChunks,
+              fileSize,
+              totalSize,
+              uploadedSize
+            );
             if (chunkIndex === 0 && response.sessionId) {
               this.uploadSessionId = response.sessionId;
             }
             uploadedSize += chunkSize;
             this.overallProgress = Math.round((uploadedSize / totalSize) * 100);
             break;
-          } catch (err: any) {
-            if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
+          } catch (err) {
+            if (
+              (err as any).status === 400 &&
+              (err as any).error?.message.includes('session expired') &&
+              retryCount < maxRetries
+            ) {
               this.uploadSessionId = null;
               retryCount++;
               continue;
             }
-            this.handleError(err);
+            this.handleError(
+              this.getErrorMessage(
+                err,
+                'Failed to upload file chunk. Please refresh or contact support.'
+              )
+            );
             this.uploading = false;
             this.cdr.detectChanges();
             return;
@@ -499,35 +554,55 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.loadFolderContents(this.folderPath);
     this.cdr.detectChanges();
   }
+  getErrorMessage(err: unknown, arg1: string): any {
+    throw new Error('Method not implemented.');
+  }
 
-  private uploadChunk(url: string, formData: FormData, chunkIndex: number, totalChunks: number, fileSize: number, totalSize: number, uploadedSize: number): Promise<any> {
+  private uploadChunk(
+    url: string,
+    formData: FormData,
+    chunkIndex: number,
+    totalChunks: number,
+    fileSize: number,
+    totalSize: number,
+    uploadedSize: number
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
-      this.http.put(url, formData, {
-        headers: this.getAuthHeaders(),
-        reportProgress: true,
-        observe: 'events'
-      }).subscribe({
-        next: (event: any) => {
-          if (event.type === HttpEventType.UploadProgress && event.total) {
-            this.chunkProgress = Math.round(100 * event.loaded / event.total);
-            const currentFileUploaded = uploadedSize + event.loaded;
-            this.overallProgress = Math.round((currentFileUploaded / totalSize) * 100);
-            this.cdr.detectChanges();
-          } else if (event.type === HttpEventType.Response) {
-            resolve(event.body);
-          }
-        },
-        error: (err) => {
-          reject(err);
-        }
-      });
+      const sub = this.http
+        .put(url, formData, {
+          headers: this.getAuthHeaders(),
+          reportProgress: true,
+          observe: 'events',
+        })
+        .subscribe({
+          next: (event: any) => {
+            if (event.type === HttpEventType.UploadProgress && event.total) {
+              this.chunkProgress = Math.round(
+                (100 * event.loaded) / event.total
+              );
+              const currentFileUploaded = uploadedSize + event.loaded;
+              this.overallProgress = Math.round(
+                (currentFileUploaded / totalSize) * 100
+              );
+              this.cdr.detectChanges();
+            } else if (event.type === HttpEventType.Response) {
+              resolve(event.body);
+            }
+          },
+          error: (err) => {
+            reject(err);
+          },
+          complete: () => {
+            this.subscriptions.push(sub);
+          },
+        });
     });
   }
 
   private getAuthHeaders(): HttpHeaders {
     const token = this.userSessionDetails?.jwtToken || '';
     return new HttpHeaders({
-      'Authorization': `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     });
   }
 
@@ -535,8 +610,13 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = true;
-    this.message = typeof response === 'string' ? response : 'Operation completed successfully!';
-    const modal = new (window as any).bootstrap.Modal(document.getElementById('successModal'));
+    this.message =
+      typeof response === 'string'
+        ? response
+        : 'Operation completed successfully!';
+    const modal = new (window as any).bootstrap.Modal(
+      document.getElementById('successModal')
+    );
     modal.show();
     const currentNeedsBackup = this.needsBackup;
     this.resetForm();
@@ -577,6 +657,6 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.subscriptions.forEach((sub) => sub.unsubscribe());
   }
 }

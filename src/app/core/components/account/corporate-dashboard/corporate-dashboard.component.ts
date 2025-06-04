@@ -1,4 +1,10 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  AfterViewInit,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -25,9 +31,11 @@ interface OneDriveItem {
 @Component({
   selector: 'app-corporate-dashboard',
   templateUrl: './corporate-dashboard.component.html',
-  styleUrls: ['./corporate-dashboard.component.css']
+  styleUrls: ['./corporate-dashboard.component.css'],
 })
-export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterViewInit {
+export class CorporateDashboardComponent
+  implements OnInit, OnDestroy, AfterViewInit
+{
   userSessionDetails: userSessionDetails | null | undefined;
   username: string = '';
   cloudProvider: string = '';
@@ -70,17 +78,23 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
-    if (this.userSessionDetails && this.userSessionDetails.username && this.userSessionDetails.cloudProvider) {
+    if (
+      this.userSessionDetails &&
+      this.userSessionDetails.username &&
+      this.userSessionDetails.cloudProvider
+    ) {
       this.username = this.userSessionDetails.username;
       this.cloudProvider = this.userSessionDetails.cloudProvider.toLowerCase();
       if (this.cloudProvider === 'onedrive') {
         this.listRootFolders();
       } else {
-        this.errorMessage = 'Only OneDrive is supported for corporate dashboard.';
+        this.errorMessage =
+          'Only OneDrive is supported for corporate dashboard.';
         this.cdr.detectChanges();
       }
     } else {
-      this.errorMessage = 'User session details are incomplete. Please log in again.';
+      this.errorMessage =
+        'User session details are incomplete. Please log in again.';
       this.cdr.detectChanges();
     }
 
@@ -111,17 +125,20 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   private fetchTotalUsers(): void {
     if (!this.userSessionDetails) {
-      this.errorMessage = 'User session details are missing. Cannot fetch user list.';
+      this.errorMessage =
+        'User session details are missing. Cannot fetch user list.';
       this.totalUsers = 0;
       this.cdr.detectChanges();
       return;
     }
 
     this.userSessionDetails.userType = 5;
-    const sub = this.superAdminService.getUsersList(this.userSessionDetails)
+    const sub = this.superAdminService
+      .getUsersList(this.userSessionDetails)
       .pipe(
         catchError((err) => {
-          this.errorMessage = 'Failed to fetch user count. Please try again later.';
+          this.errorMessage =
+            'Failed to fetch user count. Please try again later.';
           this.totalUsers = 0;
           console.error('Error fetching user list:', err);
           this.cdr.detectChanges();
@@ -130,14 +147,19 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
-          if (response && response.userInfo && Array.isArray(response.userInfo)) {
+          if (
+            response &&
+            response.userInfo &&
+            Array.isArray(response.userInfo)
+          ) {
             this.totalUsers = response.userInfo.length;
           } else {
-            this.errorMessage = 'Failed to fetch user count: Invalid response from server.';
+            this.errorMessage =
+              'Failed to fetch user count: Invalid response from server.';
             this.totalUsers = 0;
           }
           this.cdr.detectChanges();
-        }
+        },
       });
     this.subscriptions.push(sub);
   }
@@ -162,7 +184,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.cdr.detectChanges();
       return;
     }
-    const newPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
+    const newPath = this.currentPath
+      ? `${this.currentPath}/${folderName}`
+      : folderName;
     this.pathHistory.push(this.currentPath);
     this.currentPath = newPath;
     this.nextLink = '';
@@ -200,12 +224,17 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.loading = true;
     this.errorMessage = '';
     this.successMessage = '';
-    const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
-    const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const folderPath = this.currentPath
+      ? `${this.currentPath}/${folderName}`
+      : folderName;
+    const url = `http://13.203.227.138/onedrive/download-folder?username=${encodeURIComponent(
+      this.username
+    )}&folderPath=${encodeURIComponent(folderPath)}`;
 
     console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
 
-    const sub = this.http.get<{ files: OneDriveItem[] }>(url, { headers: this.getAuthHeaders() })
+    const sub = this.http
+      .get<{ files: OneDriveItem[] }>(url, { headers: this.getAuthHeaders() })
       .pipe(
         catchError((err) => {
           this.handleDownloadError(err, folderPath);
@@ -219,12 +248,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         complete: () => {
           this.loading = false;
           this.cdr.detectChanges();
-        }
+        },
       });
     this.subscriptions.push(sub);
   }
 
-  private async processFolderDownload(response: { files: OneDriveItem[] }, folderName: string, folderPath: string): Promise<void> {
+  private async processFolderDownload(
+    response: { files: OneDriveItem[] },
+    folderName: string,
+    folderPath: string
+  ): Promise<void> {
     const files = response.files || [];
     if (!Array.isArray(files) || files.length === 0) {
       this.errorMessage = `No files found in folder "${folderPath}".`;
@@ -240,7 +273,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       if (file.type === 'file' && file.downloadUrl) {
         console.log(`Fetching file: ${file.name}`);
         try {
-          const fileResponse = await this.http.get(file.downloadUrl, { responseType: 'blob' }).toPromise();
+          const fileResponse = await this.http
+            .get(file.downloadUrl, { responseType: 'blob' })
+            .toPromise();
           if (fileResponse) {
             zip.file(file.name, fileResponse);
             hasFiles = true;
@@ -256,7 +291,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     if (!hasFiles) {
-      this.errorMessage = this.errorMessage || `No valid files were included in the ZIP for "${folderPath}".`;
+      this.errorMessage =
+        this.errorMessage ||
+        `No valid files were included in the ZIP for "${folderPath}".`;
       this.loading = false;
       this.cdr.detectChanges();
       return;
@@ -278,18 +315,23 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   private handleDownloadError(err: any, folderPath: string): void {
     this.loading = false;
-    let errorMessage = err.error?.message || 'Failed to download folder. Please try again.';
+    let errorMessage =
+      err.error?.message || 'Failed to download folder. Please try again.';
     if (err.status === 401) {
       errorMessage = 'Authentication failed. Please log in again.';
     } else if (err.status === 404) {
-        errorMessage = `Folder "${folderPath}"` + ' does not exist.';
+      errorMessage = `Folder "${folderPath}"` + ' does not exist.';
     } else if (err.error?.includes('multi-factor authentication')) {
-      errorMessage = 'Multi-factor authentication is required for OneDrive. Contact your administrator to enable this.';
+      errorMessage =
+        'Multi-factor authentication is required for OneDrive. Contact your administrator to enable this.';
     }
     this.errorMessage = errorMessage;
-    console.error(`Failed to download folder "${folderPath}": ${errorMessage}`, err);
+    console.error(
+      `Failed to download folder "${folderPath}": ${errorMessage}`,
+      err
+    );
     this.cdr.detectChanges();
-}
+  }
 
   openRenameModal(folderName: string): void {
     this.selectedFolder = folderName;
@@ -333,47 +375,61 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       return;
     }
 
-    const folderPath = this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder;
-    const url = 'https://datakavach.com/onedrive/rename-folder';
+    const folderPath = this.currentPath
+      ? `${this.currentPath}/${this.selectedFolder}`
+      : this.selectedFolder;
+    const url = 'http://13.203.227.138/onedrive/rename-folder';
 
     const requestBody = {
       username: this.username,
       folderPath: folderPath,
-      newFolderName: this.newFolderName
+      newFolderName: this.newFolderName,
     };
 
     this.loading = true;
     this.renameError = '';
     this.successMessage = '';
 
-    const sub = this.http.patch<{ message?: string }>(url, requestBody, { headers: this.getAuthHeaders() })
+    const sub = this.http
+      .patch<{ message?: string }>(url, requestBody, {
+        headers: this.getAuthHeaders(),
+      })
       .pipe(
         catchError((err) => {
           this.loading = false;
-          let errorMessage = err.error?.message || 'Failed to rename folder. Please try again.';
+          let errorMessage =
+            err.error?.message || 'Failed to rename folder. Please try again.';
           if (err.status === 401) {
             errorMessage = 'Authentication failed. Please log in again.';
           } else if (err.status === 404) {
             errorMessage = `Folder "${folderPath}" not found.`;
           } else if (err.status === 400) {
-            errorMessage = err.error.message || 'Invalid request. Please check the folder name and try again.';
+            errorMessage =
+              err.error.message ||
+              'Invalid request. Please check the folder name and try again.';
           } else if (err.error?.includes('multi-factor authentication')) {
-            errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
+            errorMessage =
+              'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
           }
           this.renameError = errorMessage;
-          console.error(`Error renaming folder "${folderPath}" to "${this.newFolderName}": ${errorMessage}`, err);
+          console.error(
+            `Error renaming folder "${folderPath}" to "${this.newFolderName}": ${errorMessage}`,
+            err
+          );
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
         })
       )
       .subscribe({
         next: (response) => {
-          this.successMessage = response.message || `Folder "${this.selectedFolder}" renamed to "${this.newFolderName}" successfully.`;
+          this.successMessage =
+            response.message ||
+            `Folder "${this.selectedFolder}" renamed to "${this.newFolderName}" successfully.`;
           this.closeRenameModal();
           this.loadFolderContents(this.currentPath);
           this.loading = false;
           this.cdr.detectChanges();
-        }
+        },
       });
     this.subscriptions.push(sub);
   }
@@ -381,8 +437,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   private getAuthHeaders(): HttpHeaders {
     const token = this.userSessionDetails?.jwtToken || '';
     return new HttpHeaders({
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
     });
   }
 
@@ -403,22 +459,39 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.totalSize = 0;
 
     const url = folderPath
-      ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
-      : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.username)}`;
+      ? `http://13.203.227.138/onedrive/folder-contents?username=${encodeURIComponent(
+          this.username
+        )}&folderPath=${encodeURIComponent(folderPath)}`
+      : `http://13.203.227.138/onedrive/folders?username=${encodeURIComponent(
+          this.username
+        )}`;
 
-    console.log(`Loading contents for folder path: ${folderPath || 'root'} (URL: ${url})`);
+    console.log(
+      `Loading contents for folder path: ${folderPath || 'root'} (URL: ${url})`
+    );
 
-    const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(url, { headers: this.getAuthHeaders() })
+    const sub = this.http
+      .get<{
+        contents?: OneDriveItem[];
+        folders?: OneDriveItem[];
+        nextLink?: string;
+      }>(url, { headers: this.getAuthHeaders() })
       .pipe(
         catchError((err) => {
           this.loading = false;
-          let errorMessage = err.error?.error || 'Failed to list contents. Please try again.';
+          let errorMessage =
+            err.error?.error || 'Failed to list contents. Please try again.';
           if (err.status === 401) {
             errorMessage = 'Authentication failed. Please log in again.';
           } else if (err.status === 404) {
-            errorMessage = `The folder "${folderPath || 'root'}" does not exist in your OneDrive.`;
-          } else if (err.error?.error?.includes('multi-factor authentication')) {
-            errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
+            errorMessage = `The folder "${
+              folderPath || 'root'
+            }" does not exist in your OneDrive.`;
+          } else if (
+            err.error?.error?.includes('multi-factor authentication')
+          ) {
+            errorMessage =
+              'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
           }
           this.errorMessage = errorMessage;
           this.oneDriveContents = [];
@@ -447,14 +520,17 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             return;
           }
 
-          this.oneDriveContents = items.map(item => ({
+          this.oneDriveContents = items.map((item) => ({
             name: item.name || 'Unknown',
             id: item.id || 'N/A',
             size: item.size || 0,
             type: item.type || 'folder',
-            downloadUrl: item.downloadUrl
+            downloadUrl: item.downloadUrl,
           }));
-          this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
+          this.totalSize = this.oneDriveContents.reduce(
+            (sum, item) => sum + (item.size || 0),
+            0
+          );
           this.remainingStorage = this.totalStorage - this.totalSize;
           this.filteredContents = [...this.oneDriveContents];
           this.sortContents();
@@ -464,9 +540,14 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           if (this.oneDriveContents.length === 0) {
             this.errorMessage = `No items found in ${folderPath || 'root'}.`;
           }
-          console.log('Processed oneDriveContents:', this.oneDriveContents, 'NextLink:', this.nextLink);
+          console.log(
+            'Processed oneDriveContents:',
+            this.oneDriveContents,
+            'NextLink:',
+            this.nextLink
+          );
           this.cdr.detectChanges();
-        }
+        },
       });
     this.subscriptions.push(sub);
   }
@@ -481,11 +562,18 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.errorMessage = '';
     this.successMessage = '';
 
-    const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(this.nextLink, { headers: this.getAuthHeaders() })
+    const sub = this.http
+      .get<{
+        contents?: OneDriveItem[];
+        folders?: OneDriveItem[];
+        nextLink?: string;
+      }>(this.nextLink, { headers: this.getAuthHeaders() })
       .pipe(
         catchError((err) => {
           this.loading = false;
-          let errorMessage = err.error?.error || 'Failed to load more contents. Please try again.';
+          let errorMessage =
+            err.error?.error ||
+            'Failed to load more contents. Please try again.';
           if (err.status === 401) {
             errorMessage = 'Authentication failed. Please log in again.';
           } else if (err.status === 404) {
@@ -499,7 +587,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
-          let items: OneDriveItem[] = response.contents || response.folders || [];
+          let items: OneDriveItem[] =
+            response.contents || response.folders || [];
           this.nextLink = response.nextLink || '';
 
           if (!Array.isArray(items)) {
@@ -510,25 +599,33 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             return;
           }
 
-          const newItems = items.map(item => ({
+          const newItems = items.map((item) => ({
             name: item.name || 'Unknown',
             id: item.id || 'N/A',
             size: item.size || 0,
             type: item.type || 'folder',
-            downloadUrl: item.downloadUrl
+            downloadUrl: item.downloadUrl,
           }));
 
           this.oneDriveContents = [...this.oneDriveContents, ...newItems];
-          this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
+          this.totalSize = this.oneDriveContents.reduce(
+            (sum, item) => sum + (item.size || 0),
+            0
+          );
           this.remainingStorage = this.totalStorage - this.totalSize;
           this.filteredContents = [...this.oneDriveContents];
           this.sortContents();
           this.loading = false;
           this.updateStorageChart();
           this.initFolderUsageChart();
-          console.log('Loaded more contents:', newItems, 'NextLink:', this.nextLink);
+          console.log(
+            'Loaded more contents:',
+            newItems,
+            'NextLink:',
+            this.nextLink
+          );
           this.cdr.detectChanges();
-        }
+        },
       });
     this.subscriptions.push(sub);
   }
@@ -550,12 +647,18 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         type: 'doughnut',
         data: {
           labels: ['Used Storage', 'Remaining Storage'],
-          datasets: [{
-            data: [this.totalSize, this.remainingStorage],
-            backgroundColor: this.isBlackAndWhiteTheme ? ['#666', '#ccc'] : ['#007bff', '#e9ecef'],
-            borderColor: this.isBlackAndWhiteTheme ? ['#333', '#999'] : ['#0056b3', '#ced4da'],
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              data: [this.totalSize, this.remainingStorage],
+              backgroundColor: this.isBlackAndWhiteTheme
+                ? ['#666', '#ccc']
+                : ['#007bff', '#e9ecef'],
+              borderColor: this.isBlackAndWhiteTheme
+                ? ['#333', '#999']
+                : ['#0056b3', '#ced4da'],
+              borderWidth: 1,
+            },
+          ],
         },
         options: {
           responsive: true,
@@ -566,10 +669,10 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
               labels: {
                 font: {
                   size: 12,
-                  weight: 'bold'
+                  weight: 'bold',
                 },
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
-              }
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b',
+              },
             },
             tooltip: {
               callbacks: {
@@ -577,11 +680,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
                   const label = context.label || '';
                   const value = context.raw as number;
                   return `${label}: ${this.formatSize(value)}`;
-                }
-              }
-            }
-          }
-        }
+                },
+              },
+            },
+          },
+        },
       });
       console.log('Storage chart initialized successfully');
     } catch (error) {
@@ -590,7 +693,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   initFolderUsageChart(): void {
-    const ctx = document.getElementById('folderUsageChart') as HTMLCanvasElement;
+    const ctx = document.getElementById(
+      'folderUsageChart'
+    ) as HTMLCanvasElement;
     if (!ctx) {
       console.error('Folder usage chart canvas not found');
       return;
@@ -601,22 +706,28 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.folderUsageChart.destroy();
     }
 
-    const folders = this.filteredContents.filter(item => item.type === 'folder');
-    const folderNames = folders.map(folder => folder.name);
-    const folderSizes = folders.map(folder => folder.size / (1024 * 1024)); // Convert to MB
+    const folders = this.filteredContents.filter(
+      (item) => item.type === 'folder'
+    );
+    const folderNames = folders.map((folder) => folder.name);
+    const folderSizes = folders.map((folder) => folder.size / (1024 * 1024)); // Convert to MB
 
     try {
       this.folderUsageChart = new Chart(ctx, {
         type: 'bar',
         data: {
           labels: folderNames,
-          datasets: [{
-            label: 'Storage Used (MB)',
-            data: folderSizes,
-            backgroundColor: this.isBlackAndWhiteTheme ? ['#666'] : ['#007bff'],
-            borderColor: this.isBlackAndWhiteTheme ? ['#333'] : ['#0056b3'],
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: 'Storage Used (MB)',
+              data: folderSizes,
+              backgroundColor: this.isBlackAndWhiteTheme
+                ? ['#666']
+                : ['#007bff'],
+              borderColor: this.isBlackAndWhiteTheme ? ['#333'] : ['#0056b3'],
+              borderWidth: 1,
+            },
+          ],
         },
         options: {
           responsive: true,
@@ -627,42 +738,42 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
               title: {
                 display: true,
                 text: 'Storage (MB)',
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b',
               },
               ticks: {
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b',
               },
               grid: {
-                color: this.isBlackAndWhiteTheme ? '#ccc' : '#e9ecef'
-              }
+                color: this.isBlackAndWhiteTheme ? '#ccc' : '#e9ecef',
+              },
             },
             x: {
               title: {
                 display: true,
                 text: 'Folders',
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b',
               },
               ticks: {
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
+                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b',
               },
               grid: {
-                display: false
-              }
-            }
+                display: false,
+              },
+            },
           },
           plugins: {
             legend: {
-              display: false
+              display: false,
             },
             tooltip: {
               callbacks: {
                 label: (context) => {
                   return `${context.raw} MB`;
-                }
-              }
-            }
-          }
-        }
+                },
+              },
+            },
+          },
+        },
       });
       console.log('Folder usage chart initialized successfully');
     } catch (error) {
@@ -671,7 +782,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   hasFolders(): boolean {
-    return this.filteredContents.some(item => item.type === 'folder');
+    return this.filteredContents.some((item) => item.type === 'folder');
   }
 
   formatSize(bytes: number): string {
@@ -683,7 +794,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   filterContents(): void {
-    this.filteredContents = this.oneDriveContents.filter(item =>
+    this.filteredContents = this.oneDriveContents.filter((item) =>
       item.name.toLowerCase().includes(this.searchQuery.toLowerCase())
     );
     this.sortContents();
@@ -707,7 +818,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   ngOnDestroy(): void {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.subscriptions.forEach((sub) => sub.unsubscribe());
     if (this.storageChart) {
       this.storageChart.destroy();
     }
