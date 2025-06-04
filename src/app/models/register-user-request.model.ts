@@ -23,6 +23,8 @@ export interface RegisterUserRequest{
     folderName:string,
     cloudProvider: string;
     ipAddress: string;
+    retentionNeeded:number;
+
 
 
 

@@ -93,6 +93,20 @@
                       </div>
                     </div>
                   </div>
+                  <div class="row mb-3">
+                    <div class="col-lg-6">
+                      <label for="retentionNeeded">Retention Needed <span class="mandatory">*</span></label>
+                      <select class="form-control" id="retentionNeeded" formControlName="retentionNeeded"
+                        [ngClass]="{ 'is-invalid': submitted && f['retentionNeeded'].errors }">
+                        <option value="" selected>--Select Retention Needed--</option>
+                        <option value="0">Not Needed</option>
+                        <option value="1">Needed</option>
+                      </select>
+                      <div *ngIf="submitted && f['retentionNeeded'].errors" class="invalid-feedback">
+                        <div *ngIf="f['retentionNeeded'].errors['required']">Retention Needed is required</div>
+                      </div>
+                    </div>
+                  </div>
                 </fieldset>
 
                 <fieldset class="scheduler-border">

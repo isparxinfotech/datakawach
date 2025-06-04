@@ -43,7 +43,9 @@ export class RegisterUserComponent implements OnDestroy{
       clientSecret:'',
       folderName:'',
       cloudProvider: '',
-      ipAddress: ''
+      ipAddress: '',
+      retentionNeeded:1
+      
     };
       this.frmValidate = fv.group(
         {

@@ -30,7 +30,7 @@ export class CreateCorporateAccountComponent implements OnInit, OnDestroy {
       address: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(150)]],
       pinCode: ['', [Validators.required, Validators.minLength(5), Validators.maxLength(20), Validators.pattern('^[0-9]+$')]],
       email: ['', [Validators.required, Validators.pattern('^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$'), Validators.maxLength(50)]],
-      password: ['', [Validators.required, Validators.minLength(8), Validators.pattern('^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$')]],
+      password: ['', [Validators.required, Validators.minLength(8), Validators.pattern('^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]}{8,}$')]],
       confirmPassword: ['', [Validators.required]],
       corpoName: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
       branch: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
@@ -38,6 +38,7 @@ export class CreateCorporateAccountComponent implements OnInit, OnDestroy {
       userType: [3], // Corporate user type
       createdBy: [''],
       folderName: ['', [Validators.maxLength(255), Validators.pattern('^[^<>:\"/\\\\|?*\\x00-\\x1F@ ]+$')]],
+      retentionNeeded: ['', [Validators.required]],
       cloudProvider: ['', [Validators.required]],
       oneDriveUserId: ['', [Validators.maxLength(250)]],
       onedriveUsername: ['', [Validators.maxLength(250)]],
@@ -66,7 +67,8 @@ export class CreateCorporateAccountComponent implements OnInit, OnDestroy {
       firstName: 'none',
       middleName: 'none',
       lastName: 'none',
-      gender: 'none'
+      gender: 'none',
+      retentionNeeded: ''
     });
   }
 
@@ -147,6 +149,7 @@ export class CreateCorporateAccountComponent implements OnInit, OnDestroy {
 
     this.registerUserRequest = this.frmValidate.value as RegisterUserRequest;
     this.registerUserRequest.userType = 3; // Corporate user type
+    this.registerUserRequest.retentionNeeded = parseInt(this.frmValidate.get('retentionNeeded')?.value, 10); // Ensure retentionNeeded is a number
 
     // Sanitize sensitive fields for logging
     const logRequest = { ...this.registerUserRequest, password: '***', onedrivePassword: '***', clientSecret: '***', awsSecretKey: '***' };
@@ -189,6 +192,7 @@ export class CreateCorporateAccountComponent implements OnInit, OnDestroy {
       userType: 3,
       createdBy: this.userSessionDetails?.username,
       folderName: '',
+      retentionNeeded: '',
       cloudProvider: '',
       oneDriveUserId: '',
       onedriveUsername: '',
