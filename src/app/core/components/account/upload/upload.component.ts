@@ -94,7 +94,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
 
     if (!this.userSessionDetails?.jwtToken || !this.userSessionDetails?.username) {
-      const url = `https://datakavach.com/users/current`;
+      const url = `http://localhost:8080/users/current`;
       try {
         const response = await this.http.get<userSessionDetails>(url, {
           headers: this.getAuthHeaders()
@@ -209,7 +209,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = 'https://datakavach.com/onedrive/schedule';
+    const url = 'http://localhost:8080/onedrive/schedule';
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
     body.append('folderName', this.folderPath); // Use full folder path
@@ -251,7 +251,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = 'https://datakavach.com/onedrive/backup-now';
+    const url = 'http://localhost:8080/onedrive/backup-now';
     const body = new FormData();
     body.append('scheduleId', scheduleId.toString());
     body.append('username', this.userSessionDetails.username);
@@ -278,7 +278,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isSchedulesLoading = true;
     this.message = '';
-    const url = `https://datakavach.com/onedrive/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `http://localhost:8080/onedrive/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
       const response = await this.http.get<{ schedules: BackupSchedule[] }>(url, {
@@ -315,7 +315,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `http://localhost:8080/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
       const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
@@ -353,7 +353,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isFolderContentsLoading = true;
     this.message = '';
-    let url = `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    let url = `http://localhost:8080/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
     if (nextLink) {
       url = nextLink;
     }
@@ -466,7 +466,7 @@ export class UploadComponent implements OnInit, OnDestroy {
           formData.append('sessionId', this.uploadSessionId);
         }
 
-        const url = `https://datakavach.com/onedrive/upload/${encodeURIComponent(rawFileName)}`;
+        const url = `http://localhost:8080/onedrive/upload/${encodeURIComponent(rawFileName)}`;
 
         let retryCount = 0;
         const maxRetries = 2;

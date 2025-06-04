@@ -202,7 +202,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.successMessage = '';
 
     const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
-    const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const url = `http://localhost:8080/onedrive/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
     console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
 
@@ -282,7 +282,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     const folderPath = this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder;
-    const url = 'https://datakavach.com/onedrive/rename-folder';
+    const url = 'http://localhost:8080/onedrive/rename-folder';
 
     const requestBody = {
       username: this.username,
@@ -351,8 +351,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.totalSize = 0;
 
     const url = folderPath
-      ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
-      : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.username)}`;
+      ? `http://localhost:8080/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
+      : `http://localhost:8080/onedrive/folders?username=${encodeURIComponent(this.username)}`;
 
     console.log(`Loading contents for folder path: ${folderPath || 'root'} (URL: ${url})`);
 

@@ -50,6 +50,31 @@
               </div>
             </div>
 
+            <!-- OTP Modal -->
+            <div class="modal fade" [ngClass]="{'show d-block': showOtpModal}" tabindex="-1" role="dialog" style="background-color: rgba(0,0,0,0.5);">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Enter OTP</h5>
+                    <button type="button" class="btn-close" (click)="showOtpModal = false"></button>
+                  </div>
+                  <div class="modal-body">
+                    <p>An OTP has been sent to the creator's email. Please enter it below:</p>
+                    <input type="text" class="form-control" [(ngModel)]="otpInput" placeholder="Enter OTP" maxlength="6">
+                    <div *ngIf="otpErrorMessage" class="alert alert-danger mt-2">
+                      {{otpErrorMessage}}
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" (click)="showOtpModal = false">Cancel</button>
+                    <button type="button" class="btn btn-primary" (click)="verifyOtpAndDownload()" [disabled]="!otpInput || otpInput.length !== 6">
+                      Verify and Download
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Breadcrumbs and Back Button -->
             <div class="d-flex justify-content-between align-items-center mb-3" *ngIf="currentPath || pathHistory.length > 0">
               <nav aria-label="breadcrumb">
@@ -186,9 +211,6 @@
                         <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-success" (click)="downloadFile(item.downloadUrl, item.name)">
                           <i class="bi bi-download me-1"></i> Download
                         </button>
-                        <!-- <button *ngIf="item.downloadUrl && item.type === 'file'" class="btn btn-sm btn-outline-primary" (click)="viewFile(item.downloadUrl)">
-                          <i class="bi bi-eye me-1"></i> View
-                        </button> -->
                         <button *ngIf="item.type === 'folder' && item.prefix" class="btn btn-sm btn-outline-primary" (click)="listS3FolderContents(selectedBucket, item.prefix)">
                           <i class="bi bi-folder me-1"></i> View Folder
                         </button>

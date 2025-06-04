@@ -5,7 +5,6 @@ import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { retry, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
-import { saveAs } from 'file-saver';
 
 interface OneDriveFolder {
   name: string;
@@ -45,6 +44,7 @@ interface S3Content {
 export class UserDashboardComponent implements OnInit, OnDestroy {
   userSessionDetails: userSessionDetails | null | undefined;
   email: string = '';
+  creatorEmail: string = ''; // New property for creator's email
   folderName: string = '';
   currentPath: string = '';
   pathHistory: string[] = [];
@@ -61,44 +61,126 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   bucketSubscription?: Subscription;
   contentsSubscription?: Subscription;
   folderSubscription?: Subscription;
+  retentionNeeded: number | null = null;
+  showOtpModal: boolean = false;
+  otpInput: string = '';
+  otpErrorMessage: string = '';
+  folderToDownload: string = '';
+  foldersLoaded: boolean = false;
 
   constructor(private authService: AuthService, private http: HttpClient) {}
 
   ngOnInit(): void {
+    console.log('Raw session storage:', localStorage.getItem('userDetails'));
+
+    // Clear stale session data
+    localStorage.removeItem('userDetails');
+    localStorage.removeItem('jwtToken');
+
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
 
     if (!this.userSessionDetails) {
-      console.warn('No user session found. Skipping dashboard load.');
+      console.warn('No user session found. Fetching user details.');
       this.oneDriveErrorMessage = 'User session not found. Please log in again.';
+      this.fetchUserDetails();
       return;
     }
 
-    const { username, cloudProvider } = this.userSessionDetails;
+    const { username, cloudProvider, retentionNeeded } = this.userSessionDetails;
 
     if (!username || !cloudProvider) {
       console.error('User session details incomplete:', this.userSessionDetails);
-      this.oneDriveErrorMessage = 'Session details incomplete. Please log in again.';
+      this.oneDriveErrorMessage = 'Session details incomplete. Fetching user details.';
+      this.fetchUserDetails();
       return;
     }
 
     this.email = username;
     this.cloudProvider = cloudProvider.toLowerCase();
+    this.retentionNeeded = retentionNeeded !== undefined ? retentionNeeded : null;
+    console.log('Initial retention needed:', this.retentionNeeded);
 
-    if (this.cloudProvider === 'aws') {
-      this.loadS3Buckets();
-    } else if (this.cloudProvider === 'onedrive') {
-      this.listRootFolders();
-    } else {
-      console.warn('Unsupported cloud provider:', this.cloudProvider);
-      this.oneDriveErrorMessage = `Unsupported cloud provider: ${this.cloudProvider}`;
+    // Fetch user details to get creatorEmail and confirm retentionNeeded
+    this.fetchUserDetails();
+  }
+
+  private fetchUserDetails(): void {
+    if (!this.email) {
+      console.warn('No email available for fetching user details');
+      this.oneDriveErrorMessage = 'User email not found. Please log in again.';
+      return;
     }
+
+    const url = `https://datakavach.com/api/auth/users/current?email=${encodeURIComponent(this.email)}`;
+    console.log('Fetching user details from:', url);
+
+    this.http
+      .get<userSessionDetails & { createdBy?: string }>(url, { headers: this.getAuthHeaders() })
+      .pipe(
+        retry({ count: 2, delay: 1000 }),
+        catchError((err) => {
+          console.error('Error fetching user details:', err);
+          let errorMessage = 'Failed to fetch user details. Please try again later.';
+          if (err.status === 401) {
+            errorMessage = 'Unauthorized: Invalid or missing token. Please log in again.';
+            localStorage.removeItem('userDetails');
+            localStorage.removeItem('jwtToken');
+          } else if (err.status === 403) {
+            errorMessage = 'Forbidden: You do not have access to this resource.';
+          } else if (err.status === 404) {
+            errorMessage = 'User not found. Please register or contact support.';
+          }
+          this.oneDriveErrorMessage = err.error?.error || errorMessage;
+          return throwError(() => new Error(this.oneDriveErrorMessage));
+        })
+      )
+      .subscribe({
+        next: (userDetails) => {
+          console.log('Fetched user details:', userDetails);
+          this.userSessionDetails = userDetails;
+          this.retentionNeeded = userDetails.retentionNeeded !== undefined ? userDetails.retentionNeeded : null;
+          this.cloudProvider = userDetails.cloudProvider?.toLowerCase() || '';
+          this.email = userDetails.username || this.email;
+          this.creatorEmail = userDetails.createdBy || ''; // Store creator's email
+          console.log('Updated details:', {
+            retentionNeeded: this.retentionNeeded,
+            creatorEmail: this.creatorEmail
+          });
+
+          // Update local storage
+          localStorage.setItem('userDetails', JSON.stringify(userDetails));
+          if (userDetails.jwtToken) {
+            localStorage.setItem('jwtToken', userDetails.jwtToken);
+          }
+
+          // Load data only if not already loaded
+          if (!this.foldersLoaded) {
+            if (this.cloudProvider === 'aws') {
+              this.loadS3Buckets();
+            } else if (this.cloudProvider === 'onedrive') {
+              this.listRootFolders();
+            } else {
+              console.warn('Unsupported cloud provider:', this.cloudProvider);
+              this.oneDriveErrorMessage = `Unsupported cloud provider: ${this.cloudProvider}`;
+            }
+          }
+        }
+      });
   }
 
   private getAuthHeaders(): HttpHeaders {
-    const token = this.userSessionDetails?.jwtToken || '';
+    const token = this.userSessionDetails?.jwtToken || localStorage.getItem('jwtToken') || '';
+    if (!token) {
+      console.error('No JWT token found in userSessionDetails or localStorage');
+    } else {
+      console.log('Using JWT token:', token);
+    }
     return new HttpHeaders({
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
   }
 
@@ -145,36 +227,41 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (this.foldersLoaded) {
+      console.log('Folders already loaded:', this.oneDriveFolders);
+      return;
+    }
+
     this.loadingOneDrive = true;
     this.oneDriveErrorMessage = '';
     this.oneDriveFolders = [];
 
-    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.email)}`;
-    console.log('Fetching OneDrive root folders:', { url, email: this.email });
+    const endpoint = this.retentionNeeded === 1 ? 'user-folders' : 'folders';
+    const url = `https://datakavach.com/onedrive/${endpoint}?username=${encodeURIComponent(this.email)}`;
+    console.log(`Fetching OneDrive folders using ${endpoint} API:`, { url, email: this.email, retentionNeeded: this.retentionNeeded });
 
     this.folderSubscription = this.http
-      .get<{ folders: OneDriveFolder[]; nextLink: string }>(url, {
+      .get<{ folders: any[]; nextLink?: string }>(url, {
         headers: this.getAuthHeaders()
       })
       .pipe(
-        retry({
-          count: 2,
-          delay: 1000
-        }),
+        retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loadingOneDrive = false;
-          let errorMessage = 'Failed to fetch OneDrive folders. Please try again later or contact support.';
+          let errorMessage = `Failed to fetch OneDrive folders via ${endpoint}. Please try again later or contact support.`;
           if (err.status === 500) {
-            errorMessage = 'Server error fetching OneDrive folders. This may be due to OneDrive configuration issues. Please contact support.';
+            errorMessage = `Server error fetching OneDrive folders via ${endpoint}. Please contact support.`;
           } else if (err.status === 401) {
             errorMessage = 'Authentication failed. Please log in again.';
+            localStorage.removeItem('userDetails');
+            localStorage.removeItem('jwtToken');
           } else if (err.status === 404) {
-            errorMessage = 'User account not found or no OneDrive data available. Please register or contact support.';
+            errorMessage = 'User account not found or no OneDrive data available.';
           } else if (err.status === 0) {
-            errorMessage = 'Network or CORS error. Please check your internet connection or server configuration.';
+            errorMessage = 'Network or CORS error. Please check your connection.';
           }
           this.oneDriveErrorMessage = err.error?.error || errorMessage;
-          console.error('OneDrive folder error:', {
+          console.error(`OneDrive ${endpoint} error:`, {
             status: err.status,
             statusText: err.statusText,
             url: err.url,
@@ -187,25 +274,37 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (response) => {
-          console.log('Raw response from /folders:', JSON.stringify(response, null, 2));
+          console.log(`Raw response from /${endpoint}:`, JSON.stringify(response, null, 2));
           try {
             if (!response || typeof response !== 'object' || !Array.isArray(response.folders)) {
-              throw new Error('Invalid response format: Expected { folders: [{ name, id, size }], nextLink: string }');
+              throw new Error(`Invalid response format: Expected { folders: array, nextLink?: string }`);
             }
-            this.oneDriveFolders = response.folders.map((folder) => ({
-              name: folder.name || 'Unknown Folder',
-              id: folder.id || '',
-              size: folder.size || 0
-            }));
+
+            if (endpoint === 'user-folders') {
+              this.oneDriveFolders = response.folders.map((folderName: string) => ({
+                name: folderName || 'Unknown Folder',
+                id: '',
+                size: 0
+              }));
+            } else {
+              this.oneDriveFolders = response.folders.map((folder: any) => ({
+                name: folder.name || 'Unknown Folder',
+                id: folder.id || '',
+                size: folder.size || 0
+              }));
+            }
+
             if (this.oneDriveFolders.length === 0) {
-              this.oneDriveErrorMessage = 'No folders found in your OneDrive account. Please create a folder or verify your account.';
+              this.oneDriveErrorMessage = 'No folders found in your OneDrive account.';
+            } else {
+              this.foldersLoaded = true;
             }
           } catch (parseError: any) {
-            console.error('Error parsing /folders response:', {
+            console.error(`Error parsing /${endpoint} response:`, {
               error: parseError.message,
               response: JSON.stringify(response, null, 2)
             });
-            this.oneDriveErrorMessage = 'Invalid server response from OneDrive. Please try again or contact support.';
+            this.oneDriveErrorMessage = `Invalid server response from OneDrive ${endpoint}.`;
             this.oneDriveFolders = [];
           }
           this.loadingOneDrive = false;
@@ -223,7 +322,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
     const isValidFolder = this.oneDriveFolders.some((folder) => folder.name === this.folderName);
     if (!isValidFolder) {
-      this.oneDriveErrorMessage = `Invalid folder selected: "${this.folderName}". Please select a valid folder.`;
+      this.oneDriveErrorMessage = `Invalid folder selected: "${this.folderName}".`;
       console.error('Invalid folderName:', this.folderName);
       return;
     }
@@ -256,21 +355,20 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         headers: this.getAuthHeaders()
       })
       .pipe(
-        retry({
-          count: 2,
-          delay: 1000
-        }),
+        retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loadingOneDrive = false;
-          let errorMessage = 'Failed to fetch OneDrive contents. Please try again or contact support.';
+          let errorMessage = 'Failed to fetch OneDrive contents. Please try again.';
           if (err.status === 500) {
-            errorMessage = 'Server error fetching OneDrive contents. Please verify the folder or contact support.';
+            errorMessage = 'Server error fetching OneDrive contents.';
           } else if (err.status === 404) {
-            errorMessage = `Folder "${folderPath || 'root'}" not found in OneDrive for "${this.email}".`;
+            errorMessage = `Folder "${folderPath || 'root'}" not found.`;
           } else if (err.status === 401) {
             errorMessage = 'Authentication failed. Please log in again.';
+            localStorage.removeItem('userDetails');
+            localStorage.removeItem('jwtToken');
           } else if (err.status === 0) {
-            errorMessage = 'Network or CORS error. Please check your internet connection or server configuration.';
+            errorMessage = 'Network or CORS error. Please check your connection.';
           }
           this.oneDriveErrorMessage = err.error?.error || errorMessage;
           console.error('OneDrive contents error:', {
@@ -290,19 +388,20 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           console.log('Raw response from /folder-contents:', JSON.stringify(response, null, 2));
           try {
             if (!response || typeof response !== 'object' || !Array.isArray(response.contents)) {
-              throw new Error('Invalid response format: Expected { contents: [{ name, type, id, size, downloadUrl }], nextLink: string }');
+              throw new Error('Invalid response format: Expected { contents: [{ name, type, id, size, downloadUrl? }], nextLink: string }');
             }
-            this.oneDriveContents = response.contents.map((item) => {
-              if (item.type === 'file' && !item.downloadUrl) {
-                console.warn(`Missing downloadUrl for file: ${item.name}`);
-              }
-              return {
+            this.oneDriveContents = response.contents.map((item: any) => {
+              const content: OneDriveContent = {
                 name: item.name || 'Unknown',
                 type: item.type || 'file',
                 id: item.id || '',
-                size: item.size,
-                downloadUrl: item.downloadUrl
+                size: item.size !== undefined ? item.size : undefined,
+                downloadUrl: item.downloadUrl || ''
               };
+              if (item.type === 'file' && !item.downloadUrl) {
+                console.warn(`Missing downloadUrl for file: ${item.name}`);
+              }
+              return content;
             });
             if (this.oneDriveContents.length === 0) {
               this.oneDriveErrorMessage = `No contents found in "${folderPath || 'root'}" for "${this.email}".`;
@@ -312,11 +411,137 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
               error: parseError.message,
               response: JSON.stringify(response, null, 2)
             });
-            this.oneDriveErrorMessage = 'Invalid server response from OneDrive. Please try again or contact support.';
+            this.oneDriveErrorMessage = 'Invalid server response from OneDrive.';
             this.oneDriveContents = [];
           }
           this.loadingOneDrive = false;
           console.log('OneDrive contents loaded:', this.oneDriveContents);
+        }
+      });
+  }
+
+  generateOtp(): void {
+    if (!this.email) {
+      this.oneDriveErrorMessage = 'User email is missing. Please log in again.';
+      console.error('No email available for OTP generation');
+      return;
+    }
+
+    this.otpErrorMessage = '';
+    const url = `https://datakavach.com/onedrive/generate-otp?username=${encodeURIComponent(this.email)}`;
+    console.log('Generating OTP:', { url, email: this.email, creatorEmail: this.creatorEmail });
+
+    this.http
+      .post<{ message: string }>(url, {}, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError((err) => {
+          let errorMessage = 'Failed to generate OTP. Please try again.';
+          if (err.status === 404) {
+            errorMessage = 'Creator email not found. Please contact support.';
+          } else if (err.status === 500) {
+            errorMessage = 'Server error generating OTP. Please try again later.';
+          }
+          this.otpErrorMessage = err.error?.error || errorMessage;
+          console.error('OTP generation error:', {
+            status: err.status,
+            error: err.error,
+            creatorEmail: this.creatorEmail
+          });
+          return throwError(() => new Error(this.otpErrorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          console.log('OTP generated:', response);
+          this.otpErrorMessage = this.creatorEmail
+            ? `OTP sent to creator's email (${this.creatorEmail}). Please check and enter the OTP.`
+            : 'OTP sent to creator\'s email. Please check and enter the OTP.';
+        }
+      });
+  }
+
+  verifyOtpAndDownload(): void {
+    if (!this.email || !this.otpInput || !this.folderToDownload) {
+      this.otpErrorMessage = 'Missing OTP or folder details.';
+      console.error('Missing parameters:', { email: this.email, otp: this.otpInput, folder: this.folderToDownload });
+      return;
+    }
+
+    const url = `https://datakavach.com/onedrive/verify-otp?username=${encodeURIComponent(this.email)}&otp=${encodeURIComponent(this.otpInput)}`;
+    console.log('Verifying OTP:', { url, email: this.email });
+
+    this.http
+      .post<{ isValid: boolean }>(url, {}, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError((err) => {
+          this.otpErrorMessage = err.error?.error || 'Failed to verify OTP. Please try again.';
+          console.error('OTP verification error:', err);
+          return throwError(() => new Error(this.otpErrorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          if (response.isValid) {
+            this.showOtpModal = false;
+            this.otpInput = '';
+            this.otpErrorMessage = '';
+            this.initiateFolderDownload(this.folderToDownload);
+          } else {
+            this.otpErrorMessage = 'Invalid or expired OTP. Please try again.';
+          }
+        }
+      });
+  }
+
+  downloadFolder(folderName: string): void {
+    if (!folderName || !this.email) {
+      this.oneDriveErrorMessage = 'Invalid folder or user details.';
+      console.error('Invalid parameters:', { folderName, email: this.email });
+      return;
+    }
+
+    if (this.retentionNeeded === 1) {
+      this.folderToDownload = folderName;
+      this.showOtpModal = true;
+      this.otpInput = '';
+      this.otpErrorMessage = '';
+      this.generateOtp();
+    } else {
+      this.initiateFolderDownload(folderName);
+    }
+  }
+
+  private initiateFolderDownload(folderName: string): void {
+    this.loadingOneDrive = true;
+    this.oneDriveErrorMessage = '';
+
+    const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
+    const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
+    console.log('Downloading folder:', { folderName, folderPath, url });
+
+    this.http
+      .get(url, {
+        headers: this.getAuthHeaders(),
+        responseType: 'blob'
+      })
+      .pipe(
+        catchError((err) => {
+          this.loadingOneDrive = false;
+          this.oneDriveErrorMessage = err.error?.error || 'Failed to download folder. Please try again.';
+          console.error('Folder download error:', err);
+          return throwError(() => new Error(this.oneDriveErrorMessage));
+        })
+      )
+      .subscribe({
+        next: (blob) => {
+          const link = document.createElement('a');
+          link.href = window.URL.createObjectURL(blob);
+          link.download = `${folderName}.zip`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(link.href);
+          this.loadingOneDrive = false;
         }
       });
   }
@@ -340,13 +565,18 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         headers: this.getAuthHeaders()
       })
       .pipe(
-        retry({
-          count: 2,
-          delay: 1000
-        }),
+        retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loadingS3 = false;
-          this.s3ErrorMessage = err.error?.error || 'Failed to fetch S3 buckets. Please try again or contact support.';
+          let errorMessage = 'Failed to fetch S3 buckets. Please try again.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+            localStorage.removeItem('userDetails');
+            localStorage.removeItem('jwtToken');
+          } else if (err.status === 404) {
+            errorMessage = 'No S3 buckets found for your account.';
+          }
+          this.s3ErrorMessage = err.error?.error || errorMessage;
           console.error('S3 bucket error:', {
             status: err.status,
             statusText: err.statusText,
@@ -390,13 +620,18 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         headers: this.getAuthHeaders()
       })
       .pipe(
-        retry({
-          count: 2,
-          delay: 1000
-        }),
+        retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loadingS3 = false;
-          this.s3ErrorMessage = err.error?.error || 'Failed to fetch S3 contents. Please try again or contact support.';
+          let errorMessage = 'Failed to fetch S3 contents. Please try again.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+            localStorage.removeItem('userDetails');
+            localStorage.removeItem('jwtToken');
+          } else if (err.status === 404) {
+            errorMessage = `No contents found in bucket "${bucketName}".`;
+          }
+          this.s3ErrorMessage = err.error?.error || errorMessage;
           console.error('S3 contents error:', {
             status: err.status,
             statusText: err.statusText,
@@ -441,13 +676,18 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         headers: this.getAuthHeaders()
       })
       .pipe(
-        retry({
-          count: 2,
-          delay: 1000
-        }),
+        retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loadingS3 = false;
-          this.s3ErrorMessage = err.error?.error || 'Failed to fetch S3 folder contents. Please try again or contact support.';
+          let errorMessage = 'Failed to fetch S3 folder contents. Please try again.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+            localStorage.removeItem('userDetails');
+            localStorage.removeItem('jwtToken');
+          } else if (err.status === 404) {
+            errorMessage = `No contents found in folder "${prefix}" of bucket "${bucketName}".`;
+          }
+          this.s3ErrorMessage = err.error?.error || errorMessage;
           console.error('S3 folder contents error:', {
             status: err.status,
             statusText: err.statusText,
@@ -516,44 +756,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }
-
-  downloadFolder(folderName: string): void {
-    if (!folderName || !this.email) {
-      this.oneDriveErrorMessage = 'Invalid folder or user details.';
-      console.error('Invalid parameters:', { folderName, email: this.email });
-      return;
-    }
-
-    const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
-    const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
-
-    this.http
-      .get(url, { headers: this.getAuthHeaders(), responseType: 'blob' })
-      .pipe(
-        retry({
-          count: 2,
-          delay: 1000
-        }),
-        catchError((err) => {
-          let errorMessage = 'Failed to download folder. Please try again.';
-          if (err.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again.';
-          } else if (err.status === 404) {
-            errorMessage = `Folder "${folderPath}" not found.`;
-          }
-          this.oneDriveErrorMessage = errorMessage;
-          console.error(`Error downloading folder: ${errorMessage}`, err);
-          return throwError(() => new Error(errorMessage));
-        })
-      )
-      .subscribe({
-        next: (response) => {
-          const blob = new Blob([response], { type: 'application/zip' });
-          saveAs(blob, `${folderName}.zip`);
-          console.log(`Folder "${folderName}" downloaded successfully.`);
-        }
-      });
   }
 
   ngOnDestroy(): void {

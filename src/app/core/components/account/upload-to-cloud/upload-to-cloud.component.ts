@@ -142,7 +142,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.addLog('Loading buckets...');
-    const url = `https://datakavach.com/api/s3/buckets?email=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `http://localhost:8080/api/s3/buckets?email=${encodeURIComponent(this.userSessionDetails.username)}`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error('Failed to fetch buckets');
@@ -177,7 +177,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.addLog(`Loading folders for bucket: ${this.selectedBucket}, path: ${this.currentPath || '/'}`);
-    const url = `https://datakavach.com/api/s3/folders?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}${this.currentPath ? '&prefix=' + encodeURIComponent(this.currentPath) : ''}`;
+    const url = `http://localhost:8080/api/s3/folders?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}${this.currentPath ? '&prefix=' + encodeURIComponent(this.currentPath) : ''}`;
     fetch(url)
       .then(async (response) => {
         if (!response.ok) {
@@ -207,7 +207,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   loadFileDownloadUrls() {
     if (!this.selectedBucket || !this.userSessionDetails?.username) return;
 
-    const url = `https://datakavach.com/api/s3/files?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}${this.currentPath ? '&prefix=' + encodeURIComponent(this.currentPath) : ''}`;
+    const url = `http://localhost:8080/api/s3/files?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}${this.currentPath ? '&prefix=' + encodeURIComponent(this.currentPath) : ''}`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error('Failed to fetch file URLs');
@@ -394,7 +394,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
     const fileNames = this.filesToUpload.map(file => (file as any).webkitRelativePath || file.name);
     const fileSizes = this.filesToUpload.map(file => file.size.toString());
-    const url = `https://datakavach.com/api/s3/generate-presigned-urls?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}&fileNames=${encodeURIComponent(fileNames.join(','))}&fileSizes=${encodeURIComponent(fileSizes.join(','))}${this.currentPath ? '&folderPath=' + encodeURIComponent(this.currentPath) : ''}`;
+    const url = `http://localhost:8080/api/s3/generate-presigned-urls?email=${encodeURIComponent(this.userSessionDetails.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}&fileNames=${encodeURIComponent(fileNames.join(','))}&fileSizes=${encodeURIComponent(fileSizes.join(','))}${this.currentPath ? '&folderPath=' + encodeURIComponent(this.currentPath) : ''}`;
 
     try {
       this.addLog(`Requesting presigned URLs: ${url}`);
@@ -520,7 +520,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   }
 
   async completeMultipartUpload(s3Key: string, uploadId: string, parts: { PartNumber: number; ETag: string }[], relativePath: string) {
-    const url = `https://datakavach.com/api/s3/complete-multipart-upload?email=${encodeURIComponent(this.userSessionDetails!.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}&key=${encodeURIComponent(s3Key)}&uploadId=${encodeURIComponent(uploadId)}`;
+    const url = `http://localhost:8080/api/s3/complete-multipart-upload?email=${encodeURIComponent(this.userSessionDetails!.username)}&bucketName=${encodeURIComponent(this.selectedBucket)}&key=${encodeURIComponent(s3Key)}&uploadId=${encodeURIComponent(uploadId)}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
