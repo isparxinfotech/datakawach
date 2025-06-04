@@ -33,9 +33,8 @@
                         placeholder="Enter Corporate Name" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['corpoName'].errors }">
                       <div *ngIf="submitted && f['corpoName'].errors" class="invalid-feedback">
-                        <div *ngIf="f['corpoName'].errors['required']">Corporate name is required</div>
-                        <div *ngIf="f['corpoName'].errors['minlength']">Minimum 3 chars required</div>
-                        <div *ngIf="f['corpoName'].errors['pattern']">Please enter valid name</div>
+                        <div *ngIf="f['corpoName'].errors?.['required']">Corporate name is required</div>
+                        <div *ngIf="f['corpoName'].errors?.['minlength']">Minimum 3 characters required</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
@@ -44,8 +43,8 @@
                         placeholder="Enter Address" maxlength="150"
                         [ngClass]="{ 'is-invalid': submitted && f['address'].errors }">
                       <div *ngIf="submitted && f['address'].errors" class="invalid-feedback">
-                        <div *ngIf="f['address'].errors['required']">Address is required</div>
-                        <div *ngIf="f['address'].errors['minlength']">Minimum 3 chars required</div>
+                        <div *ngIf="f['address'].errors?.['required']">Address is required</div>
+                        <div *ngIf="f['address'].errors?.['minlength']">Minimum 3 characters required</div>
                       </div>
                     </div>
                   </div>
@@ -56,8 +55,8 @@
                         placeholder="Enter Branch" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['branch'].errors }">
                       <div *ngIf="submitted && f['branch'].errors" class="invalid-feedback">
-                        <div *ngIf="f['branch'].errors['required']">Branch is required</div>
-                        <div *ngIf="f['branch'].errors['minlength']">Minimum 3 chars required</div>
+                        <div *ngIf="f['branch'].errors?.['required']">Branch is required</div>
+                        <div *ngIf="f['branch'].errors?.['minlength']">Minimum 3 characters required</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
@@ -66,8 +65,8 @@
                         placeholder="Enter Zip Code" maxlength="20"
                         [ngClass]="{ 'is-invalid': submitted && f['pinCode'].errors }">
                       <div *ngIf="submitted && f['pinCode'].errors" class="invalid-feedback">
-                        <div *ngIf="f['pinCode'].errors['required']">Zip Code is required</div>
-                        <div *ngIf="f['pinCode'].errors['pattern'] || f['pinCode'].errors['minlength']">Please enter valid Zip Code</div>
+                        <div *ngIf="f['pinCode'].errors?.['required']">Zip Code is required</div>
+                        <div *ngIf="f['pinCode'].errors?.['pattern'] || f['pinCode'].errors?.['minlength']">Please enter a valid Zip Code</div>
                       </div>
                     </div>
                   </div>
@@ -78,8 +77,8 @@
                         placeholder="Enter Landline Number" maxlength="15"
                         [ngClass]="{ 'is-invalid': submitted && f['landlineNumber'].errors }">
                       <div *ngIf="submitted && f['landlineNumber'].errors" class="invalid-feedback">
-                        <div *ngIf="f['landlineNumber'].errors['required']">Landline Number is required</div>
-                        <div *ngIf="f['landlineNumber'].errors['pattern'] || f['landlineNumber'].errors['minlength']">Please enter valid number</div>
+                        <div *ngIf="f['landlineNumber'].errors?.['required']">Landline Number is required</div>
+                        <div *ngIf="f['landlineNumber'].errors?.['pattern'] || f['landlineNumber'].errors?.['minlength']">Please enter a valid number</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
@@ -88,8 +87,8 @@
                         placeholder="Enter Email" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['email'].errors }">
                       <div *ngIf="submitted && f['email'].errors" class="invalid-feedback">
-                        <div *ngIf="f['email'].errors['required']">Email is required</div>
-                        <div *ngIf="f['email'].errors['pattern']">Please enter valid email</div>
+                        <div *ngIf="f['email'].errors?.['required']">Email is required</div>
+                        <div *ngIf="f['email'].errors?.['pattern']">Please enter a valid email</div>
                       </div>
                     </div>
                   </div>
@@ -103,7 +102,7 @@
                         <option value="1">Needed</option>
                       </select>
                       <div *ngIf="submitted && f['retentionNeeded'].errors" class="invalid-feedback">
-                        <div *ngIf="f['retentionNeeded'].errors['required']">Retention Needed is required</div>
+                        <div *ngIf="f['retentionNeeded'].errors?.['required']">Retention Needed is required</div>
                       </div>
                     </div>
                   </div>
@@ -118,18 +117,18 @@
                         placeholder="Enter Password" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['password'].errors }">
                       <div *ngIf="submitted && f['password'].errors" class="invalid-feedback">
-                        <div *ngIf="f['password'].errors['required']">Password is required</div>
-                        <div *ngIf="f['password'].errors['minlength']">Minimum 8 characters required</div>
-                        <div *ngIf="f['password'].errors['pattern']">Password must contain at least one uppercase letter, one number, and one special character</div>
+                        <div *ngIf="f['password'].errors?.['required']">Password is required</div>
+                        <div *ngIf="f['password'].errors?.['minlength']">Password must be at least 8 characters long</div>
+                        <div *ngIf="f['password'].errors?.['pattern']">Password must contain at least one uppercase letter, one number, and one special character (@$!%*#?&)</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
                       <label for="confirmPassword">Confirm Password <span class="mandatory">*</span></label>
                       <input type="password" class="form-control" id="confirmPassword" formControlName="confirmPassword"
                         placeholder="Confirm Password" maxlength="50"
-                        [ngClass]="{ 'is-invalid': submitted && f['confirmPassword'].errors }">
-                      <div *ngIf="submitted && f['confirmPassword'].errors" class="invalid-feedback">
-                        <div *ngIf="f['confirmPassword'].errors['required']">Confirm Password is required</div>
+                        [ngClass]="{ 'is-invalid': submitted && (f['confirmPassword'].errors || frmValidate.errors?.['mismatch']) }">
+                      <div *ngIf="submitted && (f['confirmPassword'].errors || frmValidate.errors?.['mismatch'])" class="invalid-feedback">
+                        <div *ngIf="f['confirmPassword'].errors?.['required']">Confirm Password is required</div>
                         <div *ngIf="frmValidate.errors?.['mismatch']">Passwords do not match</div>
                       </div>
                     </div>
@@ -148,7 +147,7 @@
                         <option value="aws">AWS S3</option>
                       </select>
                       <div *ngIf="submitted && f['cloudProvider'].errors" class="invalid-feedback">
-                        <div *ngIf="f['cloudProvider'].errors['required']">Cloud provider is required</div>
+                        <div *ngIf="f['cloudProvider'].errors?.['required']">Cloud provider is required</div>
                       </div>
                     </div>
                   </div>
@@ -162,8 +161,8 @@
                           placeholder="Enter OneDrive User ID" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['oneDriveUserId'].errors }">
                         <div *ngIf="submitted && f['oneDriveUserId'].errors" class="invalid-feedback">
-                          <div *ngIf="f['oneDriveUserId'].errors['required']">OneDrive User ID is required</div>
-                          <div *ngIf="f['oneDriveUserId'].errors['maxlength']">Maximum 250 characters</div>
+                          <div *ngIf="f['oneDriveUserId'].errors?.['required']">OneDrive User ID is required</div>
+                          <div *ngIf="f['oneDriveUserId'].errors?.['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                       <div class="col-lg-6">
@@ -172,8 +171,8 @@
                           placeholder="Enter OneDrive Username" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['onedriveUsername'].errors }">
                         <div *ngIf="submitted && f['onedriveUsername'].errors" class="invalid-feedback">
-                          <div *ngIf="f['onedriveUsername'].errors['required']">OneDrive Username is required</div>
-                          <div *ngIf="f['onedriveUsername'].errors['maxlength']">Maximum 250 characters</div>
+                          <div *ngIf="f['onedriveUsername'].errors?.['required']">OneDrive Username is required</div>
+                          <div *ngIf="f['onedriveUsername'].errors?.['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                     </div>
@@ -184,8 +183,8 @@
                           placeholder="Enter OneDrive Password" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['onedrivePassword'].errors }">
                         <div *ngIf="submitted && f['onedrivePassword'].errors" class="invalid-feedback">
-                          <div *ngIf="f['onedrivePassword'].errors['required']">OneDrive Password is required</div>
-                          <div *ngIf="f['onedrivePassword'].errors['maxlength']">Maximum 250 characters</div>
+                          <div *ngIf="f['onedrivePassword'].errors?.['required']">OneDrive Password is required</div>
+                          <div *ngIf="f['onedrivePassword'].errors?.['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                       <div class="col-lg-6">
@@ -194,8 +193,8 @@
                           placeholder="Enter OneDrive Tenant ID" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['onedriveTenantId'].errors }">
                         <div *ngIf="submitted && f['onedriveTenantId'].errors" class="invalid-feedback">
-                          <div *ngIf="f['onedriveTenantId'].errors['required']">OneDrive Tenant ID is required</div>
-                          <div *ngIf="f['onedriveTenantId'].errors['maxlength']">Maximum 250 characters</div>
+                          <div *ngIf="f['onedriveTenantId'].errors?.['required']">OneDrive Tenant ID is required</div>
+                          <div *ngIf="f['onedriveTenantId'].errors?.['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                     </div>
@@ -206,8 +205,8 @@
                           placeholder="Enter OneDrive Client ID" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['onedriveClientId'].errors }">
                         <div *ngIf="submitted && f['onedriveClientId'].errors" class="invalid-feedback">
-                          <div *ngIf="f['onedriveClientId'].errors['required']">OneDrive Client ID is required</div>
-                          <div *ngIf="f['onedriveClientId'].errors['maxlength']">Maximum 250 characters</div>
+                          <div *ngIf="f['onedriveClientId'].errors?.['required']">OneDrive Client ID is required</div>
+                          <div *ngIf="f['onedriveClientId'].errors?.['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                       <div class="col-lg-6">
@@ -216,8 +215,8 @@
                           placeholder="Enter Client Secret" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['clientSecret'].errors }">
                         <div *ngIf="submitted && f['clientSecret'].errors" class="invalid-feedback">
-                          <div *ngIf="f['clientSecret'].errors['required']">Client Secret is required</div>
-                          <div *ngIf="f['clientSecret'].errors['maxlength']">Maximum 250 characters</div>
+                          <div *ngIf="f['clientSecret'].errors?.['required']">Client Secret is required</div>
+                          <div *ngIf="f['clientSecret'].errors?.['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                     </div>
@@ -232,8 +231,8 @@
                           placeholder="Enter AWS Access Key" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['awsAccessKey'].errors }">
                         <div *ngIf="submitted && f['awsAccessKey'].errors" class="invalid-feedback">
-                          <div *ngIf="f['awsAccessKey'].errors['required']">AWS Access Key is required</div>
-                          <div *ngIf="f['awsAccessKey'].errors['maxlength']">Maximum 250 characters</div>
+                          <div *ngIf="f['awsAccessKey'].errors?.['required']">AWS Access Key is required</div>
+                          <div *ngIf="f['awsAccessKey'].errors?.['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                       <div class="col-lg-6">
@@ -242,8 +241,8 @@
                           placeholder="Enter AWS Secret Key" maxlength="250"
                           [ngClass]="{ 'is-invalid': submitted && f['awsSecretKey'].errors }">
                         <div *ngIf="submitted && f['awsSecretKey'].errors" class="invalid-feedback">
-                          <div *ngIf="f['awsSecretKey'].errors['required']">AWS Secret Key is required</div>
-                          <div *ngIf="f['awsSecretKey'].errors['maxlength']">Maximum 250 characters</div>
+                          <div *ngIf="f['awsSecretKey'].errors?.['required']">AWS Secret Key is required</div>
+                          <div *ngIf="f['awsSecretKey'].errors?.['maxlength']">Maximum 250 characters</div>
                         </div>
                       </div>
                     </div>
@@ -254,8 +253,8 @@
                           placeholder="Enter AWS Region (e.g., ap-south-1)" maxlength="50"
                           [ngClass]="{ 'is-invalid': submitted && f['awsRegion'].errors }">
                         <div *ngIf="submitted && f['awsRegion'].errors" class="invalid-feedback">
-                          <div *ngIf="f['awsRegion'].errors['required']">AWS Region is required</div>
-                          <div *ngIf="f['awsRegion'].errors['maxlength']">Maximum 50 characters</div>
+                          <div *ngIf="f['awsRegion'].errors?.['required']">AWS Region is required</div>
+                          <div *ngIf="f['awsRegion'].errors?.['maxlength']">Maximum 50 characters</div>
                         </div>
                       </div>
                     </div>
