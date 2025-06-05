@@ -1,194 +1,179 @@
-
-    <div class="container">
-        <div class="row" style=" background-color: #f1f5fd !important; margin-top: 15px; margin-bottom: 15px;">
-            <div class="col-lg-12">
-                <h1 style="text-align:center">Registration Form</h1>
-            </div>
-            <div class="col-lg-12">
-                <form [formGroup]="frmValidate" id="frmRegistration" (ngSubmit)="onRegisterUser()" novalidate>
-                    <fieldset class="scheduler-border">
-                        <legend class="scheduler-border">Personal Details</legend>
-                        <div class="row mb-3">
-                            <div class="col-lg-4">
-                                <label for="firstName">First Name <span class="mandatory">*</span></label>
-                                <input type="text" class="form-control" aria-describedby="firstName"
-                                    placeholder="Enter First Name" id="firstName" maxlength="30" formControlName="firstName"
-                                  [ngClass]="{ 'is-invalid': submitted && f['firstName'].errors }"
-                                    >
-                                <div *ngIf="submitted && f['firstName'].errors" class="invalid-feedback">
-                                    <div *ngIf="f['firstName'].errors['required']">First name is required</div>
-                                    <div *ngIf="f['firstName'].errors['minlength']">Minimum 3 char name is required</div>
-                                    <div *ngIf="f['firstName'].errors['pattern']">Please enter valid name</div>
-                                </div>
-                            </div>
-                            <div class="col-lg-4">
-                                <label for="middleName">Middle Name <span class="mandatory">*</span></label>
-                                <input type="text" class="form-control" id="middleName" formControlName="middleName"
-                                    aria-describedby="middleName" placeholder="Enter Middle Name" maxlength="30" [ngClass]="{ 'is-invalid': submitted && f['middleName'].errors }">
-                                    <div *ngIf="submitted && f['middleName'].errors" class="invalid-feedback">
-                                        <div *ngIf="f['middleName'].errors['required']">Middle name is required</div>
-                                        <div *ngIf="f['middleName'].errors['minlength']">Minimum 3 char name is required</div>
-                                        <div *ngIf="f['middleName'].errors['pattern']">Please enter valid name</div>
-                                    </div>
-                            </div>
-                            <div class="col-lg-4">
-                                <label for="lastName">Last Name <span class="mandatory">*</span></label>
-                                <input type="text" class="form-control" id="lastName" formControlName="lastName"
-                                    aria-describedby="lastName" placeholder="Enter Last Name" maxlength="30" [ngClass]="{ 'is-invalid': submitted && f['lastName'].errors }">
-                                    <div *ngIf="submitted && f['lastName'].errors" class="invalid-feedback">
-                                        <div *ngIf="f['lastName'].errors['required']">Last name is required</div>
-                                        <div *ngIf="f['lastName'].errors['minlength']">Minimum 3 char name is required</div>
-                                        <div *ngIf="f['lastName'].errors['pattern']">Please enter valid name</div>
-                                    </div>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-lg-6">
-                                <label for="gender">Gender <span class="mandatory">*</span></label>
-                                <select class="form-control" formControlName="gender" aria-describedby="gender" [ngClass]="{ 'is-invalid': submitted && f['gender'].errors }">
-                                    <option value="" selected>--Select Gender--</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                </select>
-                                <div *ngIf="submitted && f['gender'].errors" class="invalid-feedback">
-                                    <div *ngIf="f['gender'].errors['required']">Gender is required</div>
-                                </div>
-                            </div>
-                            <div class="col-lg-6">
-                                <label for="dob">Date Of Birth <span class="mandatory">*</span></label>
-                                <input type="date" class="form-control" formControlName="dateOfBirth" aria-describedby="dob" [ngClass]="{ 'is-invalid': submitted && f['dateOfBirth'].errors }">
-                                <div *ngIf="submitted && f['dateOfBirth'].errors" class="invalid-feedback">
-                                    <div *ngIf="f['dateOfBirth'].errors['required']">Date Of Birth is required</div>
-                                    <div *ngIf="f['dateOfBirth'].errors['pattern']">Please enter valid name</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-lg-12">
-                                <label for="addressLine1">Address <span class="mandatory">*</span></label>
-                                <input type="text" class="form-control" id="address" formControlName="address" aria-describedby="address"
-                                    placeholder="Enter Address" maxlength="100" [ngClass]="{ 'is-invalid': submitted && f['address'].errors }">
-                                    <div *ngIf="submitted && f['address'].errors" class="invalid-feedback">
-                                        <div *ngIf="f['address'].errors['required']">Address is required</div>
-                                        <div *ngIf="f['address'].errors['pattern']">Please enter valid Address</div>
-                                        <div *ngIf="f['address'].errors['minlength']">Please enter 3 chars atleast</div>
-                                    </div>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-lg-6">
-                                <label for="cityId">City <span class="mandatory">*</span></label>
-                                <input type="text" class="form-control" id="cityId" formControlName="city" aria-describedby="city"
-                                  placeholder="Enter city" maxlength="100" [ngClass]="{ 'is-invalid': submitted && f['city'].errors }">
-                                <div *ngIf="submitted && f['city'].errors" class="invalid-feedback">
-                                    <div *ngIf="f['city'].errors['required']">City is required</div>
-                                </div>
-                            </div>
-                            <div class="col-lg-6">
-                                <label for="pincode">Zip Code <span class="mandatory">*</span></label>
-                                <input type="text" class="form-control" id="pinCode" formControlName="pinCode"
-                                    aria-describedby="pincode" placeholder="Enter Pincode" maxlength="6" [ngClass]="{ 'is-invalid': submitted && f['pinCode'].errors }">
-                                    <div *ngIf="submitted && f['pinCode'].errors" class="invalid-feedback">
-                                        <div *ngIf="f['pinCode'].errors['required']">Zip Code is required</div>
-                                        <div *ngIf="f['pinCode'].errors['pattern'] || f['pinCode'].errors['minlength']">Please enter valid Zip Code</div>
-                                    </div>
-                            </div>
-                        </div>
-                    </fieldset>
-                    <fieldset class="scheduler-border">
-                        <legend class="scheduler-border">Login Details</legend>
-                        <div class="row mb-3">
-                            <div class="col-lg-6">
-                                <label for="mobile">Mobile <span class="mandatory">*</span></label>
-                                <input type="tel" class="form-control" id="mobile" formControlName="mobileNumber"
-                                    aria-describedby="mobile" placeholder="Enter Mobile" maxlength="10" [ngClass]="{ 'is-invalid': submitted && f['mobileNumber'].errors }">
-                                    <div *ngIf="submitted && f['mobileNumber'].errors" class="invalid-feedback">
-                                        <div *ngIf="f['mobileNumber'].errors['required']">Mobile is required</div>
-                                        <div *ngIf="f['mobileNumber'].errors['pattern'] || f['mobileNumber'].errors['minlength']">Please enter valid Mobile</div>
-                                    </div>
-                            </div>
-                            <div class="col-lg-6">
-                                <label for="email">Email</label>
-                                <input type="email" class="form-control" id="email" formControlName="email"
-                                    aria-describedby="email" placeholder="Enter Email" maxlength="30" [ngClass]="{ 'is-invalid': submitted && f['email'].errors }">
-                                    <div *ngIf="submitted && f['email'].errors" class="invalid-feedback">
-                                        <div *ngIf="f['email'].errors['required']">Email is required</div>
-                                        <div *ngIf="f['email'].errors['email']">Please enter valid email
-                                        </div>
-                                    </div>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-lg-6">
-                                <label for="password">Password <span class="mandatory">*</span></label>
-                                <input type="password" class="form-control" id="password" formControlName="password"
-                                    aria-describedby="password" placeholder="Enter Password" maxlength="15" [ngClass]="{ 'is-invalid': submitted && f['password'].errors }">
-                                    <div *ngIf="submitted && f['password'].errors" class="invalid-feedback">
-                                        <div *ngIf="f['password'].errors['required']">Password is required</div>
-                                        <div *ngIf="f['password'].errors['minlength']">Please enter atleast 4 char password
-                                        </div>
-                                    </div>
-                            </div>
-                            <div class="col-lg-6">
-                                <label for="confirmPwd">Confirm Password <span class="mandatory">*</span></label>
-                                <input type="password" class="form-control" id="confirmPwd" formControlName="confirmPwd"
-                                    aria-describedby="confirmPwd" placeholder="Enter Confirm Password" maxlength="15" [ngClass]="{ 'is-invalid': submitted && f['confirmPwd'].errors }">
-                                    <div *ngIf="submitted && f['confirmPwd'].errors" class="invalid-feedback">
-                                        <div *ngIf="f['confirmPwd'].errors['required']">Confirm Password is required</div>
-                                        <div *ngIf="f['confirmPwd'].errors['minlength']">Please enter atleast 4 char Confirm Password
-                                        </div>
-                                    </div>
-                            </div>
-                        </div>
-
-                    </fieldset>
-                    <div class="row">
-                        <div class="col-lg-12">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="1"
-                                    id="isTermsAndCondtionAccepted" formControlName="isTermsAndCondtionAccepted" [ngClass]="{ 'is-invalid': submitted && f['isTermsAndCondtionAccepted'].errors }">
-                                <p class="form-check-label" for="gridCheck">
-                                    Click here to indicate that you have read and agree to the terms presented in the <a
-                                        href="#" data-target="#termsAndCondition" data-toggle="modal">Terms and
-                                        Conditions</a> and <a href="#" data-target="#privacypolicy"
-                                        data-toggle="modal">Privacy Policy</a> .
-                                </p>
-                                <div *ngIf="submitted && f['isTermsAndCondtionAccepted'].errors" class="invalid-feedback">
-                                    <div *ngIf="f['isTermsAndCondtionAccepted'].errors['required']">Please accept Terms and Condition is required</div>
-
-
-                                </div>
-
-                            </div>
-                        </div>
-                        <div class="col-lg-12">
-                            <input type="submit" class="btn btn-primary" value="Submit"/>
-                            <span style="float: right;">Already Registered? <a href="/login" >Login Now</a></span>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="container">
+  <div class="row" style="background-color: #f1f5fd !important; margin-top: 15px; margin-bottom: 15px;">
+    <div class="col-lg-12">
+      <h1 style="text-align:center">Registration Form</h1>
     </div>
-
-    <div class="modal" tabindex="-1" role="dialog" [ngStyle]="{'display':modalDisplayStyle}">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" *ngIf="userMessage == ''">Success</h5>
-                    <h5 class="modal-title" *ngIf="userMessage != ''">Error</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close" (click)="closeModel()">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <p *ngIf="userMessage == ''">User Registered Successfully</p>
-                    <p *ngIf="userMessage != ''">{{userMessage}}</p>
-                </div>
-                <div class="modal-footer">
-                    <a class="btn btn-primary" href="/login">Login</a>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal" (click)="closeModel()">Close</button>
-                </div>
+    <div class="col-lg-12">
+      <form [formGroup]="frmValidate" id="frmRegistration" (ngSubmit)="onRegisterUser()" novalidate>
+        <fieldset class="scheduler-border">
+          <legend class="scheduler-border">Personal Details</legend>
+          <div class="row mb-3">
+            <div class="col-lg-4">
+              <label for="firstName">First Name <span class="mandatory">*</span></label>
+              <input type="text" class="form-control" aria-describedby="firstName" placeholder="Enter First Name" id="firstName" maxlength="30" formControlName="firstName"
+                [ngClass]="{ 'is-invalid': submitted && f['firstName'].errors }">
+              <div *ngIf="submitted && f['firstName'].errors" class="invalid-feedback">
+                <div *ngIf="f['firstName'].errors?.['required']">First name is required</div>
+                <div *ngIf="f['firstName'].errors?.['minlength']">Minimum 3 characters required</div>
+                <div *ngIf="f['firstName'].errors?.['pattern']">Please enter a valid name (letters only)</div>
+              </div>
             </div>
+            <div class="col-lg-4">
+              <label for="middleName">Middle Name <span class="mandatory">*</span></label>
+              <input type="text" class="form-control" id="middleName" formControlName="middleName" aria-describedby="middleName" placeholder="Enter Middle Name" maxlength="30"
+                [ngClass]="{ 'is-invalid': submitted && f['middleName'].errors }">
+              <div *ngIf="submitted && f['middleName'].errors" class="invalid-feedback">
+                <div *ngIf="f['middleName'].errors?.['required']">Middle name is required</div>
+                <div *ngIf="f['middleName'].errors?.['minlength']">Minimum 3 characters required</div>
+                <div *ngIf="f['middleName'].errors?.['pattern']">Please enter a valid name (letters only)</div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <label for="lastName">Last Name <span class="mandatory">*</span></label>
+              <input type="text" class="form-control" id="lastName" formControlName="lastName" aria-describedby="lastName" placeholder="Enter Last Name" maxlength="30"
+                [ngClass]="{ 'is-invalid': submitted && f['lastName'].errors }">
+              <div *ngIf="submitted && f['lastName'].errors" class="invalid-feedback">
+                <div *ngIf="f['lastName'].errors?.['required']">Last name is required</div>
+                <div *ngIf="f['lastName'].errors?.['minlength']">Minimum 3 characters required</div>
+                <div *ngIf="f['lastName'].errors?.['pattern']">Please enter a valid name (letters only)</div>
+              </div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-lg-6">
+              <label for="gender">Gender <span class="mandatory">*</span></label>
+              <select class="form-control" formControlName="gender" aria-describedby="gender" [ngClass]="{ 'is-invalid': submitted && f['gender'].errors }">
+                <option value="" selected>--Select Gender--</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+              <div *ngIf="submitted && f['gender'].errors" class="invalid-feedback">
+                <div *ngIf="f['gender'].errors?.['required']">Gender is required</div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <label for="dob">Date Of Birth <span class="mandatory">*</span></label>
+              <input type="date" class="form-control" formControlName="dateOfBirth" aria-describedby="dob" [ngClass]="{ 'is-invalid': submitted && f['dateOfBirth'].errors }">
+              <div *ngIf="submitted && f['dateOfBirth'].errors" class="invalid-feedback">
+                <div *ngIf="f['dateOfBirth'].errors?.['required']">Date Of Birth is required</div>
+              </div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-lg-12">
+              <label for="addressLine1">Address <span class="mandatory">*</span></label>
+              <input type="text" class="form-control" id="address" formControlName="address" aria-describedby="address" placeholder="Enter Address" maxlength="100"
+                [ngClass]="{ 'is-invalid': submitted && f['address'].errors }">
+              <div *ngIf="submitted && f['address'].errors" class="invalid-feedback">
+                <div *ngIf="f['address'].errors?.['required']">Address is required</div>
+                <div *ngIf="f['address'].errors?.['minlength']">Please enter at least 3 characters</div>
+              </div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-lg-6">
+              <label for="cityId">City <span class="mandatory">*</span></label>
+              <input type="text" class="form-control" id="cityId" formControlName="city" aria-describedby="city" placeholder="Enter city" maxlength="100"
+                [ngClass]="{ 'is-invalid': submitted && f['city'].errors }">
+              <div *ngIf="submitted && f['city'].errors" class="invalid-feedback">
+                <div *ngIf="f['city'].errors?.['required']">City is required</div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <label for="pincode">Zip Code <span class="mandatory">*</span></label>
+              <input type="text" class="form-control" id="pinCode" formControlName="pinCode" aria-describedby="pincode" placeholder="Enter Pincode" maxlength="6"
+                [ngClass]="{ 'is-invalid': submitted && f['pinCode'].errors }">
+              <div *ngIf="submitted && f['pinCode'].errors" class="invalid-feedback">
+                <div *ngIf="f['pinCode'].errors?.['required']">Zip Code is required</div>
+                <div *ngIf="f['pinCode'].errors?.['pattern'] || f['pinCode'].errors?.['minlength']">Please enter a valid Zip Code</div>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+        <fieldset class="scheduler-border">
+          <legend class="scheduler-border">Login Details</legend>
+          <div class="row mb-3">
+            <div class="col-lg-6">
+              <label for="mobile">Mobile <span class="mandatory">*</span></label>
+              <input type="tel" class="form-control" id="mobile" formControlName="mobileNumber" aria-describedby="mobile" placeholder="Enter Mobile" maxlength="10"
+                [ngClass]="{ 'is-invalid': submitted && f['mobileNumber'].errors }">
+              <div *ngIf="submitted && f['mobileNumber'].errors" class="invalid-feedback">
+                <div *ngIf="f['mobileNumber'].errors?.['required']">Mobile is required</div>
+                <div *ngIf="f['mobileNumber'].errors?.['pattern'] || f['mobileNumber'].errors?.['minlength']">Please enter a valid 10-digit mobile number</div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <label for="email">Email <span class="mandatory">*</span></label>
+              <input type="email" class="form-control" id="email" formControlName="email" aria-describedby="email" placeholder="Enter Email" maxlength="30"
+                [ngClass]="{ 'is-invalid': submitted && f['email'].errors }">
+              <div *ngIf="submitted && f['email'].errors" class="invalid-feedback">
+                <div *ngIf="f['email'].errors?.['required']">Email is required</div>
+                <div *ngIf="f['email'].errors?.['email']">Please enter a valid email</div>
+              </div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-lg-6">
+              <label for="password">Password <span class="mandatory">*</span></label>
+              <input type="password" class="form-control" id="password" formControlName="password" aria-describedby="password" placeholder="Enter Password" maxlength="15"
+                [ngClass]="{ 'is-invalid': submitted && f['password'].errors }">
+              <div *ngIf="submitted && f['password'].errors" class="invalid-feedback">
+                <div *ngIf="f['password'].errors?.['required']">Password is required</div>
+                <div *ngIf="f['password'].errors?.['minlength']">Password must be at least 4 characters long</div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <label for="confirmPwd">Confirm Password <span class="mandatory">*</span></label>
+              <input type="password" class="form-control" id="confirmPwd" formControlName="confirmPwd" aria-describedby="confirmPwd" placeholder="Enter Confirm Password" maxlength="15"
+                [ngClass]="{ 'is-invalid': submitted && (f['confirmPwd'].errors || frmValidate.errors?.['mismatch']) }">
+              <div *ngIf="submitted && (f['confirmPwd'].errors || frmValidate.errors?.['mismatch'])" class="invalid-feedback">
+                <div *ngIf="f['confirmPwd'].errors?.['required']">Confirm Password is required</div>
+                <div *ngIf="f['confirmPwd'].errors?.['minlength']">Confirm Password must be at least 4 characters long</div>
+                <div *ngIf="frmValidate.errors?.['mismatch']">Passwords do not match</div>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+        <div class="row">
+          <div class="col-lg-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="1" id="isTermsAndCondtionAccepted" formControlName="isTermsAndCondtionAccepted"
+                [ngClass]="{ 'is-invalid': submitted && f['isTermsAndCondtionAccepted'].errors }">
+              <p class="form-check-label" for="isTermsAndCondtionAccepted">
+                Click here to indicate that you have read and agree to the terms presented in the <a href="#" data-target="#termsAndCondition" data-toggle="modal">Terms and Conditions</a> and <a href="#" data-target="#privacypolicy" data-toggle="modal">Privacy Policy</a>.
+              </p>
+              <div *ngIf="submitted && f['isTermsAndCondtionAccepted'].errors" class="invalid-feedback">
+                <div *ngIf="f['isTermsAndCondtionAccepted'].errors?.['required']">Please accept Terms and Conditions</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-12">
+            <button type="submit" class="btn btn-primary">Submit</button>
+            <span style="float: right;">Already Registered? <a href="/login">Login Now</a></span>
+          </div>
         </div>
+      </form>
     </div>
+  </div>
+</div>
+
+<div class="modal" tabindex="-1" role="dialog" [ngStyle]="{'display':modalDisplayStyle}">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ userMessage ? 'Error' : 'Success' }}</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close" (click)="closeModel()">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p *ngIf="!userMessage">User Registered Successfully</p>
+        <p *ngIf="userMessage">{{userMessage}}</p>
+      </div>
+      <div class="modal-footer">
+        <a class="btn btn-primary" href="/login">Login</a>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" (click)="closeModel()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
