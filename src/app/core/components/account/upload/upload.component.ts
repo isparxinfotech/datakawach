@@ -39,6 +39,12 @@ interface FolderInfo {
   size: number;
 }
 
+// Interface for file with relative path
+interface FileWithPath {
+  file: File;
+  relativePath: string;
+}
+
 @Component({
   selector: 'app-upload',
   templateUrl: './upload.component.html',
@@ -58,7 +64,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   backupFrequency: string = 'Daily';
   dayOfWeek: string = '';
   dayOfMonth: number | null = null;
-  selectedFiles: File[] = [];
+  selectedFiles: FileWithPath[] = [];
   uploading: boolean = false;
   scheduling: boolean = false;
   overallProgress: number = 0;
@@ -72,6 +78,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   backupSchedules: BackupSchedule[] = [];
   rootFolders: FolderInfo[] = [];
   needsBackup: 'yes' | 'no' = 'yes';
+  uploadType: 'file' | 'folder' = 'file'; // To toggle between file and folder upload
   isLoading: boolean = true;
   isSchedulesLoading: boolean = false;
   isFolderContentsLoading: boolean = false;
@@ -140,6 +147,17 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  onUploadTypeChange() {
+    this.selectedFiles = [];
+    this.fileName = '';
+    this.overallProgress = 0;
+    this.chunkProgress = 0;
+    this.currentFileIndex = 0;
+    this.uploadSessionId = null;
+    this.message = '';
+    this.cdr.detectChanges();
+  }
+
   validateFileNameInput(): void {
     this.fileNameError = '';
     if (!this.fileName) {
@@ -153,15 +171,25 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   onFilesSelected(event: any) {
-    this.selectedFiles = Array.from(event.target.files);
+    this.selectedFiles = [];
     this.message = '';
     this.overallProgress = 0;
     this.chunkProgress = 0;
     this.currentFileIndex = 0;
     this.uploadSessionId = null;
 
+    const files: File[] = Array.from(event.target.files);
+    for (const file of files) {
+      let relativePath = '';
+      if (this.uploadType === 'folder' && file.webkitRelativePath) {
+        // Extract the relative path, removing the top-level folder name
+        relativePath = file.webkitRelativePath.substring(file.webkitRelativePath.indexOf('/') + 1);
+      }
+      this.selectedFiles.push({ file, relativePath });
+    }
+
     if (this.selectedFiles.length > 0) {
-      this.fileName = this.selectedFiles[0].name;
+      this.fileName = this.selectedFiles[0].file.name;
       this.validateFileNameInput();
     }
     this.cdr.detectChanges();
@@ -332,6 +360,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         errorMessage = 'Authentication failed. Please log in again.';
       } else if (err.status === 500) {
         errorMessage = 'Server error while fetching folders. Please try again later.';
+        this.isSuccess = false;
       } else if (err.error?.message) {
         errorMessage = err.error.message;
       }
@@ -422,7 +451,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
   async onUpload() {
     if (!this.userSessionDetails?.username || !this.folderPath || this.selectedFiles.length === 0) {
-      this.message = 'Please select a folder and at least one file for upload';
+      this.message = 'Please select a folder and at least one file or folder for upload';
       this.isSuccess = false;
       this.uploading = false;
       this.cdr.detectChanges();
@@ -435,12 +464,12 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.currentFileIndex = 0;
     this.message = '';
 
-    const totalSize = this.selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    const totalSize = this.selectedFiles.reduce((sum, item) => sum + item.file.size, 0);
     let uploadedSize = 0;
 
     for (let i = 0; i < this.selectedFiles.length; i++) {
       this.currentFileIndex = i;
-      const file = this.selectedFiles[i];
+      const { file, relativePath } = this.selectedFiles[i];
       const rawFileName = file.name;
       const fileSize = file.size;
       const totalChunks = Math.ceil(fileSize / this.CHUNK_SIZE);
@@ -464,6 +493,9 @@ export class UploadComponent implements OnInit, OnDestroy {
         formData.append('totalSize', fileSize.toString());
         if (this.uploadSessionId) {
           formData.append('sessionId', this.uploadSessionId);
+        }
+        if (relativePath) {
+          formData.append('relativePath', relativePath);
         }
 
         const url = `https://datakavach.com/onedrive/upload/${encodeURIComponent(rawFileName)}`;
@@ -495,7 +527,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.handleSuccess('All files uploaded successfully');
+    this.handleSuccess('All files/folders uploaded successfully');
     this.loadFolderContents(this.folderPath);
     this.cdr.detectChanges();
   }
@@ -573,6 +605,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.currentFileIndex = 0;
     this.uploadSessionId = null;
     this.fileNameError = '';
+    this.uploadType = 'file';
     this.cdr.detectChanges();
   }
 

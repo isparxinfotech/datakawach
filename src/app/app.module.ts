@@ -30,7 +30,7 @@ import { UserEditComponent } from './core/components/account/user-edit/user-edit
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { CorporateDashboardComponent } from './core/components/account/corporate-dashboard/corporate-dashboard.component';
 import { ChatComponent } from './core/components/account/chat/chat.component';
-
+import { GoogleDashboardComponent } from './core/components/account/google-dashboard/google-dashboard.component';
 
 @NgModule({
   declarations: [
@@ -55,7 +55,8 @@ import { ChatComponent } from './core/components/account/chat/chat.component';
     AdminDashboardComponent,
     UserEditComponent,
     CorporateDashboardComponent,
-    ChatComponent
+    ChatComponent,
+    GoogleDashboardComponent
   ],
   imports: [
     BrowserModule,

@@ -43,7 +43,22 @@
               </label>
               <label style="display: flex; align-items: center; cursor: pointer;">
                 <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="no" style="margin-right: 8px;" (change)="onBackupChoiceChange()">
-                <span style="color: #333; font-size: 14px;">No, just upload files</span>
+                <span style="color: #333; font-size: 14px;">No, just upload files/folders</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Upload Type Choice -->
+          <div style="margin-bottom: 20px;">
+            <label style="color: #333; font-size: 16px; font-weight: 500; margin-bottom: 10px; display: block;">Select Upload Type:</label>
+            <div style="display: flex; gap: 20px;">
+              <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="radio" [(ngModel)]="uploadType" name="uploadType" value="file" style="margin-right: 8px;" (change)="onUploadTypeChange()">
+                <span style="color: #333; font-size: 14px;">Files</span>
+              </label>
+              <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="radio" [(ngModel)]="uploadType" name="uploadType" value="folder" style="margin-right: 8px;" (change)="onUploadTypeChange()">
+                <span style="color: #333; font-size: 14px;">Folder</span>
               </label>
             </div>
           </div>
@@ -94,8 +109,8 @@
             </div>
 
             <div style="display: flex; flex-direction: column;">
-              <label for="fileName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">File Name:</label>
-              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <label for="fileName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">File/Folder Name:</label>
+              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt or myfolder" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
               <div *ngIf="fileNameError" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">{{ fileNameError }}</div>
             </div>
 
@@ -144,95 +159,104 @@
 
             <div style="display: flex; flex-direction: column;">
               <label for="fileInput" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">
-                Select Files {{ needsBackup === 'yes' ? '(Optional for Initial Upload)' : '(Required)' }}:
+                Select {{ uploadType === 'file' ? 'Files' : 'Folder' }} {{ needsBackup === 'yes' ? '(Optional for Initial Upload)' : '(Required)' }}:
               </label>
-              <input type="file" id="fileInput" (change)="onFilesSelected($event)" name="fileInput" multiple style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-              <small *ngIf="selectedFiles.length > 0" style="color: #666; font-size: 12px; margin-top: 5px;">Selected: {{ selectedFiles.length }} file(s)</small>
+              <input
+                type="file"
+                id="fileInput"
+                (change)="onFilesSelected($event)"
+                name="fileInput"
+                [attr.webkitdirectory]="uploadType === 'folder' ? '' : null"
+                [multiple]="uploadType === 'file'"
+                style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;"
+              >
+              <small *ngIf="selectedFiles.length > 0" style="color: #666; font-size: 12px; margin-top: 5px;">
+                Selected: {{ selectedFiles.length }} {{ uploadType === 'file' ? 'file(s)' : 'file(s) in folder' }}
+              </small>
             </div>
 
             <!-- Buttons -->
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button *ngIf="needsBackup === 'yes'" type="button" (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0" style="padding: 10px 20px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0 ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
+              <button *ngIf="needsBackup === 'yes'" type="button" (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0" style="padding: 10px 20px; background: #007bff; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0 ? '#ccc' : '#007bff'" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background=!this.disabled ? '#007bff' : '#ccc'">
                 {{ scheduling ? 'Creating Schedule...' : 'Create Backup Schedule' }}
               </button>
-              <button type="button" (click)="onUpload()" [disabled]="!folderPath || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0)" style="padding: 10px 20px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!folderPath || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0) ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
-                {{ uploading ? 'Uploading...' : 'Upload Files' }}
+              <button type="button" (click)="onUpload()" [disabled]="!folderPath || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0)" style="padding: 10px 20px; background: #28a745; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!folderPath || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0) ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
+                {{ uploading ? 'Uploading...' : 'Upload ' + (uploadType === 'file' ? 'Files' : 'Folder') }}
               </button>
             </div>
 
             <!-- Progress Bars -->
             <div *ngIf="overallProgress > 0" style="margin-top: 20px;">
-              <div style="background: #ddd; border-radius: 6px; overflow: hidden;">
-                <div [style.width]="overallProgress + '%'" style="background: #28a745; padding: 10px; color: #fff; font-size: 14px; text-align: center; transition: width 0.3s;">
+              <div style="background: #ddd; border-radius: 10px; overflow: hidden;">
+                <div [style.width]="overallProgress + '%'" style="background: #28a745; padding: 8px; color: #fff; font-size: 14px; text-align: center; transition: width 0.3s;">
                   Overall: {{ overallProgress }}% (File {{ currentFileIndex + 1 }} of {{ selectedFiles.length }})
                 </div>
               </div>
             </div>
 
             <!-- Messages -->
-            <div *ngIf="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}" style="margin-top: 20px; padding: 15px; border-radius: 6px; font-size: 14px; display: flex; align-items: center; gap: 10px;" [style.background]="isSuccess ? '#d4edda' : '#f8d7da'" [style.color]="isSuccess ? '#155724' : '#721c24'">
+            <div *ngIf="message" [ngClass]="{'success': isSuccess, 'error': !isSuccess}" style="margin-top: 20px; padding: 15px; border-radius: 10px; font-size: 14px; display: flex; align-items: center; gap: 10px;" [style.background]="isSuccess ? '#d4edda' : '#f8d7da'" [style.color]="isSuccess ? '#155724' : '#721c24'">
               <i [ngClass]="isSuccess ? 'fa-solid fa-check-circle' : 'fa-solid fa-exclamation-circle'" style="font-size: 18px;"></i>
-              {{ message }}
+              <div>{{ message }}</div>
             </div>
           </form>
 
           <!-- Backup List -->
           <div *ngIf="needsBackup === 'yes'" style="margin-top: 30px;">
             <h3 style="color: #333; font-size: 20px; margin: 0 0 15px;">Scheduled Backups</h3>
-            <div *ngIf="isSchedulesLoading" style="text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-              <p style="color: #333; font-size: 14px; margin: 0;">Loading backup schedules...</p>
+            <div *ngIf="isSchedulesLoading" style="text-align: center; padding: 20px;">
+              <p style="color: #333; font-size: 14px;">Loading backup schedules...</p>
             </div>
             <div *ngIf="!isSchedulesLoading">
               <div *ngIf="backupSchedules.length > 0" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;">
-                <div *ngFor="let schedule of backupSchedules" style="background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <div *ngFor="let schedule of backupSchedules" style="background: #fff; padding: 15px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                   <div style="color: #333; font-size: 14px;">
-                    <div><strong>Schedule ID:</strong> {{ schedule.scheduleId }}</div>
-                    <div><strong>Path:</strong> {{ schedule.filePath }}</div>
-                    <div><strong>Local Path:</strong> {{ schedule.localFilePath }}</div>
+                    <div><strong>Schedule ID:</strong> {{ schedule.scheduleId || '' }}</div>
+                    <div><strong>Path:</strong> {{ schedule.filePath || 'N/A' }}</div>
+                    <div><strong>Local Path:</strong> {{ schedule.localFilePath || 'N/A' }}</div>
                     <div>
-                      <strong>Frequency:</strong> {{ schedule.backupFrequency }}
-                      <span *ngIf="schedule.backupFrequency === 'Weekly'"> ({{ schedule.dayOfWeek }})</span>
-                      <span *ngIf="schedule.backupFrequency === 'Monthly'"> (Day {{ schedule.dayOfMonth }})</span>
+                      <strong>Frequency:</strong> {{ schedule.backupFrequency || '-' }}
+                      <span *ngIf="schedule.backupFrequency === 'Weekly' && schedule.dayOfWeek"> ({{ schedule.dayOfWeek }})</span>
+                      <span *ngIf="schedule.backupFrequency === 'Monthly' && schedule.dayOfMonth"> (Day {{ schedule.dayOfMonth }})</span>
                     </div>
-                    <div><strong>Time:</strong> {{ schedule.backupTime }}</div>
-                    <div><strong>Retention Days:</strong> {{ schedule.retentionDays }}</div>
+                    <div><strong>Time:</strong> {{ schedule.backupTime || 'N/A' }}</div>
+                    <div><strong>Retention Days:</strong> {{ schedule.retentionDays || '0' }}</div>
                     <div><strong>Last Backup:</strong> {{ schedule.lastBackupTime ? (schedule.lastBackupTime | date:'medium') : 'N/A' }}</div>
-                    <div><strong>Next Run:</strong> {{ schedule.nextBackupTime | date:'medium' }}</div>
+                    <div><strong>Next Run:</strong> {{ schedule.nextBackupTime || '' | date:'medium' }}</div>
                     <div><strong>Status:</strong> {{ schedule.isActive ? 'Active' : 'Inactive' }}</div>
                     <div *ngIf="schedule.lastError" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">
-                      <strong>Last Error:</strong> {{ schedule.lastError }}
-                    </div>
+                      <strong>Last Error:</strong> {{ schedule.lastError || '' }}</div>
                   </div>
-                  <button (click)="triggerManualBackup(schedule.scheduleId)" [disabled]="!schedule.isActive" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!schedule.isActive ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
+                  <button (click)="triggerManualBackup(schedule.scheduleId)" [disabled]="!schedule.isActive" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!schedule.isActive ? '#ccc' : '#007bff'" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background=!this.disabled ? '#007bff' : '#ccc'">
                     Run Now
                   </button>
                 </div>
               </div>
-              <p *ngIf="backupSchedules.length === 0" style="color: #666; font-size: 14px; text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+              <p *ngIf="backupSchedules.length === 0" style="color: #666; font-size: 14px; text-align: center; padding: 20px;">
                 No backup schedules found. Create a new schedule above or contact your administrator if you expect existing schedules.
               </p>
             </div>
           </div>
 
           <!-- Fallback Message -->
-          <div *ngIf="!userSessionDetails" style="text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); color: #e74c3c; font-size: 14px;">
-            No valid user session found. Please log in again.
+          <div *ngIf="!userSessionDetails" style="text-align: center; padding: 20px;">
+            <p style="color: #e74c3c; font-size: 14px;">No valid user session found. Please log in again.</p>
           </div>
-        </div>
 
-        <!-- Success Modal -->
-        <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-              <div class="modal-header" style="background: #28a745; color: #fff;">
-                <h5 class="modal-title" id="successModalLabel">Upload Successful</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <div class="modal-body">
-                Your files have been uploaded successfully!
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" style="background: #28a745; border: none;">OK</button>
+          <!-- Success Modal -->
+          <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-sm">
+              <div class="modal-content">
+                <div class="modal-header" style="background: #28a745; color: #fff;">
+                  <h5 class="modal-title" id="successModalLabel">Success</h5>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  {{ uploadType === 'file' ? 'Files' : 'Folder' }} uploaded successfully!
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+                </div>
               </div>
             </div>
           </div>
@@ -240,4 +264,3 @@
       </div>
     </div>
   </div>
-</div>
