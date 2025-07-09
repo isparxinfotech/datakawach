@@ -32,11 +32,15 @@ interface ContentInfo {
   downloadUrl?: string;
 }
 
-// Interface for Folder details from /onedrive/folders endpoint
+// Interface for Folder details from /onedrive/folders or /onedrive/user-folders endpoint
 interface FolderInfo {
   name: string;
-  id: string;
-  size: number;
+  id?: string; // id is optional for /user-folders response
+  size?: number; // size is optional for /user-folders response
+}
+
+interface UserFoldersResponse {
+  folders: string[];
 }
 
 // Interface for file with relative path
@@ -343,13 +347,25 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const isRetentionNeeded = this.userSessionDetails.retentionNeeded === 1;
+    const url = isRetentionNeeded
+      ? `https://datakavach.com/onedrive/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`
+      : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
-      const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
-        headers: this.getAuthHeaders()
-      }).toPromise();
-      this.rootFolders = response?.folders || [];
+      if (isRetentionNeeded) {
+        const response = await this.http.get<UserFoldersResponse>(url, {
+          headers: this.getAuthHeaders()
+        }).toPromise();
+        this.rootFolders = response?.folders.map(name => ({ name })) || [];
+      } else {
+        const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
+          headers: this.getAuthHeaders()
+        }).toPromise();
+        this.rootFolders = response?.folders || [];
+        this.nextLink = response?.nextLink || '';
+      }
+
       if (this.rootFolders.length === 0) {
         this.message = 'No folders found in OneDrive. Please create a folder.';
         this.isSuccess = false;
@@ -366,6 +382,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       }
       this.handleError(new Error(errorMessage));
       this.rootFolders = [];
+      this.nextLink = '';
     }
     this.cdr.detectChanges();
   }
