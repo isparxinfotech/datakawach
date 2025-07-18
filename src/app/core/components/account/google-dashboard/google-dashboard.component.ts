@@ -17,6 +17,8 @@ export class GoogleDashboardComponent implements OnInit, OnDestroy {
   errorMessage: string | null = null;
   selectedBackupName: string | null = null;
   encryptionKey: string = '';
+  kmsKeyName: string = '';
+  filesystemKey: string = '';
   modalErrorMessage: string | null = null;
   private baseUrl = 'https://datakavach.com';
   private encryptionKeyModal: bootstrap.Modal | null = null;
@@ -70,6 +72,8 @@ export class GoogleDashboardComponent implements OnInit, OnDestroy {
   openEncryptionKeyModal(backupName: string): void {
     this.selectedBackupName = backupName;
     this.encryptionKey = '';
+    this.kmsKeyName = '';
+    this.filesystemKey = '';
     this.modalErrorMessage = null;
     this.encryptionKeyModal?.show();
   }
@@ -91,6 +95,12 @@ export class GoogleDashboardComponent implements OnInit, OnDestroy {
     if (this.encryptionKey) {
       url += `&encryptionKey=${encodeURIComponent(this.encryptionKey)}`;
     }
+    if (this.kmsKeyName) {
+      url += `&kmsKeyName=${encodeURIComponent(this.kmsKeyName)}`;
+    }
+    if (this.filesystemKey) {
+      url += `&filesystemKey=${encodeURIComponent(this.filesystemKey)}`;
+    }
     const headers = new HttpHeaders().set('Accept', 'application/octet-stream');
 
     this.http.get(url, { headers, responseType: 'blob' })
@@ -107,7 +117,7 @@ export class GoogleDashboardComponent implements OnInit, OnDestroy {
           this.encryptionKeyModal?.hide();
         },
         error: (error) => {
-          this.modalErrorMessage = error.error?.error || 'Failed to download backup. Please check the encryption key or try again.';
+          this.modalErrorMessage = error.error?.error || 'Failed to download backup. Please check the encryption keys or try again.';
           console.error('Error downloading backup:', error);
         }
       });

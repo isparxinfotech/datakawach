@@ -60,6 +60,23 @@ export class CreateCorporateAccountComponent implements OnInit, OnDestroy {
     return password === confirmPassword ? null : { mismatch: true };
   }
 
+  // Password requirement checks
+  hasMinLength(): boolean {
+    return this.frmValidate.get('password')?.value?.length >= 8;
+  }
+
+  hasUppercase(): boolean {
+    return /[A-Z]/.test(this.frmValidate.get('password')?.value || '');
+  }
+
+  hasNumber(): boolean {
+    return /[0-9]/.test(this.frmValidate.get('password')?.value || '');
+  }
+
+  hasSpecialChar(): boolean {
+    return /[@$!%*#?&]/.test(this.frmValidate.get('password')?.value || '');
+  }
+
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
     this.frmValidate.patchValue({

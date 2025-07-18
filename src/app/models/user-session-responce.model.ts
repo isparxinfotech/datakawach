@@ -10,6 +10,7 @@ export interface userSessionDetails {
   userType: number;
   roleid: number;
   cloudProvider?: string;
-  retentionNeeded:number;
-
+retentionNeeded?: number | null;
+qrCodeUrl?: string;
+createdBy?: string;
 }

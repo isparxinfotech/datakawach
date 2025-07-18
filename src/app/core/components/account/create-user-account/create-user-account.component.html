@@ -35,9 +35,9 @@
                         id="firstName" maxlength="50" formControlName="firstName"
                         [ngClass]="{ 'is-invalid': submitted && f['firstName'].errors }">
                       <div *ngIf="submitted && f['firstName'].errors" class="invalid-feedback">
-                        <div *ngIf="f['firstName'].errors['required']">First name is required</div>
-                        <div *ngIf="f['firstName'].errors['minlength']">Minimum 3 characters required</div>
-                        <div *ngIf="f['firstName'].errors['pattern']">Only letters allowed</div>
+                        <div *ngIf="f['firstName'].errors?.['required']">First name is required</div>
+                        <div *ngIf="f['firstName'].errors?.['minlength']">Minimum 3 characters required</div>
+                        <div *ngIf="f['firstName'].errors?.['pattern']">Only letters allowed</div>
                       </div>
                     </div>
                     <div class="col-lg-4">
@@ -46,8 +46,8 @@
                         aria-describedby="middleName" placeholder="Enter Middle Name" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['middleName'].errors }">
                       <div *ngIf="submitted && f['middleName'].errors" class="invalid-feedback">
-                        <div *ngIf="f['middleName'].errors['minlength']">Minimum 3 characters required</div>
-                        <div *ngIf="f['middleName'].errors['pattern']">Only letters allowed</div>
+                        <div *ngIf="f['middleName'].errors?.['minlength']">Minimum 3 characters required</div>
+                        <div *ngIf="f['middleName'].errors?.['pattern']">Only letters allowed</div>
                       </div>
                     </div>
                     <div class="col-lg-4">
@@ -56,9 +56,9 @@
                         aria-describedby="lastName" placeholder="Enter Last Name" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['lastName'].errors }">
                       <div *ngIf="submitted && f['lastName'].errors" class="invalid-feedback">
-                        <div *ngIf="f['lastName'].errors['required']">Last name is required</div>
-                        <div *ngIf="f['lastName'].errors['minlength']">Minimum 3 characters required</div>
-                        <div *ngIf="f['lastName'].errors['pattern']">Only letters allowed</div>
+                        <div *ngIf="f['lastName'].errors?.['required']">Last name is required</div>
+                        <div *ngIf="f['lastName'].errors?.['minlength']">Minimum 3 characters required</div>
+                        <div *ngIf="f['lastName'].errors?.['pattern']">Only letters allowed</div>
                       </div>
                     </div>
                   </div>
@@ -72,7 +72,7 @@
                         <option value="Female">Female</option>
                       </select>
                       <div *ngIf="submitted && f['gender'].errors" class="invalid-feedback">
-                        <div *ngIf="f['gender'].errors['required']">Gender is required</div>
+                        <div *ngIf="f['gender'].errors?.['required']">Gender is required</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
@@ -80,8 +80,8 @@
                       <input type="text" class="form-control" id="branch" formControlName="branch" aria-describedby="branch"
                         placeholder="Enter Branch" maxlength="100" [ngClass]="{ 'is-invalid': submitted && f['branch'].errors }">
                       <div *ngIf="submitted && f['branch'].errors" class="invalid-feedback">
-                        <div *ngIf="f['branch'].errors['required']">Branch is required</div>
-                        <div *ngIf="f['branch'].errors['minlength']">Minimum 3 characters required</div>
+                        <div *ngIf="f['branch'].errors?.['required']">Branch is required</div>
+                        <div *ngIf="f['branch'].errors?.['minlength']">Minimum 3 characters required</div>
                       </div>
                     </div>
                   </div>
@@ -91,7 +91,7 @@
                       <input type="text" class="form-control" id="cityId" formControlName="city" aria-describedby="city"
                         placeholder="Enter City" maxlength="100" [ngClass]="{ 'is-invalid': submitted && f['city'].errors }">
                       <div *ngIf="submitted && f['city'].errors" class="invalid-feedback">
-                        <div *ngIf="f['city'].errors['required']">City is required</div>
+                        <div *ngIf="f['city'].errors?.['required']">City is required</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
@@ -100,9 +100,9 @@
                         placeholder="Enter Zip Code" maxlength="20"
                         [ngClass]="{ 'is-invalid': submitted && f['pinCode'].errors }">
                       <div *ngIf="submitted && f['pinCode'].errors" class="invalid-feedback">
-                        <div *ngIf="f['pinCode'].errors['required']">Zip code is required</div>
-                        <div *ngIf="f['pinCode'].errors['minlength']">Minimum 6 digits required</div>
-                        <div *ngIf="f['pinCode'].errors['pattern']">Only numbers allowed</div>
+                        <div *ngIf="f['pinCode'].errors?.['required']">Zip code is required</div>
+                        <div *ngIf="f['pinCode'].errors?.['minlength']">Minimum 6 digits required</div>
+                        <div *ngIf="f['pinCode'].errors?.['pattern']">Only numbers allowed</div>
                       </div>
                     </div>
                   </div>
@@ -116,9 +116,9 @@
                         aria-describedby="mobile" placeholder="Enter Mobile" maxlength="15"
                         [ngClass]="{ 'is-invalid': submitted && f['mobileNumber'].errors }">
                       <div *ngIf="submitted && f['mobileNumber'].errors" class="invalid-feedback">
-                        <div *ngIf="f['mobileNumber'].errors['required']">Mobile number is required</div>
-                        <div *ngIf="f['mobileNumber'].errors['minlength']">Minimum 10 digits required</div>
-                        <div *ngIf="f['mobileNumber'].errors['pattern']">Only numbers allowed</div>
+                        <div *ngIf="f['mobileNumber'].errors?.['required']">Mobile number is required</div>
+                        <div *ngIf="f['mobileNumber'].errors?.['minlength']">Minimum 10 digits required</div>
+                        <div *ngIf="f['mobileNumber'].errors?.['pattern']">Only numbers allowed</div>
                       </div>
                     </div>
                     <div class="col-lg-6">
@@ -126,8 +126,8 @@
                       <input type="email" class="form-control" id="email" formControlName="email" aria-describedby="email"
                         placeholder="Enter Email" maxlength="50" [ngClass]="{ 'is-invalid': submitted && f['email'].errors }">
                       <div *ngIf="submitted && f['email'].errors" class="invalid-feedback">
-                        <div *ngIf="f['email'].errors['required']">Email is required</div>
-                        <div *ngIf="f['email'].errors['email']">Please enter a valid email</div>
+                        <div *ngIf="f['email'].errors?.['required']">Email is required</div>
+                        <div *ngIf="f['email'].errors?.['email']">Please enter a valid email</div>
                       </div>
                     </div>
                   </div>
@@ -138,19 +138,67 @@
                         aria-describedby="password" placeholder="Enter Password" maxlength="50"
                         [ngClass]="{ 'is-invalid': submitted && f['password'].errors }">
                       <div *ngIf="submitted && f['password'].errors" class="invalid-feedback">
-                        <div *ngIf="f['password'].errors['required']">Password is required</div>
-                        <div *ngIf="f['password'].errors['minlength']">Minimum 8 characters required</div>
-                        <div *ngIf="f['password'].errors['pattern']">Password must contain at least one uppercase letter, one number, and one special character</div>
+                        <div *ngIf="f['password'].errors?.['required']">Password is required</div>
+                        <div *ngIf="f['password'].errors?.['minlength']">Minimum 8 characters required</div>
+                        <div *ngIf="f['password'].errors?.['pattern']">Password must contain at least one uppercase letter, one number, and one special character (@$!%*#?&)</div>
+                      </div>
+                      <div class="password-requirements mt-2">
+                        <p>Password must include:</p>
+                        <ul style="list-style: none; padding-left: 0;">
+                          <li [ngClass]="{'text-success': hasMinLength(), 'text-danger': !hasMinLength()}">
+                            <i class="fa" [ngClass]="{'fa-check': hasMinLength(), 'fa-times': !hasMinLength()}"></i>
+                            At least 8 characters
+                          </li>
+                          <li [ngClass]="{'text-success': hasUppercase(), 'text-danger': !hasUppercase()}">
+                            <i class="fa" [ngClass]="{'fa-check': hasUppercase(), 'fa-times': !hasUppercase()}"></i>
+                            At least one uppercase letter
+                          </li>
+                          <li [ngClass]="{'text-success': hasNumber(), 'text-danger': !hasNumber()}">
+                            <i class="fa" [ngClass]="{'fa-check': hasNumber(), 'fa-times': !hasNumber()}"></i>
+                            At least one number
+                          </li>
+                          <li [ngClass]="{'text-success': hasSpecialChar(), 'text-danger': !hasSpecialChar()}">
+                            <i class="fa" [ngClass]="{'fa-check': hasSpecialChar(), 'fa-times': !hasSpecialChar()}"></i>
+                            At least one special character (@$!%*#?&)
+                          </li>
+                        </ul>
                       </div>
                     </div>
                     <div class="col-lg-6">
                       <label for="confirmPassword">Confirm Password <span class="mandatory">*</span></label>
                       <input type="password" class="form-control" id="confirmPassword" formControlName="confirmPassword"
                         aria-describedby="confirmPassword" placeholder="Confirm Password" maxlength="50"
-                        [ngClass]="{ 'is-invalid': submitted && f['confirmPassword'].errors }">
-                      <div *ngIf="submitted && f['confirmPassword'].errors" class="invalid-feedback">
-                        <div *ngIf="f['confirmPassword'].errors['required']">Confirm Password is required</div>
-                        <div *ngIf="f['confirmPassword'].errors['mismatch']">Passwords do not match</div>
+                        [ngClass]="{ 'is-invalid': submitted && (f['confirmPassword'].errors || frmValidate.errors?.['mismatch']) }">
+                      <div *ngIf="submitted && (f['confirmPassword'].errors?.['required'] || frmValidate.errors?.['mismatch'])" class="invalid-feedback">
+                        <div *ngIf="f['confirmPassword'].errors?.['required']">Confirm Password is required</div>
+                        <div *ngIf="frmValidate.errors?.['mismatch']">Passwords do not match</div>
+                      </div>
+                    </div>
+                  </div>
+                </fieldset>
+                <fieldset class="scheduler-border">
+                  <legend class="scheduler-border">Additional Details</legend>
+                  <div class="row mb-3">
+                    <div class="col-lg-6">
+                      <label for="cloudProvider">Cloud Provider <span class="mandatory">*</span></label>
+                      <select class="form-control" id="cloudProvider" formControlName="cloudProvider"
+                        aria-describedby="cloudProvider" [ngClass]="{ 'is-invalid': submitted && f['cloudProvider'].errors }">
+                        <option value="" selected>--Select Cloud Provider--</option>
+                        <option value="onedrive">OneDrive</option>
+                        <option value="aws">AWS</option>
+                        <option value="gcp">GCP</option>
+                      </select>
+                      <div *ngIf="submitted && f['cloudProvider'].errors" class="invalid-feedback">
+                        <div *ngIf="f['cloudProvider'].errors?.['required']">Cloud provider is required</div>
+                      </div>
+                    </div>
+                    <div class="col-lg-6">
+                      <label for="retentionNeeded">Retention Needed (days)</label>
+                      <input type="text" class="form-control" id="retentionNeeded" formControlName="retentionNeeded"
+                        aria-describedby="retentionNeeded" placeholder="Enter Retention Days (e.g., 2)"
+                        maxlength="10" [ngClass]="{ 'is-invalid': submitted && f['retentionNeeded'].errors }">
+                      <div *ngIf="submitted && f['retentionNeeded'].errors" class="invalid-feedback">
+                        <div *ngIf="f['retentionNeeded'].errors?.['pattern']">Must be a valid number</div>
                       </div>
                     </div>
                   </div>
@@ -162,6 +210,19 @@
                   </div>
                 </div>
               </form>
+              <!-- Excel Upload Section -->
+              <div class="row mt-4">
+                <div class="col-lg-12">
+                  <h3>Upload Users via Excel</h3>
+                  <div class="input-group mb-3">
+                    <input type="file" class="form-control" id="excelFile" accept=".xlsx,.xls"
+                      (change)="onFileSelected($event)">
+                    <button class="btn btn-primary" type="button" (click)="onUploadExcel()"
+                      [disabled]="!selectedFile">Upload Excel</button>
+                  </div>
+                  <a href="/api/auth/downloadUserTemplate" class="btn btn-secondary" download="user_upload_template.xlsx">Download Template</a>
+                </div>
+              </div>
             </div>
           </div>
         </div>

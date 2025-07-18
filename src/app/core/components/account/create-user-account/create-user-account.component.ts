@@ -20,6 +20,8 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
   modalDisplayStyle = "none";
   userMessage = "";
   currentIp: string | null = null;
+  selectedFile: File | null = null;
+  uploadSubscription?: Subscription;
 
   constructor(private authService: AuthService, private fv: FormBuilder, private router: Router) {
     this.frmValidate = this.fv.group({
@@ -47,6 +49,23 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
     const password = form.get('password')?.value;
     const confirmPassword = form.get('confirmPassword')?.value;
     return password === confirmPassword ? null : { mismatch: true };
+  }
+
+  // Password requirement checks
+  hasMinLength(): boolean {
+    return this.frmValidate.get('password')?.value?.length >= 8;
+  }
+
+  hasUppercase(): boolean {
+    return /[A-Z]/.test(this.frmValidate.get('password')?.value || '');
+  }
+
+  hasNumber(): boolean {
+    return /[0-9]/.test(this.frmValidate.get('password')?.value || '');
+  }
+
+  hasSpecialChar(): boolean {
+    return /[@$!%*#?&]/.test(this.frmValidate.get('password')?.value || '');
   }
 
   ngOnInit(): void {
@@ -109,6 +128,42 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       });
   }
 
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.selectedFile = input.files[0];
+    }
+  }
+
+  onUploadExcel(): void {
+    if (!this.selectedFile) {
+      this.userMessage = "Please select an Excel file to upload.";
+      this.modalDisplayStyle = "block";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', this.selectedFile);
+    formData.append('createdBy', this.userSessionDetails?.username || '');
+    formData.append('cloudProvider', this.userSessionDetails?.cloudProvider || '');
+
+    this.uploadSubscription = this.authService.uploadUsersExcel(formData)
+      .subscribe({
+        next: (response: any) => {
+          console.log('Excel upload response:', response);
+          this.userMessage = response.message || "Users created successfully from Excel!";
+          this.modalDisplayStyle = "block";
+          this.selectedFile = null;
+          (document.getElementById('excelFile') as HTMLInputElement).value = '';
+        },
+        error: (error) => {
+          console.error('Excel upload error:', error);
+          this.userMessage = error.error?.message || "Failed to process Excel file.";
+          this.modalDisplayStyle = "block";
+        }
+      });
+  }
+
   onReset(): void {
     this.submitted = false;
     this.frmValidate.reset();
@@ -121,10 +176,13 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       landlineNumber: '0000000000',
       ipAddress: this.currentIp // Retain fetched IP address
     });
+    this.selectedFile = null;
+    (document.getElementById('excelFile') as HTMLInputElement).value = '';
   }
 
   ngOnDestroy(): void {
     this.registerUserRequestSubscription?.unsubscribe();
+    this.uploadSubscription?.unsubscribe();
   }
 
   closeModel(): void {

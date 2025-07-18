@@ -18,75 +18,78 @@ export class AuthService {
 
   constructor(private http: HttpClient, private router: Router) {}
 
-  // Register a new user (unchanged)
+  // Register a new user
   registerUser(model: RegisterUserRequest): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/createUser`, model);
   }
 
-  // Login user (unchanged)
+  // Login user
   loginUser(model: LoginUserRequest): Observable<userSessionDetails> {
     return this.http.post<userSessionDetails>(`${this.apiUrl}/signin`, model);
   }
 
-  // Request OTP (unchanged)
-  requestOtp(username: string, password: string): Observable<string> {
-    const params = new HttpParams()
-      .set('username', username)
-      .set('password', password);
-    return this.http.post(`${this.apiUrl}/requestOtp`, null, { 
-      params, 
-      responseType: 'text' 
+  // Request OTP (updated to call /signin and return userSessionDetails)
+  requestOtp(username: string, password: string): Observable<userSessionDetails> {
+    return this.http.post<userSessionDetails>(`${this.apiUrl}/signin`, { username, password });
+  }
+
+  // Validate OTP for login (updated to match backend /validateMfaCode)
+  validateOtp(username: string, otp: string, currentPassword: string): Observable<userSessionDetails> {
+    return this.http.post<userSessionDetails>(`${this.apiUrl}/validateMfaCode`, {
+      email: username,
+      mfaCode: otp
     });
   }
 
-  // Validate OTP for login (unchanged)
-  validateOtp(username: string, otp: number, currentPassword: string): Observable<userSessionDetails> {
-    const params = new HttpParams()
-      .set('username', username)
-      .set('otpnum', otp.toString())
-      .set('password', currentPassword);
-    return this.http.post<userSessionDetails>(`${this.apiUrl}/validateOtp`, null, { params });
-  }
-
-  // Forgot password (unchanged)
+  // Forgot password
   forgotPassword(email: string): Observable<{ statusCode: string, message: string }> {
     const body = { email };
     return this.http.post<{ statusCode: string, message: string }>(`${this.apiUrl}/forgotPassword`, body);
   }
 
-  // Validate OTP for password reset (unchanged)
+  // Validate OTP for password reset
   validateOtpForPasswordReset(email: string, otp: string): Observable<{ statusCode: string, message: string }> {
     const body = { email, otp };
     return this.http.post<{ statusCode: string, message: string }>(`${this.apiUrl}/validateOtpForPasswordReset`, body);
   }
 
-  // Reset password (unchanged)
+  // Reset password
   resetPassword(model: { email: string; newPassword: string }): Observable<{ statusCode: string, message: string }> {
     return this.http.post<{ statusCode: string, message: string }>(`${this.apiUrl}/resetPassword`, model);
   }
 
-  // Get personal info (unchanged)
+  // Get personal info
   getPersonalInfo(model: userSessionDetails | null | undefined): Observable<GetPersonalInfoRequest> {
     return this.http.post<GetPersonalInfoRequest>(`${this.apiUrl}/getUserRegistrationInformation`, model);
   }
 
-  // Save personal info (unchanged)
+  // Save personal info
   savePersonalInfo(model: PersonalInfoRequest): Observable<void> {
     return this.http.post<void>(`${this.apiUrl}/updateUserRegistrationInformation`, model);
   }
 
-  // Logout user (unchanged)
+  validateMfaCode(email: string, mfaCode: string): Observable<userSessionDetails> {
+    console.log('Validating MFA code for:', email, 'with code:', mfaCode);
+    return this.http.post<userSessionDetails>(`${this.apiUrl}/validateMfaCode`, { email, mfaCode });
+  }
+
+  // Logout user
   logout(): void {
     sessionStorage.clear();
     this.router.navigate(['login']);
   }
 
-  // Check if user is authenticated (unchanged)
+  // Upload users Excel
+  uploadUsersExcel(formData: FormData): Observable<any> {
+    return this.http.post(`${this.apiUrl}/uploadUsers`, formData);
+  }
+
+  // Check if user is authenticated
   isAuthenticated(): boolean {
     return this.getLoggedInUserDetails() !== null;
   }
 
-  // Get resources access from session storage (unchanged)
+  // Get resources access from session storage
   getResourcesAccess(): resourcePermission[] {
     const jsonObj = sessionStorage.getItem('ResourcesAccess');
     const jsonObj1 = jsonObj ? JSON.parse(jsonObj) : null;
@@ -96,7 +99,7 @@ export class AuthService {
     return this.resourcesAccess;
   }
 
-  // Get client IP (unchanged)
+  // Get client IP
   getClientIp(): Observable<{ ip: string }> {   
     return this.http.get<{ ip: string }>('https://api.ipify.org?format=json');
   }
@@ -115,7 +118,8 @@ export class AuthService {
         statusCode: parsedObj.statusCode || '',
         resourcePermission: parsedObj.resourcePermission || [],
         message: parsedObj.message || '',
-        retentionNeeded: parsedObj.retentionNeeded ?? 0 // Default to 0 if undefined
+        retentionNeeded: parsedObj.retentionNeeded ?? 0,
+        qrCodeUrl: parsedObj.qrCodeUrl || '' // Added for MFA
       };
       console.log('User Session Details');
       console.log(userDetails);
@@ -132,7 +136,8 @@ export class AuthService {
       message: userDetails.message || '',
       resourcePermission: userDetails.resourcePermission || [],
       cloudProvider: userDetails.cloudProvider || '',
-      retentionNeeded: userDetails.retentionNeeded ?? 0 // Default to 0 if undefined
+      retentionNeeded: userDetails.retentionNeeded ?? 0,
+      qrCodeUrl: userDetails.qrCodeUrl || '' // Added for MFA
     };
     sessionStorage.setItem('UserDetails', JSON.stringify(completeDetails));
     if (userDetails.resourcePermission) {

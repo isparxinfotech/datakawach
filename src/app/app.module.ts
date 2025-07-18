@@ -31,6 +31,7 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { CorporateDashboardComponent } from './core/components/account/corporate-dashboard/corporate-dashboard.component';
 import { ChatComponent } from './core/components/account/chat/chat.component';
 import { GoogleDashboardComponent } from './core/components/account/google-dashboard/google-dashboard.component';
+import { QRCodeModule } from 'angularx-qrcode'; // Updated import
 
 @NgModule({
   declarations: [
@@ -69,6 +70,7 @@ import { GoogleDashboardComponent } from './core/components/account/google-dashb
     MatCardModule,
     MatIconModule,
     NgbModule,
+    QRCodeModule,
   
   ],
   providers: [DatePipe, DecimalPipe],

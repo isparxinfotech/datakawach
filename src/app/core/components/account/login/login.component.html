@@ -42,42 +42,57 @@
                 </div>
               </div>
               <div class="mb-3 text-end">
-                <a href="#!" class="text-decoration-none text-muted">Forgot password?</a>
+                <a href="/forgot-password" class="text-decoration-none text-muted">Forgot password?</a>
               </div>
-              <button type="submit" class="btn btn-lg w-100 mb-3" style="color: rgb(255, 255, 255); background-color: rgb(0, 119, 255);">Get Started</button>
+              <button type="submit" class="btn btn-lg w-100 mb-3" style="color: rgb(255, 255, 255); background-color: rgb(0, 119, 255);" [disabled]="loading">
+                <span *ngIf="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                {{ loading ? 'Logging in...' : 'Get Started' }}
+              </button>
             </form>
             <div class="text-center mt-4">
               <p class="text-muted">Don't have an account? <a href="/register" class="fw-bold text-decoration-none">Register</a></p>
             </div>
           </div>
 
-          <!-- OTP Form -->
+          <!-- MFA Form -->
           <div *ngIf="showOtp">
-            <h2 class="fw-bold mb-4">Verify OTP</h2>
-            <p class="text-center text-muted mb-3">Enter the 6-digit code sent to your registered email</p>
+            <h2 class="fw-bold mb-4">Verify Multi-Factor Authentication</h2>
+            <p class="text-center text-muted mb-3">Please enter the 6-digit code from your authenticator app.</p>
+            <div class="text-center mb-4" *ngIf="qrCodeUrl && !qrCodeError">
+              <img [src]="qrCodeUrl" alt="MFA QR Code" class="qrcode" *ngIf="!qrCodeLoading" (error)="onQrCodeLoadError()">
+              <div *ngIf="qrCodeLoading" class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading QR code...</span>
+              </div>
+            </div>
             <p class="text-danger text-center mb-3" *ngIf="invalidMsg">{{ invalidMsg }}</p>
             <form [formGroup]="otpForm" (ngSubmit)="onValidateOtp()" novalidate>
               <div class="mb-4">
-                <input type="text" id="otp" class="form-control form-control-lg text-center" placeholder="Enter 6-digit OTP" maxlength="6"
+                <input type="text" id="otp" class="form-control form-control-lg text-center" placeholder="Enter 6-digit MFA code" maxlength="6"
                        formControlName="otp" [ngClass]="{'is-invalid': otpSubmitted && otpForm.get('otp')?.errors}">
                 <div *ngIf="otpSubmitted && otpForm.get('otp')?.errors" class="invalid-feedback">
-                  <div *ngIf="otpForm.get('otp')?.errors?.['required']">OTP is required</div>
+                  <div *ngIf="otpForm.get('otp')?.errors?.['required']">MFA code is required</div>
                   <div *ngIf="otpForm.get('otp')?.errors?.['minlength'] || otpForm.get('otp')?.errors?.['maxlength']">
-                    OTP must be 6 digits
+                    MFA code must be 6 digits
                   </div>
                 </div>
               </div>
-              <button class="btn btn-dark btn-lg w-100 mb-3" type="submit">Verify OTP</button>
+              <button class="btn btn-dark btn-lg w-100 mb-3" type="submit" [disabled]="loading || (qrCodeLoading && qrCodeUrl)">
+                <span *ngIf="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                {{ loading ? 'Verifying...' : 'Verify MFA Code' }}
+              </button>
               <div class="text-center">
-                <a href="javascript:void(0)" (click)="resendOtp()" class="text-decoration-none fw-bold text-muted me-2"
-                   [ngClass]="{'disabled': timerRunning}">Resend OTP</a>
-                <span>|</span>
-                <a href="javascript:void(0)" (click)="goBackToLogin()" class="text-decoration-none fw-bold text-muted ms-2 me-2">Back to Login</a>
-                <div class="timer-container d-inline-block">
-                  <span class="timer-text" [ngClass]="{'countdown-active': timerRunning}">{{ timerDisplay }}</span>
-                </div>
+                <a href="javascript:void(0)" (click)="goBackToLogin()" class="text-decoration-none fw-bold text-muted">Back to Login</a>
               </div>
             </form>
+          </div>
+
+          <!-- MFA Notification Popup -->
+          <div class="modal" *ngIf="showMfaNotification" (click)="closeMfaNotification($event)">
+            <div class="modal-content" (click)="$event.stopPropagation()">
+              <h3 class="modal-title">MFA Enabled</h3>
+              <p>For enhanced security, Multi-Factor Authentication (MFA) has been enabled for your account. This adds an extra layer of protection by requiring a second form of verification (a 6-digit code from your authenticator app) in addition to your password. Please scan the QR code below with an authenticator app (e.g., Google Authenticator) to set it up.</p>
+              <button class="btn btn-primary mt-3" (click)="closeMfaNotification()">Got It</button>
+            </div>
           </div>
         </div>
       </div>

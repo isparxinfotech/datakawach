@@ -121,6 +121,28 @@
                         <div *ngIf="f['password'].errors?.['minlength']">Password must be at least 8 characters long</div>
                         <div *ngIf="f['password'].errors?.['pattern']">Password must contain at least one uppercase letter, one number, and one special character (@$!%*#?&)</div>
                       </div>
+                      <!-- Password Requirements -->
+                      <div class="password-requirements mt-2">
+                        <p>Password must include:</p>
+                        <ul style="list-style: none; padding-left: 0;">
+                          <li [ngClass]="{'text-success': hasMinLength(), 'text-danger': !hasMinLength()}">
+                            <i class="fa" [ngClass]="{'fa-check': hasMinLength(), 'fa-times': !hasMinLength()}"></i>
+                            At least 8 characters
+                          </li>
+                          <li [ngClass]="{'text-success': hasUppercase(), 'text-danger': !hasUppercase()}">
+                            <i class="fa" [ngClass]="{'fa-check': hasUppercase(), 'fa-times': !hasUppercase()}"></i>
+                            At least one uppercase letter
+                          </li>
+                          <li [ngClass]="{'text-success': hasNumber(), 'text-danger': !hasNumber()}">
+                            <i class="fa" [ngClass]="{'fa-check': hasNumber(), 'fa-times': !hasNumber()}"></i>
+                            At least one number
+                          </li>
+                          <li [ngClass]="{'text-success': hasSpecialChar(), 'text-danger': !hasSpecialChar()}">
+                            <i class="fa" [ngClass]="{'fa-check': hasSpecialChar(), 'fa-times': !hasSpecialChar()}"></i>
+                            <span ngNonBindable>At least one special character (@$!%*#?&)</span>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                     <div class="col-lg-6">
                       <label for="confirmPassword">Confirm Password <span class="mandatory">*</span></label>

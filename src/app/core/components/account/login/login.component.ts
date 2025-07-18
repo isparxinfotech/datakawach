@@ -1,9 +1,9 @@
-import { Component, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subscription, interval } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
-import { AlertService } from 'src/app/services/alert.servive';
+import { AlertService } from 'src/app/services/AlertService';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 
 @Component({
@@ -11,26 +11,28 @@ import { userSessionDetails } from 'src/app/models/user-session-responce.model';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
-export class LoginComponent implements OnDestroy {
+export class LoginComponent implements OnDestroy, AfterViewInit {
   frmValidate: FormGroup;
   otpForm: FormGroup;
   showOtp = false;
   submitted = false;
   otpSubmitted = false;
   invalidMsg = '';
-  currentUsername = '';
-  currentPassword = ''; // Store password for OTP validation
+  qrCodeUrl = '';
+  qrCodeError = false;
+  loading = false;
+  qrCodeLoading = false;
+  showMfaNotification = false; // New property to control MFA notification popup
+
   private subscriptions: Subscription[] = [];
-  timer: number = 60; // 1-minute timer in seconds
-  timerDisplay: string = '1:00'; // Display as M:SS
-  timerRunning: boolean = false;
-  timerSubscription: Subscription | null = null;
+  private currentUsername: string = '';
 
   constructor(
     private authService: AuthService,
     private alertService: AlertService,
     private fb: FormBuilder,
-    private router: Router
+    private router: Router,
+    private cdr: ChangeDetectorRef
   ) {
     this.frmValidate = this.fb.group({
       username: ['', [Validators.required, Validators.email]],
@@ -42,12 +44,22 @@ export class LoginComponent implements OnDestroy {
     });
   }
 
+  ngAfterViewInit() {
+    if (this.showOtp && this.qrCodeUrl) {
+      this.checkQrCode();
+    }
+  }
+
   onLoginUser() {
     this.submitted = true;
     this.invalidMsg = '';
+    this.loading = true;
+    this.qrCodeError = false;
+    this.qrCodeLoading = false;
 
     if (this.frmValidate.invalid) {
       this.alertService.showAlert('info', 'Please enter valid credentials');
+      this.loading = false;
       return;
     }
 
@@ -59,82 +71,126 @@ export class LoginComponent implements OnDestroy {
     const sub = this.authService.loginUser(credentials).subscribe({
       next: (response: userSessionDetails) => {
         if (response.statusCode === '202') {
-          // OTP required
           this.currentUsername = credentials.username;
-          this.currentPassword = credentials.password; // Store password
+          this.qrCodeUrl = response.qrCodeUrl || '';
+          if (!this.qrCodeUrl) {
+            this.alertService.showAlert('error', 'No QR code provided for MFA setup. Please try again.');
+            this.loading = false;
+            return;
+          }
           this.showOtp = true;
-          this.requestOtp(credentials.username, credentials.password);
+          this.qrCodeLoading = true;
+          this.showMfaNotification = true; // Show MFA notification popup for first-time setup
+          this.cdr.detectChanges();
+          this.checkQrCode();
+          this.alertService.showAlert('success', 'Please scan the QR code with Google Authenticator to set up MFA.');
+        } else if (response.statusCode === '203') {
+          this.currentUsername = credentials.username;
+          this.qrCodeUrl = '';
+          this.showOtp = true;
+          this.qrCodeLoading = false;
+          this.qrCodeError = false;
+          this.cdr.detectChanges();
+          this.alertService.showAlert('info', 'Please enter the 6-digit code from your authenticator app.');
         } else if (response.statusCode === '200') {
-          // Regular login successful
           this.handleSuccessfulLogin(response);
+        } else if (response.statusCode === '500') {
+          this.invalidMsg = response.message || 'Server error during MFA setup';
+          this.alertService.showAlert('error', this.invalidMsg);
         } else {
           this.invalidMsg = response.message || 'Login failed';
           this.alertService.showAlert('error', this.invalidMsg);
         }
+        this.loading = false;
       },
       error: (error) => {
+        console.error('Login error:', error);
         this.invalidMsg = error.error?.message || 'Login failed';
         this.alertService.showAlert('error', this.invalidMsg);
+        this.loading = false;
+        this.qrCodeLoading = false;
       }
     });
     this.subscriptions.push(sub);
+  }
+
+  retryQrCode() {
+    if (!this.qrCodeUrl) {
+      this.alertService.showAlert('info', 'No QR code to retry. Please log in again.');
+      return;
+    }
+    this.qrCodeError = false;
+    this.qrCodeLoading = true;
+    this.cdr.detectChanges();
+    this.onLoginUser();
+  }
+
+  onQrCodeLoadError() {
+    if (this.qrCodeUrl) {
+      console.error('QR code image failed to load:', this.qrCodeUrl);
+      this.alertService.showAlert('error', 'Failed to load QR code image. Please try again.');
+      this.qrCodeError = true;
+      this.qrCodeLoading = false;
+      this.cdr.detectChanges();
+    }
   }
 
   onValidateOtp() {
     this.otpSubmitted = true;
+    this.loading = true;
+
     if (this.otpForm.invalid) {
-      this.alertService.showAlert('info', 'Please enter a valid 6-digit OTP');
+      this.alertService.showAlert('info', 'Please enter a valid 6-digit MFA code');
+      this.loading = false;
       return;
     }
 
-    const sub = this.authService.validateOtp(
-      this.currentUsername,
-      this.otpForm.value.otp,
-      this.currentPassword // Pass stored password
-    ).subscribe({
+    const otp = this.otpForm.value.otp.replace(/\s/g, '');
+    if (!/^\d{6}$/.test(otp)) {
+      this.alertService.showAlert('info', 'MFA code must be a 6-digit number');
+      this.loading = false;
+      return;
+    }
+
+    const sub = this.authService.validateMfaCode(this.currentUsername, otp).subscribe({
       next: (response: userSessionDetails) => {
         if (response.statusCode === '200') {
-          // OTP validation and login successful
-          this.stopTimer();
           this.handleSuccessfulLogin(response);
         } else {
-          this.invalidMsg = response.message || 'OTP validation failed';
+          this.invalidMsg = response.message || 'MFA validation failed';
           this.alertService.showAlert('error', this.invalidMsg);
         }
+        this.loading = false;
       },
       error: (error) => {
-        this.invalidMsg = error.error?.message || 'OTP validation failed';
+        console.error('MFA validation error:', error);
+        this.invalidMsg = error.error?.message || 'MFA validation failed';
         this.alertService.showAlert('error', this.invalidMsg);
+        this.loading = false;
       }
     });
     this.subscriptions.push(sub);
   }
 
-  resendOtp() {
-    if (!this.timerRunning) {
-      this.requestOtp(this.currentUsername, this.currentPassword);
-      this.otpForm.reset();
-      this.otpSubmitted = false;
-      this.invalidMsg = '';
+  private checkQrCode() {
+    if (!this.qrCodeUrl) {
+      this.qrCodeLoading = false;
+      return;
     }
-  }
-
-  private requestOtp(username: string, password: string) {
-    const sub = this.authService.requestOtp(username, password).subscribe({
-      next: () => {
-        this.alertService.showAlert('success', 'OTP sent successfully');
-        this.startTimer(); // Start timer when OTP is sent
-      },
-      error: (error) => {
-        this.alertService.showAlert('error', error.error || 'Failed to send OTP');
-      }
-    });
-    this.subscriptions.push(sub);
+    const img = new Image();
+    img.src = this.qrCodeUrl;
+    img.onload = () => {
+      this.qrCodeLoading = false;
+      this.cdr.detectChanges();
+    };
+    img.onerror = () => {
+      this.onQrCodeLoadError();
+    };
   }
 
   private handleSuccessfulLogin(response: userSessionDetails) {
     this.authService.saveUserDetails(response);
-    const userType = response.userType; // Assuming userType is a property in userSessionDetails
+    const userType = response.userType || 5;
     if (userType === 3) {
       this.router.navigate(['/corporatedashboard']);
     } else if (userType === 1) {
@@ -142,7 +198,6 @@ export class LoginComponent implements OnDestroy {
     } else if (userType === 5) {
       this.router.navigate(['/dashboard']);
     } else {
-      // Fallback navigation if userType is unexpected
       this.router.navigate(['/dashboard']);
     }
   }
@@ -151,42 +206,28 @@ export class LoginComponent implements OnDestroy {
     this.showOtp = false;
     this.otpSubmitted = false;
     this.otpForm.reset();
-    this.currentPassword = ''; // Clear stored password
-    this.stopTimer(); // Stop timer when going back to login
+    this.qrCodeUrl = '';
+    this.currentUsername = '';
+    this.invalidMsg = '';
+    this.qrCodeError = false;
+    this.qrCodeLoading = false;
+    this.showMfaNotification = false; // Hide MFA notification when going back
   }
 
-  private startTimer() {
-    this.timer = 60;
-    this.timerRunning = true;
-    this.updateTimerDisplay();
-    this.stopTimer(); // Ensure any existing timer is stopped
-    this.timerSubscription = interval(1000).subscribe(() => {
-      this.timer--;
-      this.updateTimerDisplay();
-      if (this.timer <= 0) {
-        this.timerRunning = false; // Allow resend, but keep timer visible
+  closeMfaNotification(event?: MouseEvent) {
+    if (event) {
+      const target = event.target as HTMLElement;
+      if (target.classList.contains('modal') && !target.classList.contains('modal-content')) {
+        this.showMfaNotification = false;
+        this.cdr.detectChanges();
       }
-    });
-  }
-
-  private stopTimer() {
-    if (this.timerSubscription) {
-      this.timerSubscription.unsubscribe();
-      this.timerSubscription = null;
+    } else {
+      this.showMfaNotification = false;
+      this.cdr.detectChanges();
     }
-    this.timerRunning = false;
-    this.timer = 0;
-    this.timerDisplay = '0:00';
-  }
-
-  private updateTimerDisplay() {
-    const minutes = Math.floor(this.timer / 60);
-    const seconds = this.timer % 60;
-    this.timerDisplay = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   }
 
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
-    this.stopTimer(); // Clean up timer
   }
 }

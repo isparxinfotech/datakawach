@@ -55,15 +55,15 @@
               <!-- Step 1: Choose Files/Folders -->
               <div *ngIf="currentStep === 1">
                 <h3 class="text-red mb-3">Step 1: Select Files or Folders</h3>
-                <p class="text-grey mb-4">Choose files or folders to back up from your local system. Supports multiple files or entire folders.</p>
+                <p class="text-grey mb-4">Choose a folder to back up, preserving its directory structure, or select individual files.</p>
                 <div class="mb-4">
                   <label for="localPath" class="form-label fw-semibold text-grey">Local File/Folder Path <span *ngIf="retentionEnabled" class="text-red">*</span></label>
                   <input type="text" id="localPath" [(ngModel)]="localPath" placeholder="e.g., C:/Users/YourName/Documents" class="form-control border-grey" [disabled]="loading" />
                 </div>
                 <div class="mb-4">
-                  <label for="fileInput" class="form-label fw-semibold text-grey">Select Files or Folders</label>
-                  <input type="file" id="fileInput" (change)="onFileChange($event)" multiple webkitdirectory class="form-control border-grey" [disabled]="loading" />
-                  <small class="text-grey d-block mt-2">Use Ctrl (or Cmd) for multiple files or select a folder (Chrome/Edge).</small>
+                  <label for="fileInput" class="form-label fw-semibold text-grey">Select Folder or Files</label>
+                  <input type="file" id="fileInput" (change)="onFileChange($event)" multiple webkitdirectory directory allowdirs class="form-control border-grey" [disabled]="loading" />
+                  <small class="text-grey d-block mt-2">Select a folder to upload its entire structure or choose multiple files (Chrome/Edge only for folders).</small>
                 </div>
                 <div *ngIf="selectedItems.length > 0" class="mb-4">
                   <h4 class="text-grey">Selected Items:</h4>
@@ -85,19 +85,19 @@
                 </div>
               </div>
 
-              <!-- Step 2: Select Bucket -->
+              <!-- Step 2: Select Folder -->
               <div *ngIf="currentStep === 2">
-                <h3 class="text-red mb-3">Step 2: Choose S3 Bucket</h3>
-                <p class="text-grey mb-4">Select an S3 bucket and navigate to the desired folder for file upload.</p>
+                <h3 class="text-red mb-3">Step 2: Choose OneDrive Folder</h3>
+                <p class="text-grey mb-4">Select a OneDrive folder and navigate to the desired subfolder for file upload.</p>
                 <div class="mb-4">
-                  <label for="bucketSelect" class="form-label fw-semibold text-grey">Select Bucket</label>
+                  <label for="bucketSelect" class="form-label fw-semibold text-grey">Select Folder</label>
                   <select id="bucketSelect" [(ngModel)]="selectedBucket" (change)="loadFolders()" class="form-select border-grey" [disabled]="loading">
-                    <option value="" disabled>Select a bucket</option>
+                    <option value="" disabled>Select a folder</option>
                     <option *ngFor="let bucket of buckets" [value]="bucket">{{ bucket }}</option>
                   </select>
                 </div>
                 <div *ngIf="selectedBucket" class="mb-4">
-                  <h4 class="text-grey">Current S3 Path: {{ currentPath || '/' }}</h4>
+                  <h4 class="text-grey">Current Path: {{ (currentPath ? currentPath + '/' : '') || '/' }}</h4>
                   <ul class="list-group">
                     <li *ngIf="currentPath" (click)="goBack()" class="list-group-item list-group-item-action pointer bg-grey-light border-grey">
                       <i class="bi bi-arrow-up me-2 text-red"></i><span class="text-grey">.. (Go Up)</span>

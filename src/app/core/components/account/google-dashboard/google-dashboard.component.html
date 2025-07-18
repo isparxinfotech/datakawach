@@ -48,7 +48,7 @@
                     <td>{{ backup.name }}</td>
                     <td>{{ backup.createdAt | date:'medium' }}</td>
                     <td>{{ backup.size }}</td>
-                    <td>{{ backup.encrypted === 'true' ? 'Yes' : 'No' }}</td>
+                    <td>{{ backup.encrypted === 'true' ? 'Yes (CSEK)' : 'No' }}</td>
                     <td>
                       <button class="btn btn-primary btn-sm" (click)="openEncryptionKeyModal(backup.name)">Download</button>
                     </td>
@@ -65,15 +65,27 @@
         <div class="modal-dialog">
           <div class="modal-content">
             <div class="modal-header">
-              <h5 class="modal-title" id="encryptionKeyModalLabel">Enter Encryption Key</h5>
+              <h5 class="modal-title" id="encryptionKeyModalLabel">Enter Encryption Details for '{{ selectedBackupName }}'</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
               <div class="mb-3">
                 <label for="encryptionKeyInput" class="form-label">
-                  Provide the base64-encoded encryption key for '{{ selectedBackupName }}'. Leave blank if unencrypted.
+                  Customer-Supplied Encryption Key (CSEK, base64-encoded). Leave blank if not used.
                 </label>
-                <input type="text" class="form-control" id="encryptionKeyInput" [(ngModel)]="encryptionKey" placeholder="Base64-encoded key">
+                <input type="text" class="form-control" id="encryptionKeyInput" [(ngModel)]="encryptionKey" placeholder="Base64-encoded CSEK">
+              </div>
+              <div class="mb-3">
+                <label for="kmsKeyNameInput" class="form-label">
+                  Customer-Managed Encryption Key (CMEK, KMS key name). Leave blank if not used.
+                </label>
+                <input type="text" class="form-control" id="kmsKeyNameInput" [(ngModel)]="kmsKeyName" placeholder="projects/[PROJECT]/locations/[LOCATION]/keyRings/[KEYRING]/cryptoKeys/[KEY]">
+              </div>
+              <div class="mb-3">
+                <label for="filesystemKeyInput" class="form-label">
+                  Filesystem Encryption Key (e.g., LUKS passphrase). Leave blank if not used.
+                </label>
+                <input type="text" class="form-control" id="filesystemKeyInput" [(ngModel)]="filesystemKey" placeholder="LUKS passphrase or key">
               </div>
               <div class="alert alert-warning" *ngIf="modalErrorMessage">
                 {{ modalErrorMessage }}
