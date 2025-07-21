@@ -1,24 +1,24 @@
 import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
-import { catchError, retry } from 'rxjs/operators'; // Added retry
+import { catchError, retry } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { SuperAdminService } from 'src/app/services/super-admin.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { Chart, registerables } from 'chart.js';
-import { saveAs } from 'file-saver'; // Removed JSZip
+import { saveAs } from 'file-saver';
 
-// Register Chart.js components
 Chart.register(...registerables);
 
-// Interface for OneDrive content items
 interface OneDriveItem {
   name: string;
   id: string;
   size: number;
   type: string;
   downloadUrl?: string;
+  lastModified: Date;
+  updatedBy?: string;
 }
 
 @Component({
@@ -39,22 +39,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   totalSize: number = 0;
   totalStorage: number = 5_000_000_000_000; // 5 TB in bytes
   remainingStorage: number = this.totalStorage;
-  nextLink: string = ''; // Store pagination link
-
-  // Rename folder state
+  nextLink: string = '';
   showRenameModal: boolean = false;
   selectedFolder: string = '';
   newFolderName: string = '';
   renameError: string = '';
-
-  // Search and sort state
   searchQuery: string = '';
-  sortBy: string = 'name'; // Options: 'name', 'type', 'size'
-
-  // Charts
+  sortBy: string = 'name'; // Options: 'name', 'type', 'size', 'modified', 'updatedBy'
+  viewMode: 'list' | 'thumbnail' = 'list';
   private storageChart: Chart<'doughnut', number[], string> | undefined;
   private folderUsageChart: Chart | undefined;
-
   private subscriptions: Subscription[] = [];
   totalUsers: number = 0;
   isBlackAndWhiteTheme: boolean = false;
@@ -82,16 +76,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.errorMessage = 'User session details are incomplete. Please log in again.';
       this.cdr.detectChanges();
     }
-
-    // Fetch total corporate users
     this.fetchTotalUsers();
   }
 
   ngAfterViewInit(): void {
-    // Delay chart initialization to ensure DOM is fully rendered
     setTimeout(() => {
       this.initializeCharts();
-      // Initialize Bootstrap modal
       const modalElement = document.getElementById('renameModal');
       if (modalElement) {
         modalElement.addEventListener('hidden.bs.modal', () => {
@@ -145,6 +135,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.isBlackAndWhiteTheme = !this.isBlackAndWhiteTheme;
     this.updateStorageChart();
     this.initFolderUsageChart();
+    this.cdr.detectChanges();
+  }
+
+  setViewMode(mode: 'list' | 'thumbnail'): void {
+    this.viewMode = mode;
     this.cdr.detectChanges();
   }
 
@@ -400,7 +395,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             id: item.id || 'N/A',
             size: item.size || 0,
             type: item.type || 'folder',
-            downloadUrl: item.downloadUrl
+            downloadUrl: item.downloadUrl,
+            lastModified: item.lastModified ? new Date(item.lastModified) : new Date(),
+            updatedBy: item.updatedBy || 'Unknown'
           }));
           this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
           this.remainingStorage = this.totalStorage - this.totalSize;
@@ -419,7 +416,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.subscriptions.push(sub);
   }
 
-  // New method to handle pagination
   loadMoreContents(): void {
     if (!this.nextLink || this.loading) {
       return;
@@ -463,7 +459,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             id: item.id || 'N/A',
             size: item.size || 0,
             type: item.type || 'folder',
-            downloadUrl: item.downloadUrl
+            downloadUrl: item.downloadUrl,
+            lastModified: item.lastModified ? new Date(item.lastModified) : new Date(),
+            updatedBy: item.updatedBy || 'Unknown'
           }));
 
           this.oneDriveContents = [...this.oneDriveContents, ...newItems];
@@ -551,7 +549,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     const folders = this.filteredContents.filter(item => item.type === 'folder');
     const folderNames = folders.map(folder => folder.name);
-    const folderSizes = folders.map(folder => folder.size / (1024 * 1024)); // Convert to MB
+    const folderSizes = folders.map(folder => folder.size / (1024 * 1024));
 
     try {
       this.folderUsageChart = new Chart(ctx, {
@@ -646,7 +644,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       } else if (this.sortBy === 'type') {
         return a.type.localeCompare(b.type);
       } else if (this.sortBy === 'size') {
-        return a.size - b.size;
+        return b.size - a.size; // Descending order for size
+      } else if (this.sortBy === 'modified') {
+        return new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime(); // Descending order
+      } else if (this.sortBy === 'updatedBy') {
+        return (a.updatedBy || 'Unknown').localeCompare(b.updatedBy || 'Unknown');
       }
       return 0;
     });
