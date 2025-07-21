@@ -22,7 +22,13 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
   qrCodeError = false;
   loading = false;
   qrCodeLoading = false;
-  showMfaNotification = false; // New property to control MFA notification popup
+  showMfaNotification = false;
+
+  // 👇 Timer properties
+  qrCodeExpirySeconds = 60;
+  timeLeft = 60;
+  isQrExpired = false;
+  qrCodeTimer: any;
 
   private subscriptions: Subscription[] = [];
   private currentUsername: string = '';
@@ -44,6 +50,12 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
     });
   }
 
+  showPassword: boolean = false;
+
+  togglePasswordVisibility() {
+    this.showPassword = !this.showPassword;
+  }
+
   ngAfterViewInit() {
     if (this.showOtp && this.qrCodeUrl) {
       this.checkQrCode();
@@ -56,6 +68,7 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
     this.loading = true;
     this.qrCodeError = false;
     this.qrCodeLoading = false;
+    this.isQrExpired = false;
 
     if (this.frmValidate.invalid) {
       this.alertService.showAlert('info', 'Please enter valid credentials');
@@ -80,7 +93,7 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
           }
           this.showOtp = true;
           this.qrCodeLoading = true;
-          this.showMfaNotification = true; // Show MFA notification popup for first-time setup
+          this.showMfaNotification = true;
           this.cdr.detectChanges();
           this.checkQrCode();
           this.alertService.showAlert('success', 'Please scan the QR code with Google Authenticator to set up MFA.');
@@ -115,14 +128,12 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
   }
 
   retryQrCode() {
-    if (!this.qrCodeUrl) {
-      this.alertService.showAlert('info', 'No QR code to retry. Please log in again.');
-      return;
-    }
+    this.isQrExpired = false;
+    this.timeLeft = this.qrCodeExpirySeconds;
     this.qrCodeError = false;
     this.qrCodeLoading = true;
     this.cdr.detectChanges();
-    this.onLoginUser();
+    this.onLoginUser(); // or regenerate QR logic if different
   }
 
   onQrCodeLoadError() {
@@ -177,15 +188,36 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
       this.qrCodeLoading = false;
       return;
     }
+
     const img = new Image();
     img.src = this.qrCodeUrl;
+
     img.onload = () => {
       this.qrCodeLoading = false;
       this.cdr.detectChanges();
+      this.startQrTimer(); // ⬅️ Start countdown
     };
+
     img.onerror = () => {
       this.onQrCodeLoadError();
     };
+  }
+
+  private startQrTimer() {
+    this.timeLeft = this.qrCodeExpirySeconds;
+    this.isQrExpired = false;
+    if (this.qrCodeTimer) clearInterval(this.qrCodeTimer);
+
+    this.qrCodeTimer = setInterval(() => {
+      if (this.timeLeft > 0) {
+        this.timeLeft--;
+      } else {
+        clearInterval(this.qrCodeTimer);
+        this.isQrExpired = true;
+        this.qrCodeUrl = '';
+        this.cdr.detectChanges();
+      }
+    }, 1000);
   }
 
   private handleSuccessfulLogin(response: userSessionDetails) {
@@ -195,8 +227,6 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
       this.router.navigate(['/corporatedashboard']);
     } else if (userType === 1) {
       this.router.navigate(['/admindashboard']);
-    } else if (userType === 5) {
-      this.router.navigate(['/dashboard']);
     } else {
       this.router.navigate(['/dashboard']);
     }
@@ -211,7 +241,9 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
     this.invalidMsg = '';
     this.qrCodeError = false;
     this.qrCodeLoading = false;
-    this.showMfaNotification = false; // Hide MFA notification when going back
+    this.showMfaNotification = false;
+    this.isQrExpired = false;
+    clearInterval(this.qrCodeTimer); // ⬅️ Stop timer
   }
 
   closeMfaNotification(event?: MouseEvent) {
@@ -229,5 +261,6 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
 
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
+    clearInterval(this.qrCodeTimer); // ⬅️ Stop timer on destroy
   }
 }

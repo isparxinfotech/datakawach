@@ -74,6 +74,41 @@ section {
   background-color: #6c757d;
   color: #ffffff;
 }
+/* Password input with eye toggle */
+.input-group {
+  position: relative;
+}
+
+.input-group .form-control {
+  padding-right: 3rem; /* space for the eye button */
+}
+
+.input-group .btn-toggle-password {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 1.2rem;
+  color: #6c757d;
+  cursor: pointer;
+}
+
+.input-group .btn-toggle-password:hover {
+  color: #343a40;
+}
+
+/* Dark Mode - Password Toggle */
+body.dark-mode .btn-toggle-password {
+  color: #adb5bd;
+}
+
+body.dark-mode .btn-toggle-password:hover {
+  color: #ffffff;
+}
+
 
 .invalid-feedback {
   font-size: 0.875rem;
