@@ -177,28 +177,18 @@
                   </div>
                 </fieldset>
                 <fieldset class="scheduler-border">
-                  <legend class="scheduler-border">Additional Details</legend>
+                  <legend class="scheduler-border">User Type</legend>
                   <div class="row mb-3">
                     <div class="col-lg-6">
-                      <label for="cloudProvider">Cloud Provider <span class="mandatory">*</span></label>
-                      <select class="form-control" id="cloudProvider" formControlName="cloudProvider"
-                        aria-describedby="cloudProvider" [ngClass]="{ 'is-invalid': submitted && f['cloudProvider'].errors }">
-                        <option value="" selected>--Select Cloud Provider--</option>
-                        <option value="onedrive">OneDrive</option>
-                        <option value="aws">AWS</option>
-                        <option value="gcp">GCP</option>
+                      <label for="userType">User Type <span class="mandatory">*</span></label>
+                      <select class="form-control" id="userType" formControlName="userType"
+                        aria-describedby="userType" [ngClass]="{ 'is-invalid': submitted && f['userType'].errors }">
+                        <option value="" selected>--Select User Type--</option>
+                        <option value="1">Organizational Level Role</option>
+                        <option value="5">User</option>
                       </select>
-                      <div *ngIf="submitted && f['cloudProvider'].errors" class="invalid-feedback">
-                        <div *ngIf="f['cloudProvider'].errors?.['required']">Cloud provider is required</div>
-                      </div>
-                    </div>
-                    <div class="col-lg-6">
-                      <label for="retentionNeeded">Retention Needed (days)</label>
-                      <input type="text" class="form-control" id="retentionNeeded" formControlName="retentionNeeded"
-                        aria-describedby="retentionNeeded" placeholder="Enter Retention Days (e.g., 2)"
-                        maxlength="10" [ngClass]="{ 'is-invalid': submitted && f['retentionNeeded'].errors }">
-                      <div *ngIf="submitted && f['retentionNeeded'].errors" class="invalid-feedback">
-                        <div *ngIf="f['retentionNeeded'].errors?.['pattern']">Must be a valid number</div>
+                      <div *ngIf="submitted && f['userType'].errors" class="invalid-feedback">
+                        <div *ngIf="f['userType'].errors?.['required']">User type is required</div>
                       </div>
                     </div>
                   </div>
