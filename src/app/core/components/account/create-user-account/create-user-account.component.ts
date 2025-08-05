@@ -38,7 +38,6 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       confirmPassword: ['', [Validators.required]],
       createdBy: ['', Validators.required],
       folderName: [''],
-      userType: [5],
       corpoName: ['none'],
       landlineNumber: ['0000000000'],
       cloudProvider: ['', Validators.required]
@@ -170,7 +169,6 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
     this.frmValidate.patchValue({
       createdBy: this.userSessionDetails?.username,
       cloudProvider: this.userSessionDetails?.cloudProvider,
-      userType: 5,
       corpoName: 'none',
       branch: '',
       landlineNumber: '0000000000',
