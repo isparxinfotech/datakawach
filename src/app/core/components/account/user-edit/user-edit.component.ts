@@ -58,7 +58,8 @@ export class UserEditComponent implements OnInit {
             landlineNumber: item.landlineNumber || '',
             userType: Number(item.userType) || 0,
             ipAddress: item.ip_address || item.ipAddress || '',
-            retentionNeeded: Number(item.retentionNeeded) || 0 // Add retentionNeeded, default to 0
+            retentionNeeded: Number(item.retentionNeeded) || 0 ,
+            isAuthenticated:Number(item.isAuthenticated) // Add retentionNeeded, default to 0
           }));
           console.log("Mapped userInfo:", userInfo);
           this.user = userInfo.find(u => u.userid === userId) || null;

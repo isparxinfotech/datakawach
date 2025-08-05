@@ -1,3 +1,4 @@
+```html
 <div class="container-fluid p-0 d-flex h-100" [ngClass]="{'black-and-white-theme': isBlackAndWhiteTheme}">
   <app-dynamic-menus></app-dynamic-menus>
 
@@ -44,20 +45,10 @@
             <div class="col-md-8 mb-4">
               <div class="file-explorer-header">
                 <h5 class="fw-semibold text-dark mb-3">File Explorer</h5>
-                <!-- View Toggle and Search Bar -->
-                <div class="d-flex align-items-center mb-3">
-                  <div class="view-toggle me-3">
-                    <button class="btn btn-outline-blue me-1" [ngClass]="{'btn-blue': viewMode === 'list'}" (click)="setViewMode('list')">
-                      <i class="bi bi-list-ul"></i> List
-                    </button>
-                    <button class="btn btn-outline-blue" [ngClass]="{'btn-blue': viewMode === 'thumbnail'}" (click)="setViewMode('thumbnail')">
-                      <i class="bi bi-grid-fill"></i> Thumbnail
-                    </button>
-                  </div>
-                  <div class="search-bar flex-grow-1">
-                    <input type="text" class="form-control" placeholder="Search files/folders..." 
-                           [(ngModel)]="searchQuery" (input)="filterContents()">
-                  </div>
+                <!-- Search Bar -->
+                <div class="search-bar mb-3">
+                  <input type="text" class="form-control" placeholder="Search files/folders..." 
+                         [(ngModel)]="searchQuery" (input)="filterContents()">
                 </div>
               </div>
               <!-- Breadcrumbs and Controls -->
@@ -85,111 +76,67 @@
                       <li><a class="dropdown-item" href="javascript:void(0)" (click)="sortBy = 'name'; sortContents()">Name</a></li>
                       <li><a class="dropdown-item" href="javascript:void(0)" (click)="sortBy = 'type'; sortContents()">Type</a></li>
                       <li><a class="dropdown-item" href="javascript:void(0)" (click)="sortBy = 'size'; sortContents()">Size</a></li>
-                      <li><a class="dropdown-item" href="javascript:void(0)" (click)="sortBy = 'modified'; sortContents()">Last Modified</a></li>
-                      <li><a class="dropdown-item" href="javascript:void(0)" (click)="sortBy = 'updatedBy'; sortContents()">Updated By</a></li>
                     </ul>
                   </div>
                 </div>
               </div>
-              <!-- File Explorer Content -->
-              <div class="explorer-container" *ngIf="!loading && filteredContents.length > 0">
-                <!-- List View -->
-                <div class="file-explorer-table" *ngIf="viewMode === 'list'">
-                  <table class="table table-hover table-bordered">
-                    <thead>
-                      <tr>
-                        <th scope="col">Name</th>
-                        <th scope="col">Type</th>
-                        <th scope="col">Storage</th>
-                        <th scope="col">Last Modified</th>
-                        <th scope="col">Updated By</th>
-                        <th scope="col">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr *ngFor="let item of filteredContents">
-                        <td>
-                          <a *ngIf="item.type === 'folder'" href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)">
-                            <img src="assets/images/fileicon.svg" alt="Folder Icon" class="folder-icon"> {{ item.name }}
+              <!-- File Explorer Table -->
+              <div class="file-explorer-table explorer-container" *ngIf="!loading && filteredContents.length > 0">
+                <table class="table table-hover table-bordered">
+                  <thead>
+                    <tr>
+                      <th scope="col" class="thumbnail-column">Thumbnail</th>
+                      <th scope="col">Name</th>
+                      <th scope="col">Type</th>
+                      <th scope="col">Storage</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let item of filteredContents">
+                      <td class="thumbnail-column">
+                        <img *ngIf="item.thumbnailUrl" [src]="item.thumbnailUrl" alt="{{item.name}} thumbnail" class="thumbnail-img" (error)="onImgError($event, item)">
+                        <span *ngIf="!item.thumbnailUrl" class="placeholder-thumbnail">No Preview</span>
+                      </td>
+                      <td>
+                        <a *ngIf="item.type === 'folder'" href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)">
+                          <img src="assets/images/fileicon.svg" alt="Folder Icon" class="folder-icon"> {{ item.name }}
+                        </a>
+                        <span *ngIf="item.type === 'file'" class="text-dark">
+                          <i class="bi bi-file-earmark-text me-2 text-secondary"></i> {{ item.name }}
+                        </span>
+                      </td>
+                      <td>{{ item.type | titlecase }}</td>
+                      <td>{{ formatSize(item.size) }}</td>
+                      <td>
+                        <ng-container *ngIf="item.type === 'file' && item.downloadUrl">
+                          <a [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm me-1">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                            </svg>
+                            Download
                           </a>
-                          <span *ngIf="item.type === 'file'" class="text-dark">
-                            <i class="bi bi-file-earmark-text me-2 text-secondary"></i> {{ item.name }}
-                          </span>
-                        </td>
-                        <td>{{ item.type | titlecase }}</td>
-                        <td>{{ formatSize(item.size) }}</td>
-                        <td>{{ item.lastModified | date:'medium' }}</td>
-                        <td>{{ item.updatedBy || 'Unknown' }}</td>
-                        <td>
-                          <ng-container *ngIf="item.type === 'file' && item.downloadUrl">
-                            <a [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm me-1">
-                              <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                              </svg>
-                              Download
-                            </a>
-                          </ng-container>
-                          <ng-container *ngIf="item.type === 'folder'">
-                            <button class="btn btn-blue btn-sm me-1" (click)="downloadFolder(item.name)">
-                              <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                                <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                              </svg>
-                              Download
-                            </button>
-                            <button class="btn btn-outline-blue btn-sm" (click)="openRenameModal(item.name)">
-                              <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
-                              </svg>
-                              Rename
-                            </button>
-                          </ng-container>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <!-- Thumbnail View -->
-                <div class="thumbnail-view" *ngIf="viewMode === 'thumbnail'">
-                  <div class="thumbnail-card" *ngFor="let item of filteredContents" (click)="item.type === 'folder' ? listFolderContents(item.name) : null">
-                    <div *ngIf="item.type === 'folder'">
-                      <img src="assets/images/fileicon.svg" alt="Folder Icon" class="thumbnail-icon">
-                    </div>
-                    <div *ngIf="item.type === 'file'">
-                      <i class="bi bi-file-earmark-text thumbnail-icon text-secondary"></i>
-                    </div>
-                    <h6>{{ item.name }}</h6>
-                    <p>{{ item.type | titlecase }}</p>
-                    <p>{{ formatSize(item.size) }}</p>
-                    <p>{{ item.lastModified | date:'medium' }}</p>
-                    <p>{{ item.updatedBy || 'Unknown' }}</p>
-                    <div *ngIf="item.type === 'file' && item.downloadUrl">
-                      <a [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm me-1">
-                        <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                          <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                        </svg>
-                        Download
-                      </a>
-                    </div>
-                    <div *ngIf="item.type === 'folder'">
-                      <button class="btn btn-blue btn-sm me-1" (click)="downloadFolder(item.name); $event.stopPropagation()">
-                        <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
-                          <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
-                        </svg>
-                        Download
-                      </button>
-                      <button class="btn btn-outline-blue btn-sm" (click)="openRenameModal(item.name); $event.stopPropagation()">
-                        <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                          <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
-                        </svg>
-                        Rename
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                        </ng-container>
+                        <ng-container *ngIf="item.type === 'folder'">
+                          <button class="btn btn-blue btn-sm me-1" (click)="downloadFolder(item.name)">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                              <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                            </svg>
+                            Download
+                          </button>
+                          <button class="btn btn-outline-blue btn-sm" (click)="openRenameModal(item.name)">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                              <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                            </svg>
+                            Rename
+                          </button>
+                        </ng-container>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
               <!-- No Contents Message -->
               <div class="card shadow-sm p-3 bg-white rounded" *ngIf="!loading && filteredContents.length === 0 && !errorMessage">
@@ -247,7 +194,7 @@
                     <input type="text" class="form-control" id="newFolderName" [(ngModel)]="newFolderName" placeholder="Enter new folder name" required>
                   </div>
                   <div *ngIf="renameError" class="alert alert-danger" role="alert">
-                    Techinal issue, please try again later, or contact support.
+                    Technical issue, please try again later, or contact support.
                   </div>
                 </div>
                 <div class="modal-footer">

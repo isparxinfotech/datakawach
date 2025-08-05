@@ -15,6 +15,7 @@ export interface PersonalInfoRequest {
   landlineNumber: string;
   userType: number;
 retentionNeeded?: number | null;
+isAuthenticated: number;
 }
 
 export interface GetPersonalInfoRequest {
@@ -36,5 +37,6 @@ export interface GetPersonalInfoRequest {
   userType: number;
   ipAddress: string;
 retentionNeeded?: number | null;
+isAuthenticated: number;
   userInfo: PersonalInfoRequest[];
 }

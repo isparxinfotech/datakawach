@@ -43,6 +43,7 @@
                     <th>City</th>
                     <th>Number</th>
                     <th>Email</th>
+                    <th>MFA Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -56,8 +57,14 @@
                     <td>{{ row.city }}</td>
                     <td>{{ row.mobileNumber }}</td>
                     <td>{{ row.email }}</td>
+                    <td>{{ row.isAuthenticated === 1 ? 'Enabled' : 'Disabled' }}</td>
                     <td>
-                      <a [routerLink]="['/edituser', row.userid]" class="btn btn-primary btn-sm">Edit</a>
+                      <a [routerLink]="['/edituser', row.userid]" class="btn btn-primary btn-sm me-2">Edit</a>
+                      <button class="btn btn-sm" 
+                              [ngClass]="row.isAuthenticated === 1 ? 'btn-danger' : 'btn-success'"
+                              (click)="toggleMfaStatus(row.email, row.isAuthenticated)">
+                        {{ row.isAuthenticated === 1 ? 'Disable MFA' : 'Enable MFA' }}
+                      </button>
                     </td>
                   </tr>
                 </tbody>

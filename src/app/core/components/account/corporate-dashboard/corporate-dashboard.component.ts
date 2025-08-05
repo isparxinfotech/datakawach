@@ -9,16 +9,18 @@ import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { Chart, registerables } from 'chart.js';
 import { saveAs } from 'file-saver';
 
+// Register Chart.js components
 Chart.register(...registerables);
 
+// Interface for OneDrive content items
 interface OneDriveItem {
   name: string;
   id: string;
   size: number;
-  type: string;
+  type: 'file' | 'folder';
   downloadUrl?: string;
-  lastModified: Date;
-  updatedBy?: string;
+  thumbnailUrl?: string;
+  mimeType?: string;
 }
 
 @Component({
@@ -40,15 +42,21 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   totalStorage: number = 5_000_000_000_000; // 5 TB in bytes
   remainingStorage: number = this.totalStorage;
   nextLink: string = '';
+
+  // Rename folder state
   showRenameModal: boolean = false;
   selectedFolder: string = '';
   newFolderName: string = '';
   renameError: string = '';
+
+  // Search and sort state
   searchQuery: string = '';
-  sortBy: string = 'name'; // Options: 'name', 'type', 'size', 'modified', 'updatedBy'
-  viewMode: 'list' | 'thumbnail' = 'list';
+  sortBy: string = 'name';
+
+  // Charts
   private storageChart: Chart<'doughnut', number[], string> | undefined;
   private folderUsageChart: Chart | undefined;
+
   private subscriptions: Subscription[] = [];
   totalUsers: number = 0;
   isBlackAndWhiteTheme: boolean = false;
@@ -76,6 +84,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.errorMessage = 'User session details are incomplete. Please log in again.';
       this.cdr.detectChanges();
     }
+
     this.fetchTotalUsers();
   }
 
@@ -135,11 +144,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.isBlackAndWhiteTheme = !this.isBlackAndWhiteTheme;
     this.updateStorageChart();
     this.initFolderUsageChart();
-    this.cdr.detectChanges();
-  }
-
-  setViewMode(mode: 'list' | 'thumbnail'): void {
-    this.viewMode = mode;
     this.cdr.detectChanges();
   }
 
@@ -372,6 +376,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
+          console.log('Raw API response:', response); // Debug raw response
           let items: OneDriveItem[] = [];
           if (folderPath) {
             items = response.contents || [];
@@ -390,15 +395,22 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             return;
           }
 
-          this.oneDriveContents = items.map(item => ({
-            name: item.name || 'Unknown',
-            id: item.id || 'N/A',
-            size: item.size || 0,
-            type: item.type || 'folder',
-            downloadUrl: item.downloadUrl,
-            lastModified: item.lastModified ? new Date(item.lastModified) : new Date(),
-            updatedBy: item.updatedBy || 'Unknown'
-          }));
+          this.oneDriveContents = items.map(item => {
+            const transformedUrl = item.thumbnailUrl
+              ? `https://datakavach.com/onedrive/thumbnail?username=${encodeURIComponent(this.username)}&thumbnailUrl=${encodeURIComponent(item.thumbnailUrl)}`
+              : undefined;
+            console.log(`Item: ${item.name}, Original thumbnailUrl: ${item.thumbnailUrl}, Transformed URL: ${transformedUrl}`); // Debug each item
+            return {
+              name: item.name || 'Unknown',
+              id: item.id || 'N/A',
+              size: item.size || 0,
+              type: item.type || 'folder',
+              downloadUrl: item.downloadUrl,
+              thumbnailUrl: transformedUrl,
+              mimeType: item.mimeType
+            };
+          });
+          console.log('Mapped oneDriveContents:', this.oneDriveContents);
           this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
           this.remainingStorage = this.totalStorage - this.totalSize;
           this.filteredContents = [...this.oneDriveContents];
@@ -409,7 +421,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           if (this.oneDriveContents.length === 0) {
             this.errorMessage = `No items found in ${folderPath || 'root'}.`;
           }
-          console.log('Processed oneDriveContents:', this.oneDriveContents, 'NextLink:', this.nextLink);
           this.cdr.detectChanges();
         }
       });
@@ -443,6 +454,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
+          console.log('Raw API response for more contents:', response); // Debug raw response
           let items: OneDriveItem[] = response.contents || response.folders || [];
           this.nextLink = response.nextLink || '';
 
@@ -454,15 +466,21 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             return;
           }
 
-          const newItems = items.map(item => ({
-            name: item.name || 'Unknown',
-            id: item.id || 'N/A',
-            size: item.size || 0,
-            type: item.type || 'folder',
-            downloadUrl: item.downloadUrl,
-            lastModified: item.lastModified ? new Date(item.lastModified) : new Date(),
-            updatedBy: item.updatedBy || 'Unknown'
-          }));
+          const newItems = items.map(item => {
+            const transformedUrl = item.thumbnailUrl
+              ? `https://datakavach.com/onedrive/thumbnail?username=${encodeURIComponent(this.username)}&thumbnailUrl=${encodeURIComponent(item.thumbnailUrl)}`
+              : undefined;
+            console.log(`Item: ${item.name}, Original thumbnailUrl: ${item.thumbnailUrl}, Transformed URL: ${transformedUrl}`); // Debug each item
+            return {
+              name: item.name || 'Unknown',
+              id: item.id || 'N/A',
+              size: item.size || 0,
+              type: item.type || 'folder',
+              downloadUrl: item.downloadUrl,
+              thumbnailUrl: transformedUrl,
+              mimeType: item.mimeType
+            };
+          });
 
           this.oneDriveContents = [...this.oneDriveContents, ...newItems];
           this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
@@ -472,7 +490,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.loading = false;
           this.updateStorageChart();
           this.initFolderUsageChart();
-          console.log('Loaded more contents:', newItems, 'NextLink:', this.nextLink);
+          console.log('Loaded more contents:', newItems);
           this.cdr.detectChanges();
         }
       });
@@ -486,7 +504,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       return;
     }
 
-    console.log('Initializing storage chart...');
     if (this.storageChart) {
       this.storageChart.destroy();
     }
@@ -529,7 +546,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           }
         }
       });
-      console.log('Storage chart initialized successfully');
     } catch (error) {
       console.error('Error initializing storage chart:', error);
     }
@@ -542,7 +558,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       return;
     }
 
-    console.log('Initializing folder usage chart...');
     if (this.folderUsageChart) {
       this.folderUsageChart.destroy();
     }
@@ -610,7 +625,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           }
         }
       });
-      console.log('Folder usage chart initialized successfully');
     } catch (error) {
       console.error('Error initializing folder usage chart:', error);
     }
@@ -644,15 +658,18 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       } else if (this.sortBy === 'type') {
         return a.type.localeCompare(b.type);
       } else if (this.sortBy === 'size') {
-        return b.size - a.size; // Descending order for size
-      } else if (this.sortBy === 'modified') {
-        return new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime(); // Descending order
-      } else if (this.sortBy === 'updatedBy') {
-        return (a.updatedBy || 'Unknown').localeCompare(b.updatedBy || 'Unknown');
+        return a.size - b.size;
       }
       return 0;
     });
     this.initFolderUsageChart();
+    this.cdr.detectChanges();
+  }
+
+  onImgError(event: Event, item: OneDriveItem): void {
+    console.error(`Failed to load thumbnail for ${item.name} (${item.type}) at URL: ${item.thumbnailUrl}`, event);
+    const imgElement = event.target as HTMLImageElement;
+    imgElement.src = 'assets/images/default-file.png'; // Fallback image
     this.cdr.detectChanges();
   }
 
