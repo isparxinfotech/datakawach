@@ -39,6 +39,7 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       createdBy: ['', Validators.required],
       folderName: [''],
       corpoName: ['none'],
+      userType: [5],
       landlineNumber: ['0000000000'],
       cloudProvider: ['', Validators.required]
     }, { validators: this.passwordMatchValidator });
