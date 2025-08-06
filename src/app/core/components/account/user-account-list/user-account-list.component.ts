@@ -31,7 +31,7 @@ export class UserAccountListComponent implements OnInit, OnDestroy {
     if (!this.userSessionDetails) {
       return;
     }
-    this.userSessionDetails.userType = 5; // 5 is used for super admin
+    this.userSessionDetails.userType = 5,6; // 5 is used for super admin
     this.PersonalInfoSubscription = this.superAdminService.getUsersList(this.userSessionDetails)
       .subscribe({
         next: (response) => {
