@@ -39,7 +39,7 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       createdBy: ['', Validators.required],
       folderName: [''],
       corpoName: ['none'],
-      userType: [5],
+      userType: ['', [Validators.required]], // Changed to required field
       landlineNumber: ['0000000000'],
       cloudProvider: ['', Validators.required]
     }, { validators: this.passwordMatchValidator });
@@ -78,7 +78,8 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
     }
     this.frmValidate.patchValue({
       createdBy: this.userSessionDetails.username,
-      cloudProvider: this.userSessionDetails.cloudProvider
+      cloudProvider: this.userSessionDetails.cloudProvider,
+      userType: '5' // Default to User
     });
     console.log('Logged-in user details set - createdBy:', this.userSessionDetails.username, 
                 'cloudProvider:', this.userSessionDetails.cloudProvider);
@@ -173,7 +174,8 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       corpoName: 'none',
       branch: '',
       landlineNumber: '0000000000',
-      ipAddress: this.currentIp // Retain fetched IP address
+      ipAddress: this.currentIp, // Retain fetched IP address
+      userType: '5' // Reset to default User
     });
     this.selectedFile = null;
     (document.getElementById('excelFile') as HTMLInputElement).value = '';

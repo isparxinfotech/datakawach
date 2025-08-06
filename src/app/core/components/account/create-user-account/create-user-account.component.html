@@ -106,6 +106,20 @@
                       </div>
                     </div>
                   </div>
+                  <div class="row mb-3">
+                    <div class="col-lg-6">
+                      <label for="userType">User Type <span class="mandatory">*</span></label>
+                      <select class="form-control" formControlName="userType" aria-describedby="userType"
+                        [ngClass]="{ 'is-invalid': submitted && f['userType'].errors }">
+                        <option value="" selected>--Select User Type--</option>
+                        <option value="5">User</option>
+                        <option value="6">Organizational Admin</option>
+                      </select>
+                      <div *ngIf="submitted && f['userType'].errors" class="invalid-feedback">
+                        <div *ngIf="f['userType'].errors?.['required']">User type is required</div>
+                      </div>
+                    </div>
+                  </div>
                 </fieldset>
                 <fieldset class="scheduler-border">
                   <legend class="scheduler-border">Login Details</legend>
