@@ -49,6 +49,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   newFolderName: string = '';
   renameError: string = '';
 
+  // Share link state
+  showShareModal: boolean = false;
+  selectedItem: OneDriveItem | null = null;
+  shareLink: string = '';
+  shareError: string = '';
+
   // Search and sort state
   searchQuery: string = '';
   sortBy: string = 'name';
@@ -91,10 +97,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   ngAfterViewInit(): void {
     setTimeout(() => {
       this.initializeCharts();
-      const modalElement = document.getElementById('renameModal');
-      if (modalElement) {
-        modalElement.addEventListener('hidden.bs.modal', () => {
+      const renameModalElement = document.getElementById('renameModal');
+      if (renameModalElement) {
+        renameModalElement.addEventListener('hidden.bs.modal', () => {
           this.closeRenameModal();
+        });
+      }
+      const shareModalElement = document.getElementById('shareModal');
+      if (shareModalElement) {
+        shareModalElement.addEventListener('hidden.bs.modal', () => {
+          this.closeShareModal();
         });
       }
       this.cdr.detectChanges();
@@ -325,6 +337,106 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.subscriptions.push(sub);
   }
 
+  openShareModal(item: OneDriveItem): void {
+    this.selectedItem = item;
+    this.shareLink = '';
+    this.shareError = '';
+    this.showShareModal = true;
+    this.generateShareLink(item);
+    const modalElement = document.getElementById('shareModal');
+    if (modalElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Modal) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
+  closeShareModal(): void {
+    this.showShareModal = false;
+    this.selectedItem = null;
+    this.shareLink = '';
+    this.shareError = '';
+    const modalElement = document.getElementById('shareModal');
+    if (modalElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Modal) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+          modal.hide();
+        }
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
+  generateShareLink(item: OneDriveItem): void {
+    if (!this.username || !item.name) {
+      this.shareError = 'Invalid item or user email.';
+      console.error('Invalid parameters:', { itemName: item.name, username: this.username });
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.loading = true;
+    this.shareError = '';
+    this.successMessage = '';
+
+    const itemPath = this.currentPath ? `${this.currentPath}/${item.name}` : item.name;
+    const endpoint = item.type === 'folder' ? 'share-folder' : 'share-file';
+    const url = `https://datakavach.com/onedrive/${endpoint}`;
+
+    const requestBody = {
+      username: this.username,
+      folderPath: itemPath
+    };
+
+    console.log(`Generating share link for: ${itemPath} (URL: ${url}, Type: ${item.type})`);
+
+    const sub = this.http.post<{ shareLink: string }>(url, requestBody, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError((err) => {
+          this.loading = false;
+          let errorMessage = err.error?.error || 'Failed to generate share link. Please try again.';
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+          } else if (err.status === 404) {
+            errorMessage = `${item.type === 'folder' ? 'Folder' : 'File'} "${itemPath}" not found.`;
+          } else if (err.status === 400) {
+            errorMessage = err.error.error || 'Invalid request. Please check the item and try again.';
+          } else if (err.status === 500) {
+            errorMessage = 'Server error. Please contact support.';
+          }
+          this.shareError = errorMessage;
+          console.error(`Failed to generate share link for "${itemPath}": ${errorMessage}`, err);
+          this.cdr.detectChanges();
+          return throwError(() => new Error(errorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          this.shareLink = response.shareLink;
+          this.successMessage = `Share link for "${item.name}" generated successfully.`;
+          console.log(`Share link for "${item.name}" generated: ${this.shareLink}`);
+          this.loading = false;
+          this.cdr.detectChanges();
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  copyShareLink(): void {
+    const shareLinkInput = document.getElementById('shareLink') as HTMLInputElement;
+    if (shareLinkInput) {
+      shareLinkInput.select();
+      document.execCommand('copy');
+      this.successMessage = 'Share link copied to clipboard!';
+      this.cdr.detectChanges();
+    }
+  }
+
   private getAuthHeaders(): HttpHeaders {
     const token = this.userSessionDetails?.jwtToken || '';
     return new HttpHeaders({
@@ -380,10 +492,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           let items: OneDriveItem[] = [];
           if (folderPath) {
             items = response.contents || [];
-            this.nextLink = response.nextLink || '';
           } else {
             items = response.folders || [];
-            this.nextLink = response.nextLink || '';
           }
 
           if (!Array.isArray(items)) {
@@ -421,6 +531,15 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           if (this.oneDriveContents.length === 0) {
             this.errorMessage = `No items found in ${folderPath || 'root'}.`;
           }
+
+          this.nextLink = '';
+          if (response.nextLink) {
+            const baseUrl = folderPath
+              ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
+              : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.username)}`;
+            this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
+          }
+
           this.cdr.detectChanges();
         }
       });
@@ -456,7 +575,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         next: (response) => {
           console.log('Raw API response for more contents:', response); // Debug raw response
           let items: OneDriveItem[] = response.contents || response.folders || [];
-          this.nextLink = response.nextLink || '';
 
           if (!Array.isArray(items)) {
             this.errorMessage = `Invalid response format from server. Expected an array of items.`;
@@ -491,6 +609,15 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.updateStorageChart();
           this.initFolderUsageChart();
           console.log('Loaded more contents:', newItems);
+
+          this.nextLink = '';
+          if (response.nextLink) {
+            const baseUrl = this.currentPath
+              ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(this.currentPath)}`
+              : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.username)}`;
+            this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
+          }
+
           this.cdr.detectChanges();
         }
       });
