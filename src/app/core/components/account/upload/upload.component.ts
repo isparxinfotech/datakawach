@@ -35,8 +35,8 @@ interface ContentInfo {
 // Interface for Folder details from /onedrive/folders or /onedrive/user-folders endpoint
 interface FolderInfo {
   name: string;
-  id?: string; // id is optional for /user-folders response
-  size?: number; // size is optional for /user-folders response
+  id?: string;
+  size?: number;
 }
 
 interface UserFoldersResponse {
@@ -55,11 +55,11 @@ interface FileWithPath {
   styleUrls: []
 })
 export class UploadComponent implements OnInit, OnDestroy {
-  folderName: string = ''; // Legacy field, kept for compatibility
-  selectedRootFolder: string = ''; // Selected root folder
-  folderPath: string = ''; // Full path including subfolders
-  folderPathSegments: string[] = []; // For breadcrumb navigation
-  folderContents: ContentInfo[] = []; // Contents of current folder
+  folderName: string = '';
+  selectedRootFolder: string = '';
+  folderPath: string = '';
+  folderPathSegments: string[] = [];
+  folderContents: ContentInfo[] = [];
   fileName: string = '';
   fileNameError: string = '';
   localPath: string = '';
@@ -82,7 +82,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   backupSchedules: BackupSchedule[] = [];
   rootFolders: FolderInfo[] = [];
   needsBackup: 'yes' | 'no' = 'yes';
-  uploadType: 'file' | 'folder' = 'file'; // To toggle between file and folder upload
+  uploadType: 'file' | 'folder' = 'file';
   isLoading: boolean = true;
   isSchedulesLoading: boolean = false;
   isFolderContentsLoading: boolean = false;
@@ -103,6 +103,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   async initializeUser() {
     this.message = '';
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
+    console.log('userSessionDetails:', this.userSessionDetails); // Added for debugging
 
     if (!this.userSessionDetails?.jwtToken || !this.userSessionDetails?.username) {
       const url = `https://datakavach.com/users/current`;
@@ -186,14 +187,13 @@ export class UploadComponent implements OnInit, OnDestroy {
     for (const file of files) {
       let relativePath = '';
       if (this.uploadType === 'folder' && file.webkitRelativePath) {
-        // Extract the relative path, removing the top-level folder name
         relativePath = file.webkitRelativePath.substring(file.webkitRelativePath.indexOf('/') + 1);
       }
       this.selectedFiles.push({ file, relativePath });
     }
 
     if (this.selectedFiles.length > 0) {
-      this.fileName = this.selectedFiles[0].file.name;
+      this.fileName = this.uploadType === 'file' ? this.selectedFiles[0].file.name : this.selectedFiles[0].relativePath.split('/')[0];
       this.validateFileNameInput();
     }
     this.cdr.detectChanges();
@@ -241,10 +241,10 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = 'https://datakavach.com/onedrive/schedule';
+    const url = 'https://datakavach.com/isparxcloud/schedule';
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
-    body.append('folderName', this.folderPath); // Use full folder path
+    body.append('folderName', this.folderPath);
     body.append('fileName', this.fileName);
     body.append('localPath', this.localPath);
     body.append('backupTime', this.backupTime + ':00');
@@ -283,7 +283,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = 'https://datakavach.com/onedrive/backup-now';
+    const url = 'https://datakavach.com/isparxcloud/trigger-backup';
     const body = new FormData();
     body.append('scheduleId', scheduleId.toString());
     body.append('username', this.userSessionDetails.username);
@@ -310,7 +310,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isSchedulesLoading = true;
     this.message = '';
-    const url = `https://datakavach.com/onedrive/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `https://datakavach.com/isparxcloud/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
       const response = await this.http.get<{ schedules: BackupSchedule[] }>(url, {
@@ -349,8 +349,8 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     const isRetentionNeeded = this.userSessionDetails.retentionNeeded === 1;
     const url = isRetentionNeeded
-      ? `https://datakavach.com/onedrive/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`
-      : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+      ? `https://datakavach.com/isparxcloud/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`
+      : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
       if (isRetentionNeeded) {
@@ -399,7 +399,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isFolderContentsLoading = true;
     this.message = '';
-    let url = `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    let url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
     if (nextLink) {
       url = nextLink;
     }
@@ -435,7 +435,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   onRootFolderChange() {
     this.folderPath = this.selectedRootFolder;
     this.folderPathSegments = this.folderPath ? this.folderPath.split('/') : [];
-    this.folderName = this.folderPath; // For backward compatibility
+    this.folderName = this.folderPath;
     this.loadFolderContents(this.folderPath);
     this.cdr.detectChanges();
   }
@@ -443,7 +443,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   selectSubFolder(subFolderName: string) {
     this.folderPath = this.folderPath ? `${this.folderPath}/${subFolderName}` : subFolderName;
     this.folderPathSegments = this.folderPath.split('/');
-    this.folderName = this.folderPath; // For backward compatibility
+    this.folderName = this.folderPath;
     this.loadFolderContents(this.folderPath);
     this.cdr.detectChanges();
   }
@@ -451,7 +451,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   navigateToFolder(path: string) {
     this.folderPath = path;
     this.folderPathSegments = path ? path.split('/') : [];
-    this.folderName = this.folderPath; // For backward compatibility
+    this.folderName = this.folderPath;
     this.loadFolderContents(this.folderPath);
     this.cdr.detectChanges();
   }
@@ -481,70 +481,126 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.currentFileIndex = 0;
     this.message = '';
 
-    const totalSize = this.selectedFiles.reduce((sum, item) => sum + item.file.size, 0);
-    let uploadedSize = 0;
+    if (this.uploadType === 'file') {
+      // Upload multiple files individually
+      const totalSize = this.selectedFiles.reduce((sum, item) => sum + item.file.size, 0);
+      let uploadedSize = 0;
 
-    for (let i = 0; i < this.selectedFiles.length; i++) {
-      this.currentFileIndex = i;
-      const { file, relativePath } = this.selectedFiles[i];
-      const rawFileName = file.name;
-      const fileSize = file.size;
-      const totalChunks = Math.ceil(fileSize / this.CHUNK_SIZE);
+      for (let i = 0; i < this.selectedFiles.length; i++) {
+        this.currentFileIndex = i;
+        const { file, relativePath } = this.selectedFiles[i];
+        const rawFileName = file.name;
+        const fileSize = file.size;
+        const totalChunks = Math.ceil(fileSize / this.CHUNK_SIZE);
 
-      this.uploadSessionId = null;
+        this.uploadSessionId = null;
 
-      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-        const startByte = chunkIndex * this.CHUNK_SIZE;
-        const endByte = Math.min(startByte + this.CHUNK_SIZE - 1, fileSize - 1);
-        const chunk = file.slice(startByte, endByte + 1);
-        const chunkSize = endByte - startByte + 1;
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+          const startByte = chunkIndex * this.CHUNK_SIZE;
+          const endByte = Math.min(startByte + this.CHUNK_SIZE - 1, fileSize - 1);
+          const chunk = file.slice(startByte, endByte + 1);
+          const chunkSize = endByte - startByte + 1;
 
-        const formData = new FormData();
-        formData.append('username', this.userSessionDetails!.username);
-        formData.append('folderName', this.folderPath); // Use full folder path
-        formData.append('file', chunk, rawFileName);
-        formData.append('chunkIndex', chunkIndex.toString());
-        formData.append('totalChunks', totalChunks.toString());
-        formData.append('startByte', startByte.toString());
-        formData.append('endByte', endByte.toString());
-        formData.append('totalSize', fileSize.toString());
-        if (this.uploadSessionId) {
-          formData.append('sessionId', this.uploadSessionId);
-        }
-        if (relativePath) {
-          formData.append('relativePath', relativePath);
-        }
-
-        const url = `https://datakavach.com/onedrive/upload/${encodeURIComponent(rawFileName)}`;
-
-        let retryCount = 0;
-        const maxRetries = 2;
-
-        while (retryCount <= maxRetries) {
-          try {
-            const response = await this.uploadChunk(url, formData, chunkIndex, totalChunks, fileSize, totalSize, uploadedSize);
-            if (chunkIndex === 0 && response.sessionId) {
-              this.uploadSessionId = response.sessionId;
-            }
-            uploadedSize += chunkSize;
-            this.overallProgress = Math.round((uploadedSize / totalSize) * 100);
-            break;
-          } catch (err: any) {
-            if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
-              this.uploadSessionId = null;
-              retryCount++;
-              continue;
-            }
-            this.handleError(err);
-            this.uploading = false;
-            this.cdr.detectChanges();
-            return;
+          const formData = new FormData();
+          formData.append('username', this.userSessionDetails!.username);
+          formData.append('folderName', this.folderPath);
+          formData.append('file', chunk, rawFileName);
+          formData.append('chunkIndex', chunkIndex.toString());
+          formData.append('totalChunks', totalChunks.toString());
+          formData.append('startByte', startByte.toString());
+          formData.append('endByte', endByte.toString());
+          formData.append('totalSize', fileSize.toString());
+          if (this.uploadSessionId) {
+            formData.append('sessionId', this.uploadSessionId);
           }
+          if (relativePath) {
+            formData.append('relativePath', relativePath);
+          }
+
+          const url = `https://datakavach.com/isparxcloud/upload/${encodeURIComponent(rawFileName)}`;
+
+          let retryCount = 0;
+          const maxRetries = 2;
+
+          while (retryCount <= maxRetries) {
+            try {
+              const response = await this.uploadChunk(url, formData, chunkIndex, totalChunks, fileSize, totalSize, uploadedSize);
+              if (chunkIndex === 0 && response.sessionId) {
+                this.uploadSessionId = response.sessionId;
+              }
+              uploadedSize += chunkSize;
+              this.overallProgress = Math.round((uploadedSize / totalSize) * 100);
+              break;
+            } catch (err: any) {
+              if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
+                this.uploadSessionId = null;
+                retryCount++;
+                continue;
+              }
+              this.handleError(err);
+              this.uploading = false;
+              this.cdr.detectChanges();
+              return;
+            }
+          }
+        }
+      }
+      this.handleSuccess('All files uploaded successfully');
+    } else {
+      // Upload folder as ZIP
+      const url = 'https://datakavach.com/isparxcloud/upload-folder';
+      const formData = new FormData();
+      formData.append('email', this.userSessionDetails!.username); // Using 'email' as per previous fix
+      formData.append('baseFolderName', this.folderPath); // Changed to 'baseFolderName' to match backend
+      formData.append('zipName', this.fileName.endsWith('.zip') ? this.fileName : `${this.fileName}.zip`);
+
+      // Append all files and their relative paths
+      this.selectedFiles.forEach((item) => {
+        formData.append('files', item.file);
+        if (item.relativePath) {
+          formData.append('relativePaths', item.relativePath);
+        }
+      });
+
+      let retryCount = 0;
+      const maxRetries = 2;
+
+      while (retryCount <= maxRetries) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            this.http.post(url, formData, {
+              headers: this.getAuthHeaders(),
+              reportProgress: true,
+              observe: 'events'
+            }).subscribe({
+              next: (event: any) => {
+                if (event.type === HttpEventType.UploadProgress && event.total) {
+                  this.overallProgress = Math.round(100 * event.loaded / event.total);
+                  this.cdr.detectChanges();
+                } else if (event.type === HttpEventType.Response) {
+                  resolve();
+                }
+              },
+              error: (err) => {
+                reject(err);
+              }
+            });
+          });
+          this.handleSuccess('Folder uploaded successfully as ZIP');
+          break;
+        } catch (err: any) {
+          if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
+            retryCount++;
+            continue;
+          }
+          this.handleError(err);
+          this.uploading = false;
+          this.cdr.detectChanges();
+          return;
         }
       }
     }
 
-    this.handleSuccess('All files/folders uploaded successfully');
     this.loadFolderContents(this.folderPath);
     this.cdr.detectChanges();
   }
@@ -594,6 +650,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   private handleError(error: any) {
+    console.error('Error details:', error); // For debugging
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = false;

@@ -58,7 +58,7 @@
               </label>
               <label style="display: flex; align-items: center; cursor: pointer;">
                 <input type="radio" [(ngModel)]="uploadType" name="uploadType" value="folder" style="margin-right: 8px;" (change)="onUploadTypeChange()">
-                <span style="color: #333; font-size: 14px;">Folder</span>
+                <span style="color: #333; font-size: 14px;">Folder (uploads as a ZIP file)</span>
               </label>
             </div>
           </div>
@@ -66,7 +66,7 @@
           <!-- Form -->
           <form style="display: flex; flex-direction: column; gap: 15px;" novalidate>
             <div style="display: flex; flex-direction: column;">
-              <label style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Username:</label>
+              <label style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Email:</label>
               <input type="text" [value]="userSessionDetails.username" disabled style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #f8f8f8; color: #333;">
             </div>
 
@@ -110,8 +110,9 @@
 
             <div style="display: flex; flex-direction: column;">
               <label for="fileName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">File/Folder Name:</label>
-              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt or myfolder" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt or myfolder.zip" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
               <div *ngIf="fileNameError" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">{{ fileNameError }}</div>
+              <small *ngIf="uploadType === 'folder'" style="color: #666; font-size: 12px; margin-top: 5px;">Folder will be uploaded as a ZIP file with this name.</small>
             </div>
 
             <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
@@ -189,7 +190,7 @@
             <div *ngIf="overallProgress > 0" style="margin-top: 20px;">
               <div style="background: #ddd; border-radius: 10px; overflow: hidden;">
                 <div [style.width]="overallProgress + '%'" style="background: #28a745; padding: 8px; color: #fff; font-size: 14px; text-align: center; transition: width 0.3s;">
-                  Overall: {{ overallProgress }}% (File {{ currentFileIndex + 1 }} of {{ selectedFiles.length }})
+                  {{ uploadType === 'file' ? 'Overall: ' + overallProgress + '% (File ' + (currentFileIndex + 1) + ' of ' + selectedFiles.length + ')' : 'Uploading folder: ' + overallProgress + '%' }}
                 </div>
               </div>
             </div>
@@ -264,3 +265,4 @@
       </div>
     </div>
   </div>
+</div>

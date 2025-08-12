@@ -213,7 +213,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.successMessage = '';
 
     const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
-    const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
     console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
 
@@ -293,7 +293,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     const folderPath = this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder;
-    const url = 'https://datakavach.com/onedrive/rename-folder';
+    const url = 'https://datakavach.com/isparxcloud/rename-folder';
 
     const requestBody = {
       username: this.username,
@@ -386,7 +386,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     const itemPath = this.currentPath ? `${this.currentPath}/${item.name}` : item.name;
     const endpoint = item.type === 'folder' ? 'share-folder' : 'share-file';
-    const url = `https://datakavach.com/onedrive/${endpoint}`;
+    const url = `https://datakavach.com/isparxcloud/${endpoint}`;
 
     const requestBody = {
       username: this.username,
@@ -462,8 +462,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.totalSize = 0;
 
     const url = folderPath
-      ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
-      : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.username)}`;
+      ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
+      : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
 
     console.log(`Loading contents for folder path: ${folderPath || 'root'} (URL: ${url})`);
 
@@ -507,7 +507,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
           this.oneDriveContents = items.map(item => {
             const transformedUrl = item.thumbnailUrl
-              ? `https://datakavach.com/onedrive/thumbnail?username=${encodeURIComponent(this.username)}&thumbnailUrl=${encodeURIComponent(item.thumbnailUrl)}`
+              ? `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&thumbnailUrl=${encodeURIComponent(item.thumbnailUrl)}`
               : undefined;
             console.log(`Item: ${item.name}, Original thumbnailUrl: ${item.thumbnailUrl}, Transformed URL: ${transformedUrl}`); // Debug each item
             return {
@@ -535,8 +535,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.nextLink = '';
           if (response.nextLink) {
             const baseUrl = folderPath
-              ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
-              : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.username)}`;
+              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
+              : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
             this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
           }
 
@@ -586,7 +586,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
           const newItems = items.map(item => {
             const transformedUrl = item.thumbnailUrl
-              ? `https://datakavach.com/onedrive/thumbnail?username=${encodeURIComponent(this.username)}&thumbnailUrl=${encodeURIComponent(item.thumbnailUrl)}`
+              ? `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&thumbnailUrl=${encodeURIComponent(item.thumbnailUrl)}`
               : undefined;
             console.log(`Item: ${item.name}, Original thumbnailUrl: ${item.thumbnailUrl}, Transformed URL: ${transformedUrl}`); // Debug each item
             return {
@@ -613,8 +613,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.nextLink = '';
           if (response.nextLink) {
             const baseUrl = this.currentPath
-              ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(this.currentPath)}`
-              : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.username)}`;
+              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(this.currentPath)}`
+              : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
             this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
           }
 
