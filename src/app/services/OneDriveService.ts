@@ -7,7 +7,7 @@ import { catchError, map } from 'rxjs/operators';
   providedIn: 'root'
 })
 export class OneDriveService {
-  private apiUrl = 'https://datakavach.com/isparxcloud'; // Adjust based on your backend URL
+  private apiUrl = 'https://datakavach.com/cloud'; // Adjust based on your backend URL
 
   constructor(private http: HttpClient) {}
 
