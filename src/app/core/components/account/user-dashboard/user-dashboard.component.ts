@@ -237,7 +237,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.oneDriveFolders = [];
 
     const endpoint = this.retentionNeeded === 1 ? 'user-folders' : 'folders';
-    const url = `https://datakavach.com/cloud/${endpoint}?username=${encodeURIComponent(this.email)}`;
+    const url = `https://datakavach.com/onedrive/${endpoint}?username=${encodeURIComponent(this.email)}`;
     console.log(`Fetching OneDrive folders using ${endpoint} API:`, { url, email: this.email, retentionNeeded: this.retentionNeeded });
 
     this.folderSubscription = this.http
@@ -345,8 +345,8 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
     const encodedFolderPath = encodeURIComponent(folderPath);
     const url = folderPath
-      ? `https://datakavach.com/cloud/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=${encodedFolderPath}`
-      : `https://datakavach.com/cloud/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=root`;
+      ? `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=${encodedFolderPath}`
+      : `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=root`;
 
     console.log('Fetching OneDrive contents:', { url, email: this.email, folderPath });
 
@@ -428,7 +428,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.otpErrorMessage = '';
-    const url = `https://datakavach.com/cloud/generate-otp?username=${encodeURIComponent(this.email)}`;
+    const url = `https://datakavach.com/onedrive/generate-otp?username=${encodeURIComponent(this.email)}`;
     console.log('Generating OTP:', { url, email: this.email, creatorEmail: this.creatorEmail });
 
     this.http
@@ -467,7 +467,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = `https://datakavach.com/cloud/verify-otp?username=${encodeURIComponent(this.email)}&otp=${encodeURIComponent(this.otpInput)}`;
+    const url = `https://datakavach.com/onedrive/verify-otp?username=${encodeURIComponent(this.email)}&otp=${encodeURIComponent(this.otpInput)}`;
     console.log('Verifying OTP:', { url, email: this.email });
 
     this.http
@@ -516,7 +516,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.oneDriveErrorMessage = '';
 
     const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
-    const url = `https://datakavach.com/cloud/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const url = `https://datakavach.com/onedrive/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
     console.log('Downloading folder:', { folderName, folderPath, url });
 
     this.http
