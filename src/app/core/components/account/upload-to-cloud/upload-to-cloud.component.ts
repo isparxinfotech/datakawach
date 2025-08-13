@@ -143,7 +143,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.addLog('Loading buckets...');
-    const url = `https://datakavach.com/onedrive/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `https://datakavach.com/isparxcloud/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error('Failed to fetch buckets');
@@ -178,7 +178,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
 
     this.loading = true;
     this.addLog(`Loading folders for bucket: ${this.selectedBucket}, path: ${this.currentPath || '/'}`);
-    const url = `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(this.selectedBucket + (this.currentPath ? '/' + this.currentPath : ''))}`;
+    const url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(this.selectedBucket + (this.currentPath ? '/' + this.currentPath : ''))}`;
     fetch(url)
       .then(async (response) => {
         if (!response.ok) {
@@ -208,7 +208,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
   loadFileDownloadUrls() {
     if (!this.selectedBucket || !this.userSessionDetails?.username) return;
 
-    const url = `https://datakavach.com/onedrive/files?username=${encodeURIComponent(this.userSessionDetails.username)}&folderName=${encodeURIComponent(this.selectedBucket + (this.currentPath ? '/' + this.currentPath : ''))}`;
+    const url = `https://datakavach.com/isparxcloud/files?username=${encodeURIComponent(this.userSessionDetails.username)}&folderName=${encodeURIComponent(this.selectedBucket + (this.currentPath ? '/' + this.currentPath : ''))}`;
     fetch(url)
       .then((response) => {
         if (!response.ok) throw new Error('Failed to fetch file URLs');
@@ -436,7 +436,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     formData.append('baseFolderName', this.selectedBucket + (this.currentPath ? '/' + this.currentPath : ''));
 
     try {
-      const url = `https://datakavach.com/onedrive/upload-folder`;
+      const url = `https://datakavach.com/isparxcloud/upload-folder`;
       this.addLog(`Uploading to: ${url}`);
       const response = await fetch(url, {
         method: 'POST',
@@ -571,7 +571,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     formData.append('baseFolderName', backup.bucketName + (backup.folderPath ? '/' + backup.folderPath : ''));
 
     try {
-      const response = await fetch(`https://datakavach.com/onedrive/upload-folder`, {
+      const response = await fetch(`https://datakavach.com/isparxcloud/upload-folder`, {
         method: 'POST',
         body: formData,
       });
@@ -580,7 +580,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
       }
       this.addLog(`Backup completed successfully for ${backup.fileNames.length} files`);
       // Report backup status
-      await fetch(`https://datakavach.com/onedrive/report`, {
+      await fetch(`https://datakavach.com/isparxcloud/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -592,7 +592,7 @@ export class UploadToCloudComponent implements OnInit, OnDestroy {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.addLog(`Backup failed: ${errorMessage}`, true);
-      await fetch(`https://datakavach.com/onedrive/report`, {
+      await fetch(`https://datakavach.com/isparxcloud/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

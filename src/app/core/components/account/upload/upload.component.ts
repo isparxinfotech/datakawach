@@ -241,7 +241,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = 'https://datakavach.com/onedrive/schedule';
+    const url = 'https://datakavach.com/isparxcloud/schedule';
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
     body.append('folderName', this.folderPath);
@@ -283,7 +283,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const url = 'https://datakavach.com/onedrive/trigger-backup';
+    const url = 'https://datakavach.com/isparxcloud/trigger-backup';
     const body = new FormData();
     body.append('scheduleId', scheduleId.toString());
     body.append('username', this.userSessionDetails.username);
@@ -310,7 +310,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isSchedulesLoading = true;
     this.message = '';
-    const url = `https://datakavach.com/onedrive/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    const url = `https://datakavach.com/isparxcloud/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
       const response = await this.http.get<{ schedules: BackupSchedule[] }>(url, {
@@ -349,8 +349,8 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     const isRetentionNeeded = this.userSessionDetails.retentionNeeded === 1;
     const url = isRetentionNeeded
-      ? `https://datakavach.com/onedrive/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`
-      : `https://datakavach.com/onedrive/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+      ? `https://datakavach.com/isparxcloud/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`
+      : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
     try {
       if (isRetentionNeeded) {
@@ -399,7 +399,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.isFolderContentsLoading = true;
     this.message = '';
-    let url = `https://datakavach.com/onedrive/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    let url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
     if (nextLink) {
       url = nextLink;
     }
@@ -517,7 +517,7 @@ export class UploadComponent implements OnInit, OnDestroy {
             formData.append('relativePath', relativePath);
           }
 
-          const url = `https://datakavach.com/onedrive/upload/${encodeURIComponent(rawFileName)}`;
+          const url = `https://datakavach.com/isparxcloud/upload/${encodeURIComponent(rawFileName)}`;
 
           let retryCount = 0;
           const maxRetries = 2;
@@ -548,7 +548,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       this.handleSuccess('All files uploaded successfully');
     } else {
       // Upload folder as ZIP
-      const url = 'https://datakavach.com/onedrive/upload-folder';
+      const url = 'https://datakavach.com/isparxcloud/upload-folder';
       const formData = new FormData();
       formData.append('email', this.userSessionDetails!.username); // Using 'email' as per previous fix
       formData.append('baseFolderName', this.folderPath); // Changed to 'baseFolderName' to match backend
