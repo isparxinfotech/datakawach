@@ -1,20 +1,20 @@
-<div class="container-fluid p-0 d-flex h-100" [ngClass]="{'black-and-white-theme': isBlackAndWhiteTheme}">
+<div class="container-fluid p-0 d-flex h-100" [ngClass]="{'black-and-white-theme': isBlackAndWhiteTheme}" style="display: flex; height: 100%;">
   <app-dynamic-menus></app-dynamic-menus>
 
-  <div class="bg-light flex-fill">
+  <div class="bg-light flex-fill" style="flex: 1; display: flex; flex-direction: column; background: #f8fafc; overflow-y: auto;">
     <!-- Mobile Sidebar Toggle -->
-    <div class="p-2 d-md-none d-flex text-white bg-gradient bg-primary">
+    <div class="p-2 d-md-none d-flex text-white bg-gradient bg-primary" style="background: linear-gradient(90deg, #007bff, #0056b3); font-weight: 600; display: none;">
       <a href="#" class="text-white" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
         <i class="fa-solid fa-bars"></i>
       </a>
       <span class="ms-3 fw-bold">Data Kavach</span>
     </div>
 
-    <div class="p-4">
+    <div class="p-4" style="padding: 1.5rem;">
       <!-- Navbar with Username and Theme Toggle -->
-      <nav class="navbar navbar-expand-lg bg-gradient bg-blue shadow-sm rounded">
+      <nav class="navbar navbar-expand-lg bg-gradient bg-blue shadow-sm rounded" style="background: linear-gradient(90deg, #007bff, #0056b3) !important; color: #fff; padding: 10px 20px; border-radius: 10px;">
         <div class="container-fluid">
-          <span class="navbar-brand fw-semibold text-white" style="font-size: 14px;">
+          <span class="navbar-brand fw-semibold text-white" style="color: #fff !important; font-size: 14px; font-weight: 600;">
             Welcome, {{userSessionDetails?.username}}
           </span>
           <div class="ms-auto d-flex align-items-center">
@@ -31,10 +31,10 @@
       <div class="row">
         <div class="col">
           <!-- Success/Error Messages -->
-          <div *ngIf="successMessage" class="alert alert-success shadow-sm rounded" role="alert">
+          <div *ngIf="successMessage" class="alert alert-success shadow-sm rounded" style="border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
             {{ successMessage }}
           </div>
-          <div *ngIf="errorMessage" class="alert alert-danger shadow-sm rounded" role="alert">
+          <div *ngIf="errorMessage" class="alert alert-danger shadow-sm rounded" style="border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
             {{ errorMessage }}
           </div>
 
@@ -43,7 +43,7 @@
             <!-- File Explorer Section (Left Side, Wider) -->
             <div class="col-md-8 mb-4">
               <div class="file-explorer-header">
-                <h5 class="fw-semibold text-dark mb-3">File Explorer</h5>
+                <h5 class="fw-semibold text-dark mb-3" style="font-weight: 600; color: #1e293b;">File Explorer</h5>
                 <!-- Search Bar -->
                 <div class="search-bar mb-3">
                   <input type="text" class="form-control" placeholder="Search files/folders..." 
@@ -63,12 +63,12 @@
                   </ol>
                 </nav>
                 <div class="d-flex align-items-center">
-                  <button *ngIf="pathHistory.length > 0" class="btn btn-outline-blue me-2" (click)="navigateBack()">
+                  <button *ngIf="pathHistory.length > 0" class="btn btn-outline-blue me-2" (click)="navigateBack()" style="border-color: #007bff; color: #007bff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease, color 0.3s ease;">
                     <i class="bi bi-arrow-left me-1"></i> Back
                   </button>
                   <!-- Sort Dropdown -->
                   <div class="dropdown">
-                    <button class="btn btn-outline-blue dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-outline-blue dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="border-color: #007bff; color: #007bff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease, color 0.3s ease;">
                       Sort by: {{ sortBy | titlecase }}
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="sortDropdown">
@@ -119,14 +119,14 @@
                             </div>
                           </ng-container>
                           <ng-container *ngIf="item.type === 'folder'">
-                            <a href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)">
-                              <img src="assets/images/fileicon.svg" alt="Folder Icon" class="folder-icon me-2"> {{ item.name }}
+                            <a href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)" style="color: #007bff !important; font-weight: 600;">
+                              <img src="assets/images/fileicon.svg" alt="Folder Icon" class="folder-icon me-2" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;"> {{ item.name }}
                             </a>
                           </ng-container>
                           <ng-container *ngIf="item.type === 'file'">
-                            <span class="text-dark">
+                            <span class="text-dark" style="color: #1e293b;">
                               <i *ngIf="!isImage(item) && !isVideo(item)" class="bi bi-file-earmark-text me-2 text-secondary"></i>
-                              <img *ngIf="isImage(item) && !item.isHovered && item.thumbnailUrl && !item.previewError" [src]="item.thumbnailUrl" alt="{{item.name}} thumbnail" class="file-icon me-2" style="max-width: 24px; max-height: 24px;" (error)="onImgError($event, item)">
+                              <img *ngIf="isImage(item) && !item.isHovered && item.thumbnailUrl && !item.previewError" [src]="item.thumbnailUrl" alt="{{item.name}} thumbnail" class="file-icon me-2" style="max-width: 24px; max-height: 24px; margin-right: 8px;">
                               <i *ngIf="isVideo(item) && !item.isHovered && !item.previewError" class="bi bi-film me-2 text-secondary"></i>
                               <i *ngIf="item.previewError && (isImage(item) || isVideo(item))" class="bi bi-exclamation-triangle me-2 text-warning"></i>
                               {{ item.name }}
@@ -138,8 +138,8 @@
                       <td>{{ formatSize(item.size) }}</td>
                       <td>
                         <ng-container *ngIf="item.type === 'file' && item.downloadUrl">
-                          <a [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm me-1">
-                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                          <a [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm me-1" style="background: linear-gradient(90deg, #007bff, #0056b3); border: none; color: #fff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease;">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px; fill: currentColor;">
                               <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
                               <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
                             </svg>
@@ -147,22 +147,22 @@
                           </a>
                         </ng-container>
                         <ng-container *ngIf="item.type === 'folder'">
-                          <button class="btn btn-blue btn-sm me-1" (click)="downloadFolder(item.name)">
-                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                          <button class="btn btn-blue btn-sm me-1" (click)="downloadFolder(item.name)" style="background: linear-gradient(90deg, #007bff, #0056b3); border: none; color: #fff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease;">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px; fill: currentColor;">
                               <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
                               <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
                             </svg>
                             Download
                           </button>
-                          <button class="btn btn-outline-blue btn-sm me-1" (click)="openRenameModal(item.name)">
-                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                          <button class="btn btn-outline-blue btn-sm me-1" (click)="openRenameModal(item.name)" style="border-color: #007bff; color: #007bff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease, color 0.3s ease;">
+                            <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px; fill: currentColor;">
                               <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
                             </svg>
                             Rename
                           </button>
                         </ng-container>
-                        <button class="btn btn-outline-blue btn-sm" (click)="openShareModal(item)">
-                          <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <button class="btn btn-outline-blue btn-sm" (click)="openShareModal(item)" style="border-color: #007bff; color: #007bff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease, color 0.3s ease;">
+                          <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px; fill: currentColor;">
                             <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.037 4.037 0 0 1-.128-.71z"/>
                             <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 0 0-4.243-4.243z"/>
                           </svg>
@@ -174,41 +174,41 @@
                 </table>
               </div>
               <!-- No Contents Message -->
-              <div class="card shadow-sm p-3 bg-white rounded" *ngIf="!loading && filteredContents.length === 0 && !errorMessage">
-                <div class="alert alert-info text-center shadow-sm" *ngIf="userSessionDetails">
+              <div class="card shadow-sm p-3 bg-white rounded" *ngIf="!loading && filteredContents.length === 0 && !errorMessage" style="border: none; border-radius: 10px; background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); padding: 1rem;">
+                <div class="alert alert-info text-center shadow-sm" *ngIf="userSessionDetails" style="border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
                   No items found in the OneDrive account for "{{userSessionDetails.username}}" in the current folder.
                 </div>
               </div>
 
               <!-- Folder Usage Bar Graph -->
               <div class="mt-4" *ngIf="!loading && hasFolders()">
-                <h5 class="fw-semibold text-dark mb-3">Folder Usage</h5>
-                <div class="chart-container">
-                  <canvas id="folderUsageChart" height="200"></canvas>
+                <h5 class="fw-semibold text-dark mb-3" style="font-weight: 600; color: #1e293b;">Folder Usage</h5>
+                <div class="chart-container" style="position: relative; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); max-width: 100%; overflow-x: auto; min-height: 200px;">
+                  <canvas id="folderUsageChart" height="200" style="background: #fff; max-width: 100%; min-height: 150px; display: block;"></canvas>
                 </div>
               </div>
             </div>
 
             <!-- Storage Overview Section (Right Side) -->
             <div class="col-md-4 mb-4">
-              <div class="card shadow-sm p-4 bg-white rounded">
+              <div class="card shadow-sm p-4 bg-white rounded" style="border: none; border-radius: 10px; background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); padding: 1rem;">
                 <div class="row align-items-center">
                   <div class="col-md-12 text-center mb-4">
-                    <h5 class="fw-semibold text-dark">Total User</h5>
-                    <p class="text-muted fs-3 fw-bold">{{ totalUsers }}</p>
+                    <h5 class="fw-semibold text-dark" style="font-weight: 600; color: #1e293b;">Total User</h5>
+                    <p class="text-muted fs-3 fw-bold" style="color: #6c757d; font-size: 1.75rem; font-weight: 700;">{{ totalUsers }}</p>
                   </div>
                   <div class="col-md-12">
-                    <h5 class="fw-semibold text-dark">Storage Overview</h5>
-                    <p class="text-muted">Storage Used: {{ formatSize(totalSize) }} / 5 TB</p>
-                    <p class="text-muted">Remaining: {{ formatSize(remainingStorage) }}</p>
-                    <div class="progress">
+                    <h5 class="fw-semibold text-dark" style="font-weight: 600; color: #1e293b;">Storage Overview</h5>
+                    <p class="text-muted" style="color: #6c757d;">Storage Used: {{ formatSize(totalSize) }} / 5 TB</p>
+                    <p class="text-muted" style="color: #6c757d;">Remaining: {{ formatSize(remainingStorage) }}</p>
+                    <div class="progress" style="height: 15px; border-radius: 5px; background-color: #e9ecef;">
                       <div class="progress-bar bg-blue" role="progressbar" [style.width]="(totalSize / totalStorage * 100) + '%'" 
-                           [attr.aria-valuenow]="totalSize / totalStorage * 100" aria-valuemin="0" aria-valuemax="100">
+                           [attr.aria-valuenow]="totalSize / totalStorage * 100" aria-valuemin="0" aria-valuemax="100" style="background: linear-gradient(90deg, #007bff, #0056b3);">
                       </div>
                     </div>
                   </div>
                   <div class="col-md-12 text-center mt-4">
-                    <canvas id="storageChart" height="150"></canvas>
+                    <canvas id="storageChart" height="150" style="background: #fff; max-width: 100%; min-height: 150px; display: block;"></canvas>
                   </div>
                 </div>
               </div>
@@ -218,9 +218,9 @@
           <!-- Rename Folder Modal -->
           <div class="modal fade" id="renameModal" tabindex="-1" aria-labelledby="renameModalLabel" aria-hidden="true" [ngClass]="{'show d-block': showRenameModal}" style="background-color: rgba(0,0,0,0.5);" *ngIf="showRenameModal">
             <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content">
+              <div class="modal-content" style="border: none; border-radius: 10px; background: #fff;">
                 <div class="modal-header">
-                  <h5 class="modal-title" id="renameModalLabel">Rename Folder: {{ selectedFolder }}</h5>
+                  <h5 class="modal-title" id="renameModalLabel" style="font-weight: 600; color: #1e293b;">Rename Folder: {{ selectedFolder }}</h5>
                   <button type="button" class="btn-close" (click)="closeRenameModal()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -228,13 +228,13 @@
                     <label for="newFolderName" class="form-label">New Folder Name</label>
                     <input type="text" class="form-control" id="newFolderName" [(ngModel)]="newFolderName" placeholder="Enter new folder name" required>
                   </div>
-                  <div *ngIf="renameError" class="alert alert-danger" role="alert">
+                  <div *ngIf="renameError" class="alert alert-danger" role="alert" style="border-radius: 5px;">
                     {{ renameError }}
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" (click)="closeRenameModal()">Cancel</button>
-                  <button type="button" class="btn btn-blue" (click)="renameFolder()" [disabled]="!newFolderName.trim()">Rename</button>
+                  <button type="button" class="btn btn-secondary" (click)="closeRenameModal()" style="background: #6c757d; border: none; color: #fff; padding: 6px 12px; border-radius: 5px;">Cancel</button>
+                  <button type="button" class="btn btn-blue" (click)="renameFolder()" [disabled]="!newFolderName.trim()" style="background: linear-gradient(90deg, #007bff, #0056b3); border: none; color: #fff; padding: 6px 12px; border-radius: 5px;">Rename</button>
                 </div>
               </div>
             </div>
@@ -243,9 +243,9 @@
           <!-- Share Link Modal -->
           <div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true" [ngClass]="{'show d-block': showShareModal}" style="background-color: rgba(0,0,0,0.5);" *ngIf="showShareModal">
             <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content">
+              <div class="modal-content" style="border: none; border-radius: 10px; background: #fff;">
                 <div class="modal-header">
-                  <h5 class="modal-title" id="shareModalLabel">Share: {{ selectedItem?.name }}</h5>
+                  <h5 class="modal-title" id="shareModalLabel" style="font-weight: 600; color: #1e293b;">Share: {{ selectedItem?.name }}</h5>
                   <button type="button" class="btn-close" (click)="closeShareModal()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -253,15 +253,15 @@
                     <label for="shareLink" class="form-label">Shareable Link</label>
                     <div class="input-group">
                       <input type="text" class="form-control" id="shareLink" [value]="shareLink" readonly>
-                      <button class="btn btn-blue" type="button" (click)="copyShareLink()">Copy</button>
+                      <button class="btn btn-blue" type="button" (click)="copyShareLink()" style="background: linear-gradient(90deg, #007bff, #0056b3); border: none; color: #fff; padding: 6px 12px; border-radius: 5px;">Copy</button>
                     </div>
                   </div>
-                  <div *ngIf="shareError" class="alert alert-danger" role="alert">
+                  <div *ngIf="shareError" class="alert alert-danger" role="alert" style="border-radius: 5px;">
                     {{ shareError }}
                   </div>
                 </div>
                 <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" (click)="closeShareModal()">Close</button>
+                  <button type="button" class="btn btn-secondary" (click)="closeShareModal()" style="background: #6c757d; border: none; color: #fff; padding: 6px 12px; border-radius: 5px;">Close</button>
                 </div>
               </div>
             </div>
@@ -282,7 +282,7 @@
 
           <!-- Loading Spinner -->
           <div class="text-center mt-4" *ngIf="loading">
-            <div class="spinner-border text-blue" role="status">
+            <div class="spinner-border text-blue" role="status" style="color: #007bff;">
               <span class="visually-hidden">Loading...</span>
             </div>
           </div>
