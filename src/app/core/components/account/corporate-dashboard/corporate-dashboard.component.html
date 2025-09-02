@@ -84,7 +84,6 @@
                 <table class="table table-hover table-bordered">
                   <thead>
                     <tr>
-                      <th scope="col" class="thumbnail-column">Thumbnail</th>
                       <th scope="col">Name</th>
                       <th scope="col">Type</th>
                       <th scope="col">Storage</th>
@@ -93,17 +92,47 @@
                   </thead>
                   <tbody>
                     <tr *ngFor="let item of filteredContents">
-                      <td class="thumbnail-column">
-                        <img *ngIf="item.thumbnailUrl" [src]="item.thumbnailUrl" alt="{{item.name}} thumbnail" class="thumbnail-img" (error)="onImgError($event, item)">
-                        <span *ngIf="!item.thumbnailUrl" class="placeholder-thumbnail">No Preview</span>
-                      </td>
-                      <td>
-                        <a *ngIf="item.type === 'folder'" href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)">
-                          <img src="assets/images/fileicon.svg" alt="Folder Icon" class="folder-icon"> {{ item.name }}
-                        </a>
-                        <span *ngIf="item.type === 'file'" class="text-dark">
-                          <i class="bi bi-file-earmark-text me-2 text-secondary"></i> {{ item.name }}
-                        </span>
+                      <td class="position-relative">
+                        <div (mouseenter)="onThumbnailHover(item)" (mouseleave)="onThumbnailLeave(item)">
+                          <ng-container *ngIf="item.isHovered && (isVideo(item) || isImage(item) || (item.type === 'folder' && item.previewItems && item.previewItems.length > 0))">
+                            <div class="preview-overlay">
+                              <ng-container *ngIf="item.type === 'folder' && item.previewItems && item.previewItems.length > 0">
+                                <ng-container *ngFor="let previewItem of item.previewItems; let i = index">
+                                  <video *ngIf="isVideo(previewItem) && !previewItem.previewError" [id]="'video-preview-' + item.id + '-' + i" [src]="previewItem.previewUrl" [hidden]="!previewItem.previewUrl" muted loop class="preview-media">
+                                    Your browser does not support the video tag.
+                                  </video>
+                                  <img *ngIf="isImage(previewItem) && !previewItem.previewError" [src]="previewItem.previewUrl" [hidden]="!previewItem.previewUrl" alt="{{previewItem.name}} preview" class="preview-media" (error)="onImgError($event, previewItem)">
+                                  <div *ngIf="previewItem.previewError" class="preview-error text-center text-danger small">
+                                    {{ previewItem.previewError }}
+                                  </div>
+                                </ng-container>
+                              </ng-container>
+                              <ng-container *ngIf="item.type === 'file' && !item.previewError">
+                                <video *ngIf="isVideo(item)" [id]="'video-preview-' + item.id" [src]="item.previewUrl" [hidden]="!item.previewUrl" muted class="preview-media" [attr.data-duration]="item.previewDuration">
+                                  Your browser does not support the video tag.
+                                </video>
+                                <img *ngIf="isImage(item)" [src]="item.previewUrl" [hidden]="!item.previewUrl" alt="{{item.name}} preview" class="preview-media" (error)="onImgError($event, item)">
+                              </ng-container>
+                              <div *ngIf="item.previewError" class="preview-error text-center text-danger small">
+                                {{ item.previewError }}
+                              </div>
+                            </div>
+                          </ng-container>
+                          <ng-container *ngIf="item.type === 'folder'">
+                            <a href="javascript:void(0)" class="text-primary fw-semibold" (click)="listFolderContents(item.name)">
+                              <img src="assets/images/fileicon.svg" alt="Folder Icon" class="folder-icon me-2"> {{ item.name }}
+                            </a>
+                          </ng-container>
+                          <ng-container *ngIf="item.type === 'file'">
+                            <span class="text-dark">
+                              <i *ngIf="!isImage(item) && !isVideo(item)" class="bi bi-file-earmark-text me-2 text-secondary"></i>
+                              <img *ngIf="isImage(item) && !item.isHovered && item.thumbnailUrl && !item.previewError" [src]="item.thumbnailUrl" alt="{{item.name}} thumbnail" class="file-icon me-2" style="max-width: 24px; max-height: 24px;" (error)="onImgError($event, item)">
+                              <i *ngIf="isVideo(item) && !item.isHovered && !item.previewError" class="bi bi-film me-2 text-secondary"></i>
+                              <i *ngIf="item.previewError && (isImage(item) || isVideo(item))" class="bi bi-exclamation-triangle me-2 text-warning"></i>
+                              {{ item.name }}
+                            </span>
+                          </ng-container>
+                        </div>
                       </td>
                       <td>{{ item.type | titlecase }}</td>
                       <td>{{ formatSize(item.size) }}</td>
@@ -135,7 +164,7 @@
                         <button class="btn btn-outline-blue btn-sm" (click)="openShareModal(item)">
                           <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                             <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.037 4.037 0 0 1-.128-.71z"/>
-                            <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z"/>
+                            <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 0 0-4.243-4.243z"/>
                           </svg>
                           Share
                         </button>
@@ -200,7 +229,7 @@
                     <input type="text" class="form-control" id="newFolderName" [(ngModel)]="newFolderName" placeholder="Enter new folder name" required>
                   </div>
                   <div *ngIf="renameError" class="alert alert-danger" role="alert">
-                    Technical issue, please try again later, or contact support.
+                    {{ renameError }}
                   </div>
                 </div>
                 <div class="modal-footer">
@@ -234,6 +263,19 @@
                 <div class="modal-footer">
                   <button type="button" class="btn btn-secondary" (click)="closeShareModal()">Close</button>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toast for Preview Errors -->
+          <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div id="previewToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+              <div class="toast-header">
+                <strong class="me-auto">Preview Error</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+              </div>
+              <div class="toast-body">
+                {{ previewToastMessage }}
               </div>
             </div>
           </div>

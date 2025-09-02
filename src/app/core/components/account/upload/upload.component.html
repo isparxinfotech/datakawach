@@ -58,7 +58,7 @@
               </label>
               <label style="display: flex; align-items: center; cursor: pointer;">
                 <input type="radio" [(ngModel)]="uploadType" name="uploadType" value="folder" style="margin-right: 8px;" (change)="onUploadTypeChange()">
-                <span style="color: #333; font-size: 14px;">Folder (uploads as a ZIP file)</span>
+                <span style="color: #333; font-size: 14px;">Folder (Uploads with directory structure)</span>
               </label>
             </div>
           </div>
@@ -108,11 +108,10 @@
               <p style="color: #333; font-size: 14px;">Loading folder contents...</p>
             </div>
 
-            <div style="display: flex; flex-direction: column;">
-              <label for="fileName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">File/Folder Name:</label>
-              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt or myfolder.zip" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+            <div *ngIf="uploadType === 'file'" style="display: flex; flex-direction: column;">
+              <label for="fileName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">File Name:</label>
+              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
               <div *ngIf="fileNameError" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">{{ fileNameError }}</div>
-              <small *ngIf="uploadType === 'folder'" style="color: #666; font-size: 12px; margin-top: 5px;">Folder will be uploaded as a ZIP file with this name.</small>
             </div>
 
             <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
@@ -253,7 +252,7 @@
                   <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                  {{ uploadType === 'file' ? 'Files' : 'Folder' }} uploaded successfully!
+                  {{ uploadType === 'file' ? 'Files uploaded successfully!' : 'Folder uploaded successfully with directory structure!' }}
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>

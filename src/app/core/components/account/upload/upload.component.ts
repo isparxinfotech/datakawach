@@ -103,7 +103,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   async initializeUser() {
     this.message = '';
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
-    console.log('userSessionDetails:', this.userSessionDetails); // Added for debugging
+    console.log('userSessionDetails:', this.userSessionDetails);
 
     if (!this.userSessionDetails?.jwtToken || !this.userSessionDetails?.username) {
       const url = `https://datakavach.com/users/current`;
@@ -165,12 +165,12 @@ export class UploadComponent implements OnInit, OnDestroy {
 
   validateFileNameInput(): void {
     this.fileNameError = '';
-    if (!this.fileName) {
+    if (!this.fileName && this.uploadType === 'file') {
       this.fileNameError = 'File name is required';
     } else if (/[<>:\"\/\\|?*\x00-\x1F]/.test(this.fileName)) {
-      this.fileNameError = 'File name contains invalid characters';
+      this.fileNameError = this.uploadType === 'file' ? 'File name contains invalid characters' : 'Folder name contains invalid characters';
     } else if (this.fileName.length > 255) {
-      this.fileNameError = 'File name exceeds 255 characters';
+      this.fileNameError = 'Name exceeds 255 characters';
     }
     this.cdr.detectChanges();
   }
@@ -184,18 +184,32 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.uploadSessionId = null;
 
     const files: File[] = Array.from(event.target.files);
+    let topLevelFolder = '';
+
     for (const file of files) {
       let relativePath = '';
       if (this.uploadType === 'folder' && file.webkitRelativePath) {
-        relativePath = file.webkitRelativePath.substring(file.webkitRelativePath.indexOf('/') + 1);
+        // Get the full webkitRelativePath
+        relativePath = file.webkitRelativePath.replace(/\\/g, '/').trim();
+        // Determine the top-level folder (first segment of relativePath)
+        if (!topLevelFolder) {
+          topLevelFolder = relativePath.split('/')[0];
+        }
+        // Remove the top-level folder from relativePath, keeping subfolder structure
+        relativePath = relativePath.startsWith(topLevelFolder + '/')
+          ? relativePath.substring(topLevelFolder.length + 1)
+          : relativePath;
+      } else if (this.uploadType === 'file') {
+        relativePath = file.name;
       }
       this.selectedFiles.push({ file, relativePath });
     }
 
     if (this.selectedFiles.length > 0) {
-      this.fileName = this.uploadType === 'file' ? this.selectedFiles[0].file.name : this.selectedFiles[0].relativePath.split('/')[0];
+      this.fileName = this.uploadType === 'file' ? this.selectedFiles[0].file.name : topLevelFolder;
       this.validateFileNameInput();
     }
+    console.log('Selected files:', this.selectedFiles.map(item => item.relativePath));
     this.cdr.detectChanges();
   }
 
@@ -203,17 +217,15 @@ export class UploadComponent implements OnInit, OnDestroy {
     if (this.needsBackup === 'no') {
       return !!(
         this.userSessionDetails?.username &&
-        this.folderPath &&
-        this.fileName &&
-        !this.fileNameError &&
+        this.folderPath && this.folderPath.trim() !== '' &&
+        (this.uploadType === 'folder' || (this.fileName && !this.fileNameError)) &&
         this.selectedFiles.length > 0
       );
     }
     return !!(
       this.userSessionDetails?.username &&
-      this.folderPath &&
-      this.fileName &&
-      !this.fileNameError &&
+      this.folderPath && this.folderPath.trim() !== '' &&
+      (this.uploadType === 'folder' || (this.fileName && !this.fileNameError)) &&
       this.localPath &&
       this.backupTime &&
       this.retentionDays > 0 &&
@@ -245,7 +257,8 @@ export class UploadComponent implements OnInit, OnDestroy {
     const body = new FormData();
     body.append('username', this.userSessionDetails!.username);
     body.append('folderName', this.folderPath);
-    body.append('fileName', this.fileName);
+    const defaultFolderName = this.folderPath.split('/').pop() || 'defaultFolder';
+    body.append('fileName', this.fileName || (this.uploadType === 'folder' ? defaultFolderName : ''));
     body.append('localPath', this.localPath);
     body.append('backupTime', this.backupTime + ':00');
     body.append('retentionDays', this.retentionDays.toString());
@@ -475,6 +488,16 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Ensure folderPath is a valid string
+    const normalizedFolderPath = this.folderPath.replace(/^\/+|\/+$/g, '') || 'root';
+    if (!normalizedFolderPath) {
+      this.message = 'Selected folder path is invalid';
+      this.isSuccess = false;
+      this.uploading = false;
+      this.cdr.detectChanges();
+      return;
+    }
+
     this.uploading = true;
     this.overallProgress = 0;
     this.chunkProgress = 0;
@@ -489,7 +512,7 @@ export class UploadComponent implements OnInit, OnDestroy {
       for (let i = 0; i < this.selectedFiles.length; i++) {
         this.currentFileIndex = i;
         const { file, relativePath } = this.selectedFiles[i];
-        const rawFileName = file.name;
+        const rawFileName = this.fileName || file.name;
         const fileSize = file.size;
         const totalChunks = Math.ceil(fileSize / this.CHUNK_SIZE);
 
@@ -503,7 +526,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
           const formData = new FormData();
           formData.append('username', this.userSessionDetails!.username);
-          formData.append('folderName', this.folderPath);
+          formData.append('folderName', normalizedFolderPath);
           formData.append('file', chunk, rawFileName);
           formData.append('chunkIndex', chunkIndex.toString());
           formData.append('totalChunks', totalChunks.toString());
@@ -547,14 +570,20 @@ export class UploadComponent implements OnInit, OnDestroy {
       }
       this.handleSuccess('All files uploaded successfully');
     } else {
-      // Upload folder as ZIP
+      // Upload folder with directory structure
       const url = 'https://datakavach.com/isparxcloud/upload-folder';
       const formData = new FormData();
-      formData.append('email', this.userSessionDetails!.username); // Using 'email' as per previous fix
-      formData.append('baseFolderName', this.folderPath); // Changed to 'baseFolderName' to match backend
-      formData.append('zipName', this.fileName.endsWith('.zip') ? this.fileName : `${this.fileName}.zip`);
+      formData.append('email', this.userSessionDetails!.username);
+      // Use fileName (set to topLevelFolder) or fallback to a default
+      const topLevelFolder = this.fileName || 'uploaded_folder';
+      const finalFolderPath = normalizedFolderPath ? `${normalizedFolderPath}/${topLevelFolder}` : topLevelFolder;
+      formData.append('baseFolderName', finalFolderPath);
 
-      // Append all files and their relative paths
+      console.log('Uploading folder with:');
+      console.log('baseFolderName:', finalFolderPath);
+      console.log('files count:', this.selectedFiles.length);
+      console.log('relativePaths:', this.selectedFiles.map(item => item.relativePath));
+
       this.selectedFiles.forEach((item) => {
         formData.append('files', item.file);
         if (item.relativePath) {
@@ -567,7 +596,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
       while (retryCount <= maxRetries) {
         try {
-          await new Promise<void>((resolve, reject) => {
+          const response = await new Promise<any>((resolve, reject) => {
             this.http.post(url, formData, {
               headers: this.getAuthHeaders(),
               reportProgress: true,
@@ -578,15 +607,24 @@ export class UploadComponent implements OnInit, OnDestroy {
                   this.overallProgress = Math.round(100 * event.loaded / event.total);
                   this.cdr.detectChanges();
                 } else if (event.type === HttpEventType.Response) {
-                  resolve();
+                  console.log('Upload response:', event.body);
+                  resolve(event.body);
                 }
               },
               error: (err) => {
+                console.error('Upload error:', err);
                 reject(err);
               }
             });
           });
-          this.handleSuccess('Folder uploaded successfully as ZIP');
+          // Process backend response
+          const successMessages = response.successMessages || [];
+          const errorMessages = response.errorMessages || [];
+          if (errorMessages.length > 0) {
+            this.handleError(new Error(errorMessages.join('; ')));
+          } else {
+            this.handleSuccess(`Folder uploaded successfully: ${successMessages.join('; ')}`);
+          }
           break;
         } catch (err: any) {
           if (err.status === 400 && err.error?.message.includes('session expired') && retryCount < maxRetries) {
@@ -650,7 +688,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   private handleError(error: any) {
-    console.error('Error details:', error); // For debugging
+    console.error('Error details:', error);
     this.uploading = false;
     this.scheduling = false;
     this.isSuccess = false;

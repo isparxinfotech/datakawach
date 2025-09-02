@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core'; 
+import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { catchError, retry } from 'rxjs/operators';
@@ -21,6 +21,11 @@ interface OneDriveItem {
   downloadUrl?: string;
   thumbnailUrl?: string;
   mimeType?: string;
+  isHovered?: boolean;
+  previewUrl?: string;
+  previewDuration?: number;
+  previewItems?: OneDriveItem[];
+  previewError?: string;
 }
 
 @Component({
@@ -42,24 +47,21 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   totalStorage: number = 5_000_000_000_000; // 5 TB in bytes
   remainingStorage: number = this.totalStorage;
   nextLink: string = '';
+  previewToastMessage: string = '';
 
-  // Rename folder state
   showRenameModal: boolean = false;
   selectedFolder: string = '';
   newFolderName: string = '';
   renameError: string = '';
 
-  // Share link state
   showShareModal: boolean = false;
   selectedItem: OneDriveItem | null = null;
   shareLink: string = '';
   shareError: string = '';
 
-  // Search and sort state
   searchQuery: string = '';
   sortBy: string = 'name';
 
-  // Charts
   private storageChart: Chart<'doughnut', number[], string> | undefined;
   private folderUsageChart: Chart | undefined;
 
@@ -113,6 +115,19 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }, 0);
   }
 
+  private showPreviewToast(message: string): void {
+    this.previewToastMessage = message;
+    const toastElement = document.getElementById('previewToast');
+    if (toastElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Toast) {
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
   private initializeCharts(): void {
     console.log('Attempting to initialize charts...');
     this.updateStorageChart();
@@ -152,6 +167,10 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.subscriptions.push(sub);
   }
 
+  private normalizePath(path: string): string {
+    return path.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+  }
+
   toggleTheme(): void {
     this.isBlackAndWhiteTheme = !this.isBlackAndWhiteTheme;
     this.updateStorageChart();
@@ -172,7 +191,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.cdr.detectChanges();
       return;
     }
-    const newPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
+    const newPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
     this.pathHistory.push(this.currentPath);
     this.currentPath = newPath;
     this.nextLink = '';
@@ -212,7 +231,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.errorMessage = '';
     this.successMessage = '';
 
-    const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
+    const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
     const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
     console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
@@ -292,7 +311,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       return;
     }
 
-    const folderPath = this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder;
+    const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder);
     const url = 'https://datakavach.com/isparxcloud/rename-folder';
 
     const requestBody = {
@@ -384,7 +403,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.shareError = '';
     this.successMessage = '';
 
-    const itemPath = this.currentPath ? `${this.currentPath}/${item.name}` : item.name;
+    const itemPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
     const endpoint = item.type === 'folder' ? 'share-folder' : 'share-file';
     const url = `https://datakavach.com/isparxcloud/${endpoint}`;
 
@@ -437,6 +456,283 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
   }
 
+  isImage(item: OneDriveItem): boolean {
+    return item.mimeType?.startsWith('image/') || 
+           item.name.toLowerCase().match(/\.(png|jpg|jpeg|gif|bmp)$/i) !== null;
+  }
+
+  isVideo(item: OneDriveItem): boolean {
+    return item.mimeType?.startsWith('video/') || 
+           item.name.toLowerCase().match(/\.(mp4|avi|mov|wmv)$/i) !== null;
+  }
+
+  fetchFolderPreview(folderName: string, item: OneDriveItem): void {
+    if (!this.username) {
+      this.errorMessage = 'Please provide a username.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
+    const url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+
+    console.log(`Fetching folder preview for: ${folderPath} (URL: ${url})`);
+
+    const sub = this.http.get<{ contents?: OneDriveItem[] }>(url, { headers: this.getAuthHeaders() })
+      .pipe(
+        retry({ count: 2, delay: 1000 }),
+        catchError((err) => {
+          console.error(`Failed to fetch preview for folder "${folderPath}":`, err);
+          item.previewItems = [];
+          item.previewError = err.status === 404 ? `Folder "${folderName}" not found.` : 'Failed to fetch folder preview.';
+          this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+          this.cdr.detectChanges();
+          return throwError(() => new Error(item.previewError));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          const items = response.contents || [];
+          item.previewItems = items
+            .filter(i => this.isImage(i) || this.isVideo(i))
+            .slice(0, 3)
+            .map(i => {
+              const filePath = this.normalizePath(`${folderPath}/${i.name}`);
+              const previewUrl = this.isVideo(i)
+                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`;
+              console.log(`Constructed preview URL for ${i.name}: ${previewUrl}`);
+              return {
+                ...i,
+                previewUrl,
+                previewDuration: this.isVideo(i) ? 5 : undefined,
+                isHovered: false,
+                previewError: undefined
+              };
+            });
+
+          // Verify video previews
+          item.previewItems.forEach((previewItem, index) => {
+            if (this.isVideo(previewItem) && previewItem.previewUrl) {
+              const checkUrl = previewItem.previewUrl;
+              const checkSub = this.http.head(checkUrl, { headers: this.getAuthHeaders() })
+                .pipe(
+                  retry({ count: 2, delay: 1000 }),
+                  catchError((err) => {
+                    previewItem.previewError = err.status === 404 ? `Video "${previewItem.name}" not found.` : 'Failed to verify video preview.';
+                    this.showPreviewToast(previewItem.previewError); // Safe: previewItem.previewError is set to a string
+                    console.error(`Preflight check failed for ${previewItem.name}:`, err);
+                    this.cdr.detectChanges();
+                    return throwError(() => new Error(previewItem.previewError));
+                  })
+                )
+                .subscribe({
+                  next: () => {
+                    console.log(`Preflight check passed for ${previewItem.name}`);
+                    if (index === 0 && item.isHovered) {
+                      setTimeout(() => {
+                        this.cdr.detectChanges(); // Ensure DOM is updated
+                        this.playVideoPreview(item, index);
+                      }, 100);
+                    }
+                  }
+                });
+              this.subscriptions.push(checkSub);
+            }
+          });
+
+          if (item.previewItems.length > 0 && !item.previewItems[0].previewError) {
+            item.previewUrl = item.previewItems[0].previewUrl;
+            item.previewDuration = item.previewItems[0].previewDuration;
+            item.previewError = undefined;
+          } else {
+            item.previewError = item.previewItems.length > 0 ? item.previewItems[0].previewError : 'No previewable items in folder.';
+            this.showPreviewToast(item.previewError || 'No previewable items available.'); // Fallback to string
+          }
+          console.log(`Fetched preview items for ${folderName}:`, item.previewItems);
+          this.cdr.detectChanges();
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  onThumbnailHover(item: OneDriveItem): void {
+    if (item.isHovered) return;
+    item.isHovered = true;
+    item.previewError = undefined;
+
+    console.log(`Hovering over item: ${item.name}, Type: ${item.type}, MIME: ${item.mimeType}, ID: ${item.id}`);
+
+    if (item.type === 'folder') {
+      this.fetchFolderPreview(item.name, item);
+    } else if (this.isImage(item) || this.isVideo(item)) {
+      const filePath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
+      console.log(`Constructing preview for ${item.name}: filePath=${filePath}, username=${this.username}`);
+      item.previewDuration = this.isVideo(item) ? 5 : undefined;
+      item.previewUrl = this.isVideo(item)
+        ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+        : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`;
+      console.log(`Preview URL for ${item.name}: ${item.previewUrl}`);
+
+      if (!item.previewUrl) {
+        item.previewError = 'No preview URL available.';
+        this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+        console.warn(`No preview URL for ${item.name}`);
+        this.cdr.detectChanges();
+        return;
+      }
+
+      // Trigger change detection to render video/image element
+      this.cdr.detectChanges();
+
+      // Perform preflight check for videos
+      if (this.isVideo(item)) {
+        const checkUrl = item.previewUrl;
+        console.log(`Performing preflight check for ${item.name} at URL: ${checkUrl}`);
+        const sub = this.http.head(checkUrl, { headers: this.getAuthHeaders() })
+          .pipe(
+            retry({ count: 2, delay: 1000 }),
+            catchError((err) => {
+              const errorMessage = err.status === 404
+                ? `Video "${item.name}" not found at path "${filePath}".`
+                : `Failed to verify video preview for "${item.name}": ${err.message || 'Unknown error'}`;
+              item.previewError = errorMessage;
+              this.showPreviewToast(errorMessage); // Safe: errorMessage is a string
+              console.error(`Preflight check failed for ${item.name}:`, {
+                status: err.status,
+                statusText: err.statusText,
+                url: err.url,
+                message: err.message,
+                filePath,
+                username: this.username
+              });
+              this.cdr.detectChanges();
+              return throwError(() => new Error(errorMessage));
+            })
+          )
+          .subscribe({
+            next: () => {
+              console.log(`Preflight check passed for ${item.name}`);
+              // Ensure previewUrl and video element are available
+              setTimeout(() => {
+                if (!item.previewUrl) {
+                  console.warn(`Preview URL is undefined for ${item.name} after preflight check`);
+                  item.previewError = 'Preview URL lost after preflight check.';
+                  this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+                  this.cdr.detectChanges();
+                  return;
+                }
+                const videoSelector = `#video-preview-${item.id}`;
+                const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
+                console.log(`Checking video element for ${item.name}: Selector=${videoSelector}, Found=${!!videoElement}`);
+                if (!videoElement) {
+                  console.warn(`Video element not found for ${item.name} with selector: ${videoSelector}`);
+                  item.previewError = 'Video element not found for preview.';
+                  this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+                  this.cdr.detectChanges();
+                  return;
+                }
+                this.playVideoPreview(item, undefined);
+              }, 200); // Increased delay to ensure DOM update
+            }
+          });
+        this.subscriptions.push(sub);
+      }
+    } else {
+      item.previewError = 'No preview available for this file type.';
+      this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+      console.warn(`No preview for ${item.name}: Unsupported type or missing MIME type`);
+      this.cdr.detectChanges();
+    }
+  }
+
+  onThumbnailLeave(item: OneDriveItem): void {
+    if (item.isHovered) {
+      item.isHovered = false;
+      item.previewItems = item.type === 'folder' ? [] : item.previewItems;
+      item.previewError = undefined;
+      if (this.isVideo(item) || (item.type === 'folder' && item.previewItems?.some(i => this.isVideo(i)))) {
+        const videoSelector = item.type === 'folder' && item.previewItems?.length
+          ? `#video-preview-${item.id}-0`
+          : `#video-preview-${item.id}`;
+        const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
+        if (videoElement) {
+          videoElement.pause();
+          videoElement.currentTime = 0;
+          videoElement.src = ''; // Clear src to prevent memory leaks
+        }
+      }
+      // Only clear previewUrl for folders, not files, to preserve it for subsequent hovers
+      if (item.type === 'folder') {
+        item.previewUrl = undefined;
+      }
+      this.cdr.detectChanges();
+    }
+  }
+
+  private playVideoPreview(item: OneDriveItem, index?: number): void {
+    const videoSelector = item.type === 'folder' && index !== undefined
+      ? `#video-preview-${item.id}-${index}`
+      : `#video-preview-${item.id}`;
+    const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
+    const previewUrl = item.type === 'folder' && item.previewItems?.length && index !== undefined
+      ? item.previewItems[index].previewUrl
+      : item.previewUrl;
+
+    console.log(`Attempting to play video for ${item.name} with selector: ${videoSelector}, Element found: ${!!videoElement}, URL: ${previewUrl}`);
+
+    if (!previewUrl) {
+      item.previewError = 'No video preview URL available.';
+      this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+      console.warn(`No preview URL for ${item.name}`);
+      this.cdr.detectChanges();
+      return;
+    }
+
+    if (!videoElement) {
+      item.previewError = 'Video element not found.';
+      this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+      console.warn(`Video element not found for ${item.name} with selector: ${videoSelector}`);
+      this.cdr.detectChanges();
+      return;
+    }
+
+    videoElement.muted = true;
+    videoElement.currentTime = 0;
+    videoElement.src = previewUrl; // Explicitly set src
+    videoElement.load(); // Force reload to ensure src is applied
+    videoElement.play().catch(err => {
+      item.previewError = err.status === 404 ? `Video "${item.name}" not found.` : `Failed to play video preview: ${err.message || 'Unknown error'}`;
+      this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+      console.error(`Failed to play video preview for ${item.name}:`, err);
+      this.cdr.detectChanges();
+      setTimeout(() => {
+        videoElement.src = previewUrl; // Reassign src for retry
+        videoElement.load();
+        videoElement.play().catch(err2 => {
+          item.previewError = `Video playback failed after retry: ${err2.message || 'Unknown error'}`;
+          this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+          console.error(`Retry failed for ${item.name}:`, err2);
+          this.cdr.detectChanges();
+        });
+      }, 50);
+    });
+    setTimeout(() => {
+      if (item.isHovered && videoElement) {
+        videoElement.pause();
+        videoElement.currentTime = 0;
+        videoElement.src = ''; // Clear src to prevent memory leaks
+        item.isHovered = false;
+        if (item.type === 'folder') {
+          item.previewItems = [];
+          item.previewUrl = undefined;
+        }
+        item.previewError = undefined;
+        this.cdr.detectChanges();
+      }
+    }, (item.previewDuration || 5) * 1000);
+  }
+
   private getAuthHeaders(): HttpHeaders {
     const token = this.userSessionDetails?.jwtToken || '';
     return new HttpHeaders({
@@ -462,26 +758,27 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.filteredContents = [];
     this.totalSize = 0;
 
-    const url = folderPath
-      ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
+    const normalizedFolderPath = this.normalizePath(folderPath);
+    const url = normalizedFolderPath
+      ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}`
       : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
 
-    console.log(`Loading contents for folder path: ${folderPath || 'root'} (URL: ${url})`);
+    console.log(`Loading contents for folder path: ${normalizedFolderPath || 'root'} (URL: ${url})`);
 
     const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(url, { headers: this.getAuthHeaders() })
       .pipe(
+        retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loading = false;
           let errorMessage = err.error?.error || 'Failed to list contents. Please try again.';
           if (err.status === 401) {
             errorMessage = 'Authentication failed. Please log in again.';
           } else if (err.status === 404) {
-            errorMessage = `The folder "${folderPath || 'root'}" does not exist in your OneDrive.`;
+            errorMessage = `The folder "${normalizedFolderPath || 'root'}" does not exist in your OneDrive.`;
           } else if (err.error?.error?.includes('multi-factor authentication')) {
             errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
           }
           this.errorMessage = errorMessage;
-          this.oneDriveContents = [];
           console.error(`Error loading folder contents: ${errorMessage}`, err);
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
@@ -489,9 +786,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
-          console.log('Raw API response:', response); // Debug raw response
+          console.log('Raw API response:', response);
           let items: OneDriveItem[] = [];
-          if (folderPath) {
+          if (normalizedFolderPath) {
             items = response.contents || [];
           } else {
             items = response.folders || [];
@@ -507,18 +804,26 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           }
 
           this.oneDriveContents = items.map(item => {
-            const transformedUrl = item.thumbnailUrl
-              ? `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&thumbnailUrl=${encodeURIComponent(item.thumbnailUrl)}`
+            const filePath = this.normalizePath(normalizedFolderPath ? `${normalizedFolderPath}/${item.name}` : item.name);
+            const thumbnailUrl = (this.isImage(item) || this.isVideo(item))
+              ? this.isVideo(item)
+                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
               : undefined;
-            console.log(`Item: ${item.name}, Original thumbnailUrl: ${item.thumbnailUrl}, Transformed URL: ${transformedUrl}`); // Debug each item
+            console.log(`Constructed thumbnail URL for ${item.name}: ${thumbnailUrl}`);
             return {
               name: item.name || 'Unknown',
               id: item.id || 'N/A',
               size: item.size || 0,
               type: item.type || 'folder',
               downloadUrl: item.downloadUrl,
-              thumbnailUrl: transformedUrl,
-              mimeType: item.mimeType
+              thumbnailUrl,
+              mimeType: item.mimeType,
+              isHovered: false,
+              previewUrl: undefined,
+              previewDuration: this.isVideo(item) ? 5 : undefined,
+              previewItems: [],
+              previewError: undefined
             };
           });
           console.log('Mapped oneDriveContents:', this.oneDriveContents);
@@ -530,13 +835,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.updateStorageChart();
           this.initFolderUsageChart();
           if (this.oneDriveContents.length === 0) {
-            this.errorMessage = `No items found in ${folderPath || 'root'}.`;
+            this.errorMessage = `No items found in ${normalizedFolderPath || 'root'}.`;
           }
 
           this.nextLink = '';
           if (response.nextLink) {
-            const baseUrl = folderPath
-              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`
+            const baseUrl = normalizedFolderPath
+              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}`
               : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
             this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
           }
@@ -574,7 +879,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
-          console.log('Raw API response for more contents:', response); // Debug raw response
+          console.log('Raw API response for more contents:', response);
           let items: OneDriveItem[] = response.contents || response.folders || [];
 
           if (!Array.isArray(items)) {
@@ -586,18 +891,24 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           }
 
           const newItems = items.map(item => {
-            const transformedUrl = item.thumbnailUrl
-              ? `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&thumbnailUrl=${encodeURIComponent(item.thumbnailUrl)}`
-              : undefined;
-            console.log(`Item: ${item.name}, Original thumbnailUrl: ${item.thumbnailUrl}, Transformed URL: ${transformedUrl}`); // Debug each item
+            const filePath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
             return {
               name: item.name || 'Unknown',
               id: item.id || 'N/A',
               size: item.size || 0,
               type: item.type || 'folder',
               downloadUrl: item.downloadUrl,
-              thumbnailUrl: transformedUrl,
-              mimeType: item.mimeType
+              thumbnailUrl: (this.isImage(item) || this.isVideo(item))
+                ? this.isVideo(item)
+                  ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+                  : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+                : undefined,
+              mimeType: item.mimeType,
+              isHovered: false,
+              previewUrl: undefined,
+              previewDuration: this.isVideo(item) ? 5 : undefined,
+              previewItems: [],
+              previewError: undefined
             };
           });
 
@@ -795,9 +1106,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   onImgError(event: Event, item: OneDriveItem): void {
-    console.error(`Failed to load thumbnail for ${item.name} (${item.type}) at URL: ${item.thumbnailUrl}`, event);
+    console.error(`Failed to load preview for ${item.name} (${item.type}) at URL: ${item.previewUrl}`, event);
+    item.previewError = 'Failed to load image preview.';
+    this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
     const imgElement = event.target as HTMLImageElement;
-    imgElement.src = 'assets/images/default-file.png'; // Fallback image
+    imgElement.style.display = 'none';
     this.cdr.detectChanges();
   }
 
