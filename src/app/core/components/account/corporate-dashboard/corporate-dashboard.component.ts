@@ -232,7 +232,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.successMessage = '';
 
     const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
-    const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`; // Update to https://api.datakavach.com/isparxcloud for production
 
     console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
 
@@ -312,7 +312,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder);
-    const url = 'https://datakavach.com/isparxcloud/rename-folder';
+    const url = 'https://datakavach.com/isparxcloud/rename-folder'; // Update to https://api.datakavach.com/isparxcloud for production
 
     const requestBody = {
       username: this.username,
@@ -405,7 +405,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     const itemPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
     const endpoint = item.type === 'folder' ? 'share-folder' : 'share-file';
-    const url = `https://datakavach.com/isparxcloud/${endpoint}`;
+    const url = `https://datakavach.com/isparxcloud/${endpoint}`; // Update to https://api.datakavach.com/isparxcloud for production
 
     const requestBody = {
       username: this.username,
@@ -436,7 +436,14 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
-          this.shareLink = response.shareLink;
+          if (!response.shareLink || !response.shareLink.includes('token=')) {
+            this.shareError = 'Invalid share link received from server.';
+            console.error('Invalid share link:', response.shareLink);
+            this.loading = false;
+            this.cdr.detectChanges();
+            return;
+          }
+          this.shareLink = response.shareLink; // Use backend-provided URL directly
           this.successMessage = `Share link for "${item.name}" generated successfully.`;
           console.log(`Share link for "${item.name}" generated: ${this.shareLink}`);
           this.loading = false;
@@ -474,7 +481,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
-    const url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`; // Update to https://api.datakavach.com/isparxcloud for production
 
     console.log(`Fetching folder preview for: ${folderPath} (URL: ${url})`);
 
@@ -499,8 +506,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             .map(i => {
               const filePath = this.normalizePath(`${folderPath}/${i.name}`);
               const previewUrl = this.isVideo(i)
-                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
-                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`;
+                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
+                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`; // Update to https://api.datakavach.com/isparxcloud for production
               console.log(`Constructed preview URL for ${i.name}: ${previewUrl}`);
               return {
                 ...i,
@@ -570,8 +577,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       console.log(`Constructing preview for ${item.name}: filePath=${filePath}, username=${this.username}`);
       item.previewDuration = this.isVideo(item) ? 5 : undefined;
       item.previewUrl = this.isVideo(item)
-        ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
-        : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`;
+        ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
+        : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`; // Update to https://api.datakavach.com/isparxcloud for production
       console.log(`Preview URL for ${item.name}: ${item.previewUrl}`);
 
       if (!item.previewUrl) {
@@ -760,8 +767,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     const normalizedFolderPath = this.normalizePath(folderPath);
     const url = normalizedFolderPath
-      ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}`
-      : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
+      ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}` // Update to https://api.datakavach.com/isparxcloud for production
+      : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`; // Update to https://api.datakavach.com/isparxcloud for production
 
     console.log(`Loading contents for folder path: ${normalizedFolderPath || 'root'} (URL: ${url})`);
 
@@ -807,8 +814,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             const filePath = this.normalizePath(normalizedFolderPath ? `${normalizedFolderPath}/${item.name}` : item.name);
             const thumbnailUrl = (this.isImage(item) || this.isVideo(item))
               ? this.isVideo(item)
-                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
-                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
+                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
               : undefined;
             console.log(`Constructed thumbnail URL for ${item.name}: ${thumbnailUrl}`);
             return {
@@ -841,8 +848,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.nextLink = '';
           if (response.nextLink) {
             const baseUrl = normalizedFolderPath
-              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}`
-              : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
+              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}` // Update to https://api.datakavach.com/isparxcloud for production
+              : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`; // Update to https://api.datakavach.com/isparxcloud for production
             this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
           }
 
@@ -900,8 +907,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
               downloadUrl: item.downloadUrl,
               thumbnailUrl: (this.isImage(item) || this.isVideo(item))
                 ? this.isVideo(item)
-                  ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
-                  : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+                  ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
+                  : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
                 : undefined,
               mimeType: item.mimeType,
               isHovered: false,
@@ -925,8 +932,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.nextLink = '';
           if (response.nextLink) {
             const baseUrl = this.currentPath
-              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(this.currentPath)}`
-              : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
+              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(this.currentPath)}` // Update to https://api.datakavach.com/isparxcloud for production
+              : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`; // Update to https://api.datakavach.com/isparxcloud for production
             this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
           }
 

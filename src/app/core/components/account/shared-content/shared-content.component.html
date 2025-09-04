@@ -1,0 +1,129 @@
+<div class="container-fluid p-4" style="background: #f8fafc; min-height: 100vh;">
+  <div class="card shadow-sm p-4 bg-white rounded" style="border: none; border-radius: 10px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+    <h5 class="fw-semibold text-dark mb-3" style="font-weight: 600; color: #1e293b;">Shared {{ isFolder ? 'Folder' : 'File' }}: {{ itemName }}</h5>
+
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb" class="mb-3" *ngIf="isFolder">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item" *ngFor="let crumb of breadcrumbItems; let i = index">
+          <a href="javascript:void(0)" (click)="navigateToBreadcrumb(i)" [class.active]="i === breadcrumbItems.length - 1">{{ crumb.name }}</a>
+        </li>
+      </ol>
+    </nav>
+
+    <!-- Success/Error Messages -->
+    <div *ngIf="successMessage" class="alert alert-success shadow-sm rounded" style="border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+      {{ successMessage }}
+    </div>
+    <div *ngIf="errorMessage" class="alert alert-danger shadow-sm rounded" style="border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+      {{ errorMessage }}
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-bar mb-3" *ngIf="isFolder">
+      <input type="text" class="form-control" placeholder="Search files/folders..." 
+             [(ngModel)]="searchQuery" (input)="filterContents()">
+    </div>
+
+    <!-- Download Folder Button -->
+    <div class="mb-3" *ngIf="isFolder">
+      <button class="btn btn-blue" (click)="downloadFolder()" style="background: linear-gradient(90deg, #007bff, #0056b3); border: none; color: #fff; padding: 6px 12px; border-radius: 5px;">
+        <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px;">
+          <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+          <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+        </svg>
+        Download Entire Folder as ZIP
+      </button>
+    </div>
+
+    <!-- File Explorer Table -->
+    <div class="file-explorer-table explorer-container" *ngIf="!loading && filteredContents.length > 0">
+      <table class="table table-hover table-bordered">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Type</th>
+            <th scope="col">Storage</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of filteredContents">
+            <td class="position-relative">
+              <div (mouseenter)="onThumbnailHover(item)" (mouseleave)="onThumbnailLeave(item)">
+                <ng-container *ngIf="item.type === 'folder'">
+                  <a href="javascript:void(0)" (click)="navigateToFolder(item)" class="text-primary fw-semibold" style="color: #007bff !important; font-weight: 600; text-decoration: none;">
+                    <img src="assets/images/fileicon.svg" alt="Folder Icon" class="folder-icon me-2" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;"> {{ item.name }}
+                  </a>
+                </ng-container>
+                <ng-container *ngIf="item.type === 'file'">
+                  <span class="text-dark" style="color: #1e293b;">
+                    <i *ngIf="!isImage(item) && !isVideo(item)" class="bi bi-file-earmark-text me-2 text-secondary"></i>
+                    <i *ngIf="isVideo(item)" class="bi bi-film me-2 text-secondary"></i>
+                    {{ item.name }}
+                  </span>
+                </ng-container>
+              </div>
+            </td>
+            <td>{{ item.type | titlecase }}</td>
+            <td>{{ formatSize(item.size) }}</td>
+            <td>
+              <ng-container *ngIf="item.type === 'file' && item.downloadUrl">
+                <a [href]="item.downloadUrl" [download]="item.name" class="btn btn-blue btn-sm me-1" style="background: linear-gradient(90deg, #007bff, #0056b3); border: none; color: #fff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px;">
+                  <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px;">
+                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                  </svg>
+                  Download
+                </a>
+              </ng-container>
+              <ng-container *ngIf="item.type === 'folder'">
+                <button class="btn btn-blue btn-sm" (click)="downloadSubFolder(item)" style="background: linear-gradient(90deg, #007bff, #0056b3); border: none; color: #fff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px;">
+                  <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px;">
+                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                    <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                  </svg>
+                  Download
+                </button>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Load More Button -->
+    <div class="text-center mt-3" *ngIf="isFolder && nextLink && !loading">
+      <button class="btn btn-outline-blue" (click)="loadMoreContents()" style="border-color: #007bff; color: #007bff; padding: 6px 12px; border-radius: 5px;">
+        Load More
+      </button>
+    </div>
+
+    <!-- No Contents Message -->
+    <div class="card shadow-sm p-3 bg-white rounded" *ngIf="!loading && filteredContents.length === 0 && !errorMessage" style="border: none; border-radius: 10px;">
+      <div class="alert alert-info text-center shadow-sm" style="border-radius: 5px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);">
+        No items found in the shared {{ isFolder ? 'folder' : 'file' }}.
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div class="text-center mt-4" *ngIf="loading">
+      <div class="spinner-border text-blue" role="status" style="color: #007bff;">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+
+    <!-- Toast for Preview Errors -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+      <div id="previewToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+        <div class="toast-header">
+          <strong class="me-auto">Error</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+          {{ previewToastMessage }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

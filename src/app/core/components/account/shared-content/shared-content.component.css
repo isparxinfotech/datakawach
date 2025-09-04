@@ -1,0 +1,41 @@
+/* Reuse styles from corporate-dashboard.component.css or customize as needed */
+.explorer-container {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.table th, .table td {
+  vertical-align: middle;
+  font-size: 0.9rem;
+}
+
+.btn-blue {
+  background: linear-gradient(90deg, #007bff, #0056b3);
+  border: none;
+  color: #fff;
+  transition: background 0.3s ease;
+}
+
+.btn-blue:hover {
+  background: linear-gradient(90deg, #0056b3, #003d80);
+}
+
+.btn-outline-blue {
+  border-color: #007bff;
+  color: #007bff;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.btn-outline-blue:hover {
+  background: #007bff;
+  color: #fff;
+}
+
+.search-bar input {
+  border-radius: 5px;
+  border: 1px solid #ced4da;
+  padding: 8px;
+  font-size: 0.9rem;
+}

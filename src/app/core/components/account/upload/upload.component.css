@@ -62,7 +62,7 @@ body {
   
   /* Mobile Toggle */
   .bg-success {
-  background-color: #2f855a !important;
+  background-color: #0f27c7 !important;
   font-weight: 600;
   padding: 0.75rem;
   }
@@ -229,7 +229,7 @@ body {
   
   .success {
   background: #f0fff4;
-  color: #2f855a;
+  color: #272cc2;
   border: 1px solid #c6f6d5;
   }
   
