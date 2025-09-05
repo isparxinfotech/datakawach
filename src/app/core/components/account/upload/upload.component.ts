@@ -32,7 +32,7 @@ interface ContentInfo {
   downloadUrl?: string;
 }
 
-// Interface for Folder details from /onedrive/folders or /onedrive/user-folders endpoint
+// Interface for Folder details from /onedrive/folders, /onedrive/user-folders, or /onedrive/customer-folder endpoint
 interface FolderInfo {
   name: string;
   id?: string;
@@ -41,6 +41,10 @@ interface FolderInfo {
 
 interface UserFoldersResponse {
   folders: string[];
+}
+
+interface CustomerFolderResponse {
+  folder: string;
 }
 
 // Interface for file with relative path
@@ -94,6 +98,11 @@ export class UploadComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  // Getter to check if userType is '8'
+  get isCustomerUserType(): boolean {
+    return String(this.userSessionDetails?.userType) === '8';
+  }
 
   ngOnInit(): void {
     this.isLoading = true;
@@ -360,18 +369,46 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
+    let url: string;
+    const userType = this.userSessionDetails.userType;
     const isRetentionNeeded = this.userSessionDetails.retentionNeeded === 1;
-    const url = isRetentionNeeded
-      ? `https://datakavach.com/isparxcloud/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`
-      : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+
+    // Determine the endpoint based on userType and retentionNeeded
+    if (userType !== undefined && String(userType) === '8') {
+      url = `https://datakavach.com/isparxcloud/customer-folder?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    } else if (isRetentionNeeded) {
+      url = `https://datakavach.com/isparxcloud/user-folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    } else {
+      url = `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.userSessionDetails.username)}`;
+    }
 
     try {
-      if (isRetentionNeeded) {
+      if (userType !== undefined && String(userType) === '8') {
+        // Handle customer-folder response: { folder: string }
+        const response = await this.http.get<CustomerFolderResponse>(url, {
+          headers: this.getAuthHeaders()
+        }).toPromise();
+        if (!response || typeof response !== 'object' || !response.folder) {
+          throw new Error('Invalid response format: Expected { folder: string }');
+        }
+        this.rootFolders = [{
+          name: response.folder || 'Unknown Folder',
+          id: '',
+          size: 0
+        }];
+        this.nextLink = '';
+        // Auto-select the single folder for userType === '8'
+        this.selectedRootFolder = this.rootFolders[0].name;
+        this.onRootFolderChange();
+      } else if (isRetentionNeeded) {
+        // Handle user-folders response: { folders: string[] }
         const response = await this.http.get<UserFoldersResponse>(url, {
           headers: this.getAuthHeaders()
         }).toPromise();
-        this.rootFolders = response?.folders.map(name => ({ name })) || [];
+        this.rootFolders = response?.folders.map(name => ({ name, id: '', size: 0 })) || [];
+        this.nextLink = '';
       } else {
+        // Handle folders response: { folders: FolderInfo[], nextLink: string }
         const response = await this.http.get<{ folders: FolderInfo[], nextLink: string }>(url, {
           headers: this.getAuthHeaders()
         }).toPromise();
@@ -389,7 +426,8 @@ export class UploadComponent implements OnInit, OnDestroy {
         errorMessage = 'Authentication failed. Please log in again.';
       } else if (err.status === 500) {
         errorMessage = 'Server error while fetching folders. Please try again later.';
-        this.isSuccess = false;
+      } else if (err.status === 404) {
+        errorMessage = 'No folders found for this user.';
       } else if (err.error?.message) {
         errorMessage = err.error.message;
       }
@@ -410,8 +448,22 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
+    const userType = this.userSessionDetails.userType;
     this.isFolderContentsLoading = true;
     this.message = '';
+
+    if (userType !== undefined && String(userType) === '8') {
+      // For userType === '8', customer-folder does not support subfolder navigation
+      // Set folderContents to empty as we can't fetch subfolder contents
+      this.folderContents = [];
+      this.nextLink = '';
+      this.message = 'Subfolder navigation is not available for this user type.';
+      this.isSuccess = false;
+      this.isFolderContentsLoading = false;
+      this.cdr.detectChanges();
+      return;
+    }
+
     let url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.userSessionDetails.username)}&folderPath=${encodeURIComponent(folderPath)}`;
     if (nextLink) {
       url = nextLink;

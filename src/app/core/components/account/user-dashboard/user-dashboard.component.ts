@@ -44,7 +44,7 @@ interface S3Content {
 export class UserDashboardComponent implements OnInit, OnDestroy {
   userSessionDetails: userSessionDetails | null | undefined;
   email: string = '';
-  creatorEmail: string = ''; // New property for creator's email
+  creatorEmail: string = '';
   folderName: string = '';
   currentPath: string = '';
   pathHistory: string[] = [];
@@ -86,7 +86,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const { username, cloudProvider, retentionNeeded } = this.userSessionDetails;
+    const { username, cloudProvider, retentionNeeded, userType } = this.userSessionDetails;
 
     if (!username || !cloudProvider) {
       console.error('User session details incomplete:', this.userSessionDetails);
@@ -141,10 +141,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           this.retentionNeeded = userDetails.retentionNeeded !== undefined ? userDetails.retentionNeeded : null;
           this.cloudProvider = userDetails.cloudProvider?.toLowerCase() || '';
           this.email = userDetails.username || this.email;
-          this.creatorEmail = userDetails.createdBy || ''; // Store creator's email
+          this.creatorEmail = userDetails.createdBy || '';
           console.log('Updated details:', {
             retentionNeeded: this.retentionNeeded,
-            creatorEmail: this.creatorEmail
+            creatorEmail: this.creatorEmail,
+            userType: userDetails.userType
           });
 
           // Update local storage
@@ -236,12 +237,20 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.oneDriveErrorMessage = '';
     this.oneDriveFolders = [];
 
-    const endpoint = this.retentionNeeded === 1 ? 'user-folders' : 'folders';
+    // Determine endpoint based on userType and retentionNeeded
+    const userType = this.userSessionDetails?.userType;
+    let endpoint = 'folders';
+    if (userType !== undefined && String(userType) === '8') {
+      endpoint = 'customer-folder';
+    } else if (this.retentionNeeded === 1) {
+      endpoint = 'user-folders';
+    }
+
     const url = `https://datakavach.com/isparxcloud/${endpoint}?username=${encodeURIComponent(this.email)}`;
-    console.log(`Fetching OneDrive folders using ${endpoint} API:`, { url, email: this.email, retentionNeeded: this.retentionNeeded });
+    console.log(`Fetching OneDrive folders using ${endpoint} API:`, { url, email: this.email, retentionNeeded: this.retentionNeeded, userType });
 
     this.folderSubscription = this.http
-      .get<{ folders: any[]; nextLink?: string }>(url, {
+      .get<any>(url, {
         headers: this.getAuthHeaders()
       })
       .pipe(
@@ -276,17 +285,31 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         next: (response) => {
           console.log(`Raw response from /${endpoint}:`, JSON.stringify(response, null, 2));
           try {
-            if (!response || typeof response !== 'object' || !Array.isArray(response.folders)) {
-              throw new Error(`Invalid response format: Expected { folders: array, nextLink?: string }`);
-            }
-
-            if (endpoint === 'user-folders') {
+            if (endpoint === 'customer-folder') {
+              // Handle customer-folder response: { folder: string }
+              if (!response || typeof response !== 'object' || !response.folder) {
+                throw new Error('Invalid response format: Expected { folder: string }');
+              }
+              this.oneDriveFolders = [{
+                name: response.folder || 'Unknown Folder',
+                id: '',
+                size: 0
+              }];
+            } else if (endpoint === 'user-folders') {
+              // Handle user-folders response: { folders: string[] }
+              if (!response || typeof response !== 'object' || !Array.isArray(response.folders)) {
+                throw new Error('Invalid response format: Expected { folders: string[] }');
+              }
               this.oneDriveFolders = response.folders.map((folderName: string) => ({
                 name: folderName || 'Unknown Folder',
                 id: '',
                 size: 0
               }));
             } else {
+              // Handle folders response: { folders: [{name, id, size}], nextLink?: string }
+              if (!response || typeof response !== 'object' || !Array.isArray(response.folders)) {
+                throw new Error('Invalid response format: Expected { folders: array, nextLink?: string }');
+              }
               this.oneDriveFolders = response.folders.map((folder: any) => ({
                 name: folder.name || 'Unknown Folder',
                 id: folder.id || '',

@@ -73,15 +73,16 @@
             <!-- Folder Selection with Breadcrumbs -->
             <div style="display: flex; flex-direction: column;">
               <label for="folderName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Select Folder:</label>
-              <select id="folderName" [(ngModel)]="selectedRootFolder" name="folderName" required (change)="onRootFolderChange()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
-                <option value="" disabled selected>Select a root folder</option>
+              <select id="folderName" [(ngModel)]="selectedRootFolder" name="folderName" required (change)="onRootFolderChange()" [disabled]="rootFolders.length === 1 && isCustomerUserType" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [style.background]="rootFolders.length === 1 && isCustomerUserType ? '#f8f8f8' : '#fff'">
+                <option value="" disabled [selected]="!selectedRootFolder">Select a root folder</option>
                 <option *ngFor="let folder of rootFolders" [value]="folder.name">{{ folder.name }}</option>
               </select>
               <small *ngIf="rootFolders.length === 0" style="color: #666; font-size: 12px; margin-top: 5px;">No folders available. Please create a folder in OneDrive or contact your administrator.</small>
+              <small *ngIf="rootFolders.length === 1 && isCustomerUserType" style="color: #666; font-size: 12px; margin-top: 5px;">Only one folder is available for your account.</small>
             </div>
 
             <!-- Breadcrumb Navigation -->
-            <div *ngIf="selectedRootFolder" style="margin-bottom: 15px;">
+            <div *ngIf="selectedRootFolder && !isCustomerUserType" style="margin-bottom: 15px;">
               <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 14px; color: #333;">
                 <span style="cursor: pointer; color: #007bff;" (click)="navigateToFolder('')">Root</span>
                 <span *ngFor="let segment of folderPathSegments; let i = index">
@@ -92,8 +93,7 @@
             </div>
 
             <!-- Subfolder List -->
-            <div *ngIf="folderContents.length > 0 && selectedRootFolder" style="margin-bottom: 15px;">
-              <label style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Subfolders:</label>
+            <div *ngIf="folderContents.length > 0 && selectedRootFolder && !isCustomerUserType" style="margin-bottom: 15px;">
               <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                 <div *ngFor="let item of folderContents" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: #f8f8f8; cursor: pointer;" (click)="item.type === 'folder' && selectSubFolder(item.name)">
                   <i class="fa-solid {{ item.type === 'folder' ? 'fa-folder' : 'fa-file' }}"
@@ -106,6 +106,10 @@
 
             <div *ngIf="isFolderContentsLoading" style="text-align: center; padding: 10px;">
               <p style="color: #333; font-size: 14px;">Loading folder contents...</p>
+            </div>
+
+            <div *ngIf="isCustomerUserType && selectedRootFolder" style="color: #666; font-size: 12px; margin-bottom: 15px;">
+              Note: Subfolder navigation is not available for your account type. Uploads will be stored in the designated folder.
             </div>
 
             <div *ngIf="uploadType === 'file'" style="display: flex; flex-direction: column;">

@@ -114,6 +114,7 @@
                         <option value="" selected>--Select User Type--</option>
                         <option value="5">User</option>
                         <option value="6">Organizational Admin</option>
+                        <option value="8">Client</option>
                       </select>
                       <div *ngIf="submitted && f['userType'].errors" class="invalid-feedback">
                         <div *ngIf="f['userType'].errors?.['required']">User type is required</div>
