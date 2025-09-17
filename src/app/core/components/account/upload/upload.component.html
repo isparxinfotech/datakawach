@@ -38,11 +38,11 @@
             <label style="color: #333; font-size: 16px; font-weight: 500; margin-bottom: 10px; display: block;">Do you need a backup schedule?</label>
             <div style="display: flex; gap: 20px;">
               <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="yes" style="margin-right: 8px;" (change)="onBackupChoiceChange()">
+                <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="yes" style="margin-right: 8px;" (change)="onBackupChoiceChange()" [disabled]="uploading">
                 <span style="color: #333; font-size: 14px;">Yes, schedule backups</span>
               </label>
               <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="no" style="margin-right: 8px;" (change)="onBackupChoiceChange()">
+                <input type="radio" [(ngModel)]="needsBackup" name="needsBackup" value="no" style="margin-right: 8px;" (change)="onBackupChoiceChange()" [disabled]="uploading">
                 <span style="color: #333; font-size: 14px;">No, just upload files/folders</span>
               </label>
             </div>
@@ -53,11 +53,11 @@
             <label style="color: #333; font-size: 16px; font-weight: 500; margin-bottom: 10px; display: block;">Select Upload Type:</label>
             <div style="display: flex; gap: 20px;">
               <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="radio" [(ngModel)]="uploadType" name="uploadType" value="file" style="margin-right: 8px;" (change)="onUploadTypeChange()">
+                <input type="radio" [(ngModel)]="uploadType" name="uploadType" value="file" style="margin-right: 8px;" (change)="onUploadTypeChange()" [disabled]="uploading">
                 <span style="color: #333; font-size: 14px;">Files</span>
               </label>
               <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="radio" [(ngModel)]="uploadType" name="uploadType" value="folder" style="margin-right: 8px;" (change)="onUploadTypeChange()">
+                <input type="radio" [(ngModel)]="uploadType" name="uploadType" value="folder" style="margin-right: 8px;" (change)="onUploadTypeChange()" [disabled]="uploading">
                 <span style="color: #333; font-size: 14px;">Folder (Uploads with directory structure)</span>
               </label>
             </div>
@@ -72,22 +72,22 @@
 
             <!-- Folder Selection with Breadcrumbs -->
             <div style="display: flex; flex-direction: column;">
-              <label for="folderName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Select Folder:</label>
-              <select id="folderName" [(ngModel)]="selectedRootFolder" name="folderName" required (change)="onRootFolderChange()" [disabled]="rootFolders.length === 1 && isCustomerUserType" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [style.background]="rootFolders.length === 1 && isCustomerUserType ? '#f8f8f8' : '#fff'">
+              <label for="folderName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Select Destination Folder:</label>
+              <select id="folderName" [(ngModel)]="selectedRootFolder" name="folderName" required (change)="onRootFolderChange()" [disabled]="rootFolders.length === 1 && isCustomerUserType || uploading" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [style.background]="rootFolders.length === 1 && isCustomerUserType || uploading ? '#f8f8f8' : '#fff'">
                 <option value="" disabled [selected]="!selectedRootFolder">Select a root folder</option>
                 <option *ngFor="let folder of rootFolders" [value]="folder.name">{{ folder.name }}</option>
               </select>
-              <small *ngIf="rootFolders.length === 0" style="color: #666; font-size: 12px; margin-top: 5px;">No folders available. Please create a folder in OneDrive or contact your administrator.</small>
+              <small *ngIf="rootFolders.length === 0" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">No folders available. Please create a folder in cloud storage or contact your administrator.</small>
               <small *ngIf="rootFolders.length === 1 && isCustomerUserType" style="color: #666; font-size: 12px; margin-top: 5px;">Only one folder is available for your account.</small>
             </div>
 
             <!-- Breadcrumb Navigation -->
             <div *ngIf="selectedRootFolder && !isCustomerUserType" style="margin-bottom: 15px;">
               <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 5px; font-size: 14px; color: #333;">
-                <span style="cursor: pointer; color: #007bff;" (click)="navigateToFolder('')">Root</span>
+                <span style="cursor: pointer; color: #007bff;" (click)="navigateToFolder('')" [style.pointer-events]="uploading ? 'none' : 'auto'">Root</span>
                 <span *ngFor="let segment of folderPathSegments; let i = index">
                   <span style="margin: 0 5px;">/</span>
-                  <span style="cursor: pointer; color: #007bff;" (click)="navigateToFolder(getPathUpToIndex(i))">{{ segment }}</span>
+                  <span style="cursor: pointer; color: #007bff;" (click)="navigateToFolder(getPathUpToIndex(i))" [style.pointer-events]="uploading ? 'none' : 'auto'">{{ segment }}</span>
                 </span>
               </div>
             </div>
@@ -95,7 +95,7 @@
             <!-- Subfolder List -->
             <div *ngIf="folderContents.length > 0 && selectedRootFolder && !isCustomerUserType" style="margin-bottom: 15px;">
               <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                <div *ngFor="let item of folderContents" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: #f8f8f8; cursor: pointer;" (click)="item.type === 'folder' && selectSubFolder(item.name)">
+                <div *ngFor="let item of folderContents" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; background: #f8f8f8; cursor: pointer;" (click)="item.type === 'folder' && !uploading && selectSubFolder(item.name)" [style.pointer-events]="uploading ? 'none' : 'auto'">
                   <i class="fa-solid {{ item.type === 'folder' ? 'fa-folder' : 'fa-file' }}"
                      style="margin-right: 8px;"
                      [style.color]="item.type === 'folder' ? '#f1c40f' : '#3498db'"></i>
@@ -114,29 +114,30 @@
 
             <div *ngIf="uploadType === 'file'" style="display: flex; flex-direction: column;">
               <label for="fileName" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">File Name:</label>
-              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <input type="text" id="fileName" [(ngModel)]="fileName" name="fileName" placeholder="e.g., myfile.txt" required (input)="validateFileNameInput()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [disabled]="uploading">
               <div *ngIf="fileNameError" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">{{ fileNameError }}</div>
+              <small style="color: #666; font-size: 12px; margin-top: 5px;">Max {{ MAX_PATH_LENGTH }} characters, no special characters (e.g., <, >, :, ", /, \, |, ?, *).</small>
             </div>
 
             <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
               <label for="localPath" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Local File/Folder Path:</label>
-              <input type="text" id="localPath" [(ngModel)]="localPath" name="localPath" placeholder="e.g., C:\path\to\file or C:\path\to\folder" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <input type="text" id="localPath" [(ngModel)]="localPath" name="localPath" placeholder="e.g., C:\path\to\file or C:\path\to\folder" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [disabled]="uploading">
               <small style="color: #666; font-size: 12px; margin-top: 5px;">Enter the full path to the file or folder to back up.</small>
             </div>
 
             <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
               <label for="backupTime" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Backup Time (HH:mm):</label>
-              <input type="time" id="backupTime" [(ngModel)]="backupTime" name="backupTime" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <input type="time" id="backupTime" [(ngModel)]="backupTime" name="backupTime" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [disabled]="uploading">
             </div>
 
             <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
               <label for="retentionDays" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Retention Days:</label>
-              <input type="number" id="retentionDays" [(ngModel)]="retentionDays" name="retentionDays" min="1" value="7" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <input type="number" id="retentionDays" [(ngModel)]="retentionDays" name="retentionDays" min="1" value="7" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [disabled]="uploading">
             </div>
 
             <div *ngIf="needsBackup === 'yes'" style="display: flex; flex-direction: column;">
               <label for="backupFrequency" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Backup Frequency:</label>
-              <select id="backupFrequency" [(ngModel)]="backupFrequency" name="backupFrequency" (change)="onFrequencyChange()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <select id="backupFrequency" [(ngModel)]="backupFrequency" name="backupFrequency" (change)="onFrequencyChange()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [disabled]="uploading">
                 <option value="Daily">Daily</option>
                 <option value="Weekly">Weekly</option>
                 <option value="Monthly">Monthly</option>
@@ -145,7 +146,7 @@
 
             <div *ngIf="needsBackup === 'yes' && backupFrequency === 'Weekly'" style="display: flex; flex-direction: column;">
               <label for="dayOfWeek" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Day of Week:</label>
-              <select id="dayOfWeek" [(ngModel)]="dayOfWeek" name="dayOfWeek" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <select id="dayOfWeek" [(ngModel)]="dayOfWeek" name="dayOfWeek" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [disabled]="uploading">
                 <option value="MONDAY">Monday</option>
                 <option value="TUESDAY">Tuesday</option>
                 <option value="WEDNESDAY">Wednesday</option>
@@ -158,7 +159,7 @@
 
             <div *ngIf="needsBackup === 'yes' && backupFrequency === 'Monthly'" style="display: flex; flex-direction: column;">
               <label for="dayOfMonth" style="color: #333; font-size: 14px; font-weight: 500; margin-bottom: 5px;">Day of Month:</label>
-              <input type="number" id="dayOfMonth" [(ngModel)]="dayOfMonth" name="dayOfMonth" min="1" max="31" placeholder="e.g., 1" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;">
+              <input type="number" id="dayOfMonth" [(ngModel)]="dayOfMonth" name="dayOfMonth" min="1" max="31" placeholder="e.g., 1" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;" [disabled]="uploading">
             </div>
 
             <div style="display: flex; flex-direction: column;">
@@ -171,9 +172,13 @@
                 (change)="onFilesSelected($event)"
                 name="fileInput"
                 [attr.webkitdirectory]="uploadType === 'folder' ? '' : null"
-                [multiple]="uploadType === 'file'"
+                [multiple]="true"
                 style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: #fff;"
+                [disabled]="uploading"
               >
+              <small style="color: #666; font-size: 12px; margin-top: 5px;">
+                Avoid names like 'forms', 'lists', or names with special characters (e.g., <, >, :, ", /, \, |, ?, *, %, #). Use simple names like 'my-folder' or 'backup-data'. Max {{ MAX_PATH_LENGTH }} characters per file/folder name.
+              </small>
               <small *ngIf="selectedFiles.length > 0" style="color: #666; font-size: 12px; margin-top: 5px;">
                 Selected: {{ selectedFiles.length }} {{ uploadType === 'file' ? 'file(s)' : 'file(s) in folder' }}
               </small>
@@ -181,19 +186,30 @@
 
             <!-- Buttons -->
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <button *ngIf="needsBackup === 'yes'" type="button" (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0" style="padding: 10px 20px; background: #007bff; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0 ? '#ccc' : '#007bff'" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background=!this.disabled ? '#007bff' : '#ccc'">
+              <button *ngIf="needsBackup === 'yes'" type="button" (click)="onCreateSchedule()" [disabled]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0 || uploading" style="padding: 10px 20px; background: #007bff; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!isScheduleFormValid() || scheduling || fileNameError || rootFolders.length === 0 || uploading ? '#ccc' : '#007bff'" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background=!this.disabled ? '#007bff' : '#ccc'">
                 {{ scheduling ? 'Creating Schedule...' : 'Create Backup Schedule' }}
               </button>
               <button type="button" (click)="onUpload()" [disabled]="!folderPath || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0)" style="padding: 10px 20px; background: #28a745; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!folderPath || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0) ? '#ccc' : '#28a745'" onmouseover="this.style.background='#218838'" onmouseout="this.style.background=!this.disabled ? '#28a745' : '#ccc'">
-                {{ uploading ? 'Uploading...' : 'Upload ' + (uploadType === 'file' ? 'Files' : 'Folder') }}
+                {{ uploading ? 'Uploading...' + (message.includes('Retrying') ? ' (Retrying)' : '') : 'Upload ' + (uploadType === 'file' ? 'Files' : 'Folder') }}
               </button>
             </div>
 
             <!-- Progress Bars -->
-            <div *ngIf="overallProgress > 0" style="margin-top: 20px;">
-              <div style="background: #ddd; border-radius: 10px; overflow: hidden;">
-                <div [style.width]="overallProgress + '%'" style="background: #28a745; padding: 8px; color: #fff; font-size: 14px; text-align: center; transition: width 0.3s;">
-                  {{ uploadType === 'file' ? 'Overall: ' + overallProgress + '% (File ' + (currentFileIndex + 1) + ' of ' + selectedFiles.length + ')' : 'Uploading folder: ' + overallProgress + '%' }}
+            <div *ngIf="uploading && selectedFiles.length > 0" style="margin-top: 20px;">
+              <div style="margin-bottom: 10px;">
+                <label style="color: #333; font-size: 14px; font-weight: 500;">Overall Progress:</label>
+                <div style="background: #ddd; border-radius: 10px; overflow: hidden;">
+                  <div [style.width]="overallProgress + '%'" style="background: #28a745; padding: 8px; color: #fff; font-size: 14px; text-align: center; transition: width 0.3s;">
+                    {{ uploadType === 'file' ? 'Overall: ' + overallProgress + '% (File ' + (currentFileIndex + 1) + ' of ' + selectedFiles.length + ')' : 'Uploading folder: ' + overallProgress + '%' }}
+                  </div>
+                </div>
+              </div>
+              <div *ngIf="uploadType === 'file' && selectedFiles.length > 0 && selectedFiles[currentFileIndex]" style="margin-bottom: 10px;">
+                <label style="color: #333; font-size: 14px; font-weight: 500;">Current File Progress ({{ selectedFiles[currentFileIndex].sanitizedFileName }}):</label>
+                <div style="background: #ddd; border-radius: 10px; overflow: hidden;">
+                  <div [style.width]="currentFileProgress[selectedFiles[currentFileIndex].sanitizedFileName] + '%'" style="background: #007bff; padding: 8px; color: #fff; font-size: 14px; text-align: center; transition: width 0.3s;">
+                    {{ currentFileProgress[selectedFiles[currentFileIndex].sanitizedFileName] || 0 }}%
+                  </div>
                 </div>
               </div>
             </div>
@@ -231,7 +247,7 @@
                     <div *ngIf="schedule.lastError" style="color: #e74c3c; font-size: 12px; margin-top: 5px;">
                       <strong>Last Error:</strong> {{ schedule.lastError || '' }}</div>
                   </div>
-                  <button (click)="triggerManualBackup(schedule.scheduleId)" [disabled]="!schedule.isActive" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!schedule.isActive ? '#ccc' : '#007bff'" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background=!this.disabled ? '#007bff' : '#ccc'">
+                  <button (click)="triggerManualBackup(schedule.scheduleId)" [disabled]="!schedule.isActive || uploading" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: #fff; border: none; border-radius: 10px; font-size: 14px; cursor: pointer; transition: background 0.3s;" [style.background]="!schedule.isActive || uploading ? '#ccc' : '#007bff'" onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background=!this.disabled ? '#007bff' : '#ccc'">
                     Run Now
                   </button>
                 </div>
@@ -256,10 +272,30 @@
                   <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                  {{ uploadType === 'file' ? 'Files uploaded successfully!' : 'Folder uploaded successfully with directory structure!' }}
+                  {{ uploadType === 'file' ? selectedFiles.length + ' file(s) uploaded successfully' + (message.includes('chunk') ? ' (chunked upload completed)' : '') : 'Folder uploaded successfully with ' + selectedFiles.length + ' file(s)' }}
                 </div>
                 <div class="modal-footer">
                   <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error Modal -->
+          <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-sm">
+              <div class="modal-content">
+                <div class="modal-header" style="background: #dc3545; color: #fff;">
+                  <h5 class="modal-title" id="errorModalLabel">Upload Error</h5>
+                  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  {{ message }}
+                  <small *ngIf="message.includes('Retrying')" style="display: block; margin-top: 10px;">Retrying upload... Please wait.</small>
+                  <small *ngIf="message.includes('chunk')" style="display: block; margin-top: 10px;">This may be related to a chunked upload. Check logs for details.</small>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-danger" data-bs-dismiss="modal">OK</button>
                 </div>
               </div>
             </div>
