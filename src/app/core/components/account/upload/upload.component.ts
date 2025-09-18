@@ -118,7 +118,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     uploading: boolean = false;
     scheduling: boolean = false;
     overallProgress: number = 0;
-    currentFileProgress: { [fileName: string]: number } = {};
+    currentFileProgress: { [key: string]: number } = {};
     currentFileIndex: number = 0;
     message: string = '';
     isSuccess: boolean = false;
@@ -135,7 +135,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     private totalChunks: number = 0;
     private uploadedChunks: number = 0;
     public readonly MAX_PATH_LENGTH = 255;
-    private readonly CONCURRENCY_LIMIT = 5;
+    private readonly CONCURRENCY_LIMIT = 4; // Reduced to avoid backend throttling
     private readonly CHUNK_SIZE_ALIGNMENT = 327680;
     private readonly MAX_RETRIES = 3;
 
@@ -670,7 +670,11 @@ export class UploadComponent implements OnInit, OnDestroy {
                         formData.append('fileName', rawFileName);
                         formData.append('fileSize', file.size.toString());
 
-                        console.log('Requesting presigned URL for:', { fileName: rawFileName, fileSize: file.size, folder: normalizedFolderPath });
+                        console.log('Requesting presigned URL for:', {
+                            fileName: rawFileName,
+                            fileSize: file.size,
+                            folder: normalizedFolderPath
+                        });
                         const response = await lastValueFrom(this.http.post<UploadResponse>(url, formData, {
                             headers: this.getAuthHeaders()
                         }));
@@ -690,11 +694,24 @@ export class UploadComponent implements OnInit, OnDestroy {
                                 return indexA - indexB;
                             });
 
+                        if (sortedUrls.length === 0) {
+                            throw new Error(`No valid presigned URLs received for ${rawFileName}`);
+                        }
+
                         this.totalChunks += sortedUrls.length;
                         let uploadedChunksForFile = 0;
 
                         for (const presigned of sortedUrls) {
-                            const success = await this.uploadWithRetry(file, presigned, rawFileName, i, this.selectedFiles.length, sortedUrls.length);
+                            console.log(`Processing chunk ${presigned.chunkIndex || 'single'} for ${rawFileName}`);
+                            const success = await this.uploadWithRetry(
+                                file,
+                                presigned,
+                                rawFileName,
+                                i,
+                                this.selectedFiles.length,
+                                sortedUrls.length,
+                                normalizedFolderPath
+                            );
                             if (!success) {
                                 throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${rawFileName}`);
                             }
@@ -702,17 +719,15 @@ export class UploadComponent implements OnInit, OnDestroy {
                             this.uploadedChunks++;
                             this.currentFileProgress[rawFileName] = Math.round((uploadedChunksForFile / sortedUrls.length) * 100);
                             this.overallProgress = Math.round((this.uploadedChunks / this.totalChunks) * 100);
+                            console.log(`Chunk ${presigned.chunkIndex || 'single'} uploaded for ${rawFileName}, progress: ${this.currentFileProgress[rawFileName]}%`);
                             this.cdr.detectChanges();
                         }
 
-                        if (uploadedChunksForFile === sortedUrls.length) {
-                            console.log(`All ${sortedUrls.length} chunks uploaded for ${rawFileName}`);
-                            this.currentFileProgress[rawFileName] = 100;
-                            this.message = `Completed upload of file ${i + 1} of ${this.selectedFiles.length}: ${rawFileName}`;
-                            this.cdr.detectChanges();
-                            return true;
-                        }
-                        return false;
+                        console.log(`All ${sortedUrls.length} chunks uploaded for ${rawFileName}`);
+                        this.currentFileProgress[rawFileName] = 100;
+                        this.message = `Completed upload of file ${i + 1} of ${this.selectedFiles.length}: ${rawFileName}`;
+                        this.cdr.detectChanges();
+                        return true;
                     } catch (err: any) {
                         this.handleError(err);
                         return false;
@@ -759,30 +774,25 @@ export class UploadComponent implements OnInit, OnDestroy {
                 }));
 
                 console.log('Folder upload presigned URLs:', JSON.stringify(response, null, 2));
-                console.log('Selected files:', this.selectedFiles.map(item => ({
-                    fileName: item.sanitizedFileName,
-                    relativePath: item.relativePath,
-                    size: item.file.size
-                })));
 
                 if (!response || response.errorMessages.length > 0) {
                     const errors = response?.errorMessages.map(err => err.error) || ['Failed to generate presigned URLs for folder'];
                     throw new Error(`Folder upload failed: ${errors.join('; ')}`);
                 }
 
+                this.totalChunks = response.successUrls.length;
                 const uploadPromises: Promise<boolean>[] = [];
                 successfulUploads = 0;
-                this.totalChunks = response.successUrls.length;
 
                 const fileChunkCounts = new Map<string, { total: number; uploaded: number; file: File }>();
                 this.selectedFiles.forEach(item => {
                     const totalChunks = response.successUrls.filter(url => url.fileName === item.sanitizedFileName && url.relativePath === item.relativePath).length;
-                    fileChunkCounts.set(item.sanitizedFileName + '|' + item.relativePath, { total: totalChunks, uploaded: 0, file: item.file });
+                    fileChunkCounts.set(`${item.sanitizedFileName}|${item.relativePath}`, { total: totalChunks, uploaded: 0, file: item.file });
                 });
 
                 const fileUrlGroups = new Map<string, UploadResponse['successUrls']>();
                 response.successUrls.forEach(url => {
-                    const key = url.fileName + '|' + url.relativePath;
+                    const key = `${url.fileName}|${url.relativePath}`;
                     if (!fileUrlGroups.has(key)) {
                         fileUrlGroups.set(key, []);
                     }
@@ -808,29 +818,36 @@ export class UploadComponent implements OnInit, OnDestroy {
                             let uploadedChunks = 0;
 
                             for (const presigned of sortedUrls) {
-                                const success = await this.uploadWithRetry(fileItem.file, presigned, fileName, successfulUploads, this.selectedFiles.length, totalChunks);
+                                console.log(`Processing chunk ${presigned.chunkIndex || 'single'} for ${fileName} (relativePath: ${relativePath})`);
+                                const success = await this.uploadWithRetry(
+                                    fileItem.file,
+                                    presigned,
+                                    fileName,
+                                    successfulUploads,
+                                    this.selectedFiles.length,
+                                    totalChunks,
+                                    normalizedFolderPath
+                                );
                                 if (!success) {
-                                    throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${fileName}`);
+                                    throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${fileName} (relativePath: ${relativePath})`);
                                 }
                                 uploadedChunks++;
                                 this.uploadedChunks++;
                                 fileChunkCounts.get(key)!.uploaded = uploadedChunks;
-                                this.currentFileProgress[fileName] = Math.round((uploadedChunks / totalChunks) * 100);
+                                this.currentFileProgress[`${fileName}|${relativePath}`] = Math.round((uploadedChunks / totalChunks) * 100);
                                 this.overallProgress = Math.round((this.uploadedChunks / this.totalChunks) * 100);
+                                console.log(`Chunk ${presigned.chunkIndex || 'single'} uploaded for ${fileName} (relativePath: ${relativePath}), progress: ${this.currentFileProgress[`${fileName}|${relativePath}`]}%`);
                                 this.cdr.detectChanges();
                             }
 
-                            if (uploadedChunks === totalChunks) {
-                                console.log(`All ${totalChunks} chunks uploaded for ${fileName} (relativePath: ${relativePath})`);
-                                this.currentFileProgress[fileName] = 100;
-                                successfulUploads++;
-                                this.message = `Completed upload of file ${successfulUploads} of ${this.selectedFiles.length}: ${fileName}`;
-                                this.cdr.detectChanges();
-                                return true;
-                            }
-                            return false;
+                            console.log(`All ${totalChunks} chunks uploaded for ${fileName} (relativePath: ${relativePath})`);
+                            this.currentFileProgress[`${fileName}|${relativePath}`] = 100;
+                            successfulUploads++;
+                            this.message = `Completed upload of file ${successfulUploads} of ${this.selectedFiles.length}: ${fileName}`;
+                            this.cdr.detectChanges();
+                            return true;
                         } catch (err: any) {
-                            console.error(`Failed to upload file ${fileName}:`, err);
+                            console.error(`Failed to upload file ${fileName} (relativePath: ${relativePath}):`, err);
                             return false;
                         }
                     }));
@@ -839,10 +856,10 @@ export class UploadComponent implements OnInit, OnDestroy {
                 const results = await Promise.all(uploadPromises);
                 successfulUploads = results.filter(success => success).length;
 
-                if (successfulUploads === this.selectedFiles.length) {
+                if (successfulUploads === fileUrlGroups.size) {
                     this.handleSuccess(`Folder uploaded successfully: ${successfulUploads} files processed`);
                 } else {
-                    this.handleError(new Error(`Only ${successfulUploads} of ${this.selectedFiles.length} files uploaded successfully`));
+                    this.handleError(new Error(`Only ${successfulUploads} of ${fileUrlGroups.size} files uploaded successfully`));
                 }
             } catch (err: any) {
                 console.error('Folder upload exception:', err);
@@ -858,7 +875,16 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
     }
 
-    private async refreshPresignedUrl(file: File, fileName: string, normalizedFolderPath: string, relativePath: string, chunkIndex: number, startByte: number, endByte: number, totalSize: number): Promise<UploadResponse['successUrls'][0] | null> {
+    private async refreshPresignedUrl(
+        file: File,
+        fileName: string,
+        normalizedFolderPath: string,
+        relativePath: string,
+        chunkIndex: number,
+        startByte: number,
+        endByte: number,
+        totalSize: number
+    ): Promise<UploadResponse['successUrls'][0] | null> {
         const url = this.uploadType === 'file' ? 'https://datakavach.com/isparxcloud/generate-upload-url' : 'https://datakavach.com/isparxcloud/upload-folder';
         const formData = new FormData();
         formData.append('username', this.userSessionDetails!.username);
@@ -869,15 +895,11 @@ export class UploadComponent implements OnInit, OnDestroy {
             formData.append('baseFolderName', normalizedFolderPath);
             formData.append('fileNames', fileName);
             formData.append('fileSizes', file.size.toString());
-            formData.append('relativePaths', relativePath);
+            formData.append('relativePaths', relativePath || '.');
         }
-        formData.append('chunkIndex', chunkIndex.toString());
-        formData.append('startByte', startByte.toString());
-        formData.append('endByte', endByte.toString());
-        formData.append('totalSize', totalSize.toString());
 
         try {
-            console.log(`Requesting new presigned URL for ${fileName} (chunk ${chunkIndex}, ${startByte}-${endByte}/${totalSize})`);
+            console.log(`Requesting new presigned URL for ${fileName} (relativePath: ${relativePath}, chunkIndex: ${chunkIndex})`);
             const response = await lastValueFrom(this.http.post<UploadResponse>(url, formData, {
                 headers: this.getAuthHeaders()
             }));
@@ -887,13 +909,14 @@ export class UploadComponent implements OnInit, OnDestroy {
                 throw new Error(`Failed to refresh presigned URL for ${fileName}: ${errors.join('; ')}`);
             }
 
-            const newUrl = response.successUrls.find(u => u.fileName === fileName && parseInt(u.chunkIndex || '0') === chunkIndex);
+            const newUrl = response.successUrls.find(u => u.fileName === fileName && u.relativePath === (relativePath || '.') && u.chunkIndex === chunkIndex.toString());
             if (!newUrl) {
-                throw new Error(`No matching presigned URL found for ${fileName} (chunk ${chunkIndex})`);
+                throw new Error(`No matching presigned URL found for ${fileName} (relativePath: ${relativePath}, chunkIndex: ${chunkIndex})`);
             }
+            console.log(`Refreshed presigned URL for ${fileName} (chunk ${chunkIndex}):`, newUrl.uploadUrl);
             return newUrl;
         } catch (err: any) {
-            console.error(`Failed to refresh presigned URL for ${fileName} (chunk ${chunkIndex}):`, err);
+            console.error(`Failed to refresh presigned URL for ${fileName} (relativePath: ${relativePath}, chunkIndex: ${chunkIndex}):`, err);
             return null;
         }
     }
@@ -905,6 +928,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         fileIndex: number,
         totalFiles: number,
         totalChunks: number,
+        normalizedFolderPath: string,
         maxRetries: number = this.MAX_RETRIES
     ): Promise<boolean> {
         let retries = 0;
@@ -912,8 +936,9 @@ export class UploadComponent implements OnInit, OnDestroy {
         let chunkMetadata: ChunkMetadata | undefined;
         let currentPresigned = presigned;
 
-        console.log(`Presigned metadata for ${fileName}:`, JSON.stringify(currentPresigned, null, 2));
-        console.log(`isChunked check for ${fileName}:`, {
+        console.log(`Starting upload for ${fileName} (relativePath: ${presigned.relativePath || '.'}, chunkIndex: ${presigned.chunkIndex || 'single'})`);
+        console.log(`Presigned metadata:`, JSON.stringify(currentPresigned, null, 2));
+        console.log(`isChunked check:`, {
             hasChunkIndex: !!currentPresigned.chunkIndex,
             hasStartByte: !!currentPresigned.startByte,
             hasEndByte: !!currentPresigned.endByte,
@@ -977,8 +1002,8 @@ export class UploadComponent implements OnInit, OnDestroy {
 
                     const chunkSize = chunkMetadata.endByte - chunkMetadata.startByte + 1;
                     if (chunkSize % this.CHUNK_SIZE_ALIGNMENT !== 0 && chunkMetadata.endByte + 1 !== chunkMetadata.totalSize) {
-                        throw new Error(
-                            `Chunk size for ${fileName} (chunk ${chunkMetadata.chunkIndex}) is ${chunkSize} bytes, not aligned to 320KB (${this.CHUNK_SIZE_ALIGNMENT} bytes)`
+                        console.warn(
+                            `Chunk size for ${fileName} (chunk ${chunkMetadata.chunkIndex}) is ${chunkSize} bytes, not aligned to 320KB (${this.CHUNK_SIZE_ALIGNMENT} bytes). Proceeding anyway.`
                         );
                     }
 
@@ -986,7 +1011,7 @@ export class UploadComponent implements OnInit, OnDestroy {
                     contentRange = `bytes ${chunkMetadata.startByte}-${chunkMetadata.endByte}/${chunkMetadata.totalSize}`;
                     headers = headers.set('Content-Range', contentRange);
 
-                    console.log(`Chunked upload for ${fileName}:`, {
+                    console.log(`Chunked upload details:`, {
                         chunkIndex: chunkMetadata.chunkIndex,
                         contentRange,
                         startByte: chunkMetadata.startByte,
@@ -1005,119 +1030,101 @@ export class UploadComponent implements OnInit, OnDestroy {
                 }
 
                 let uploadSuccess = false;
-                const subscription = this.http.put(currentPresigned.uploadUrl, payload, {
-                    headers,
-                    reportProgress: true,
-                    observe: 'events'
-                }).subscribe({
-                    next: (event: any) => {
-                        if (event.type === HttpEventType.UploadProgress && event.total && isChunked) {
-                            const chunkProgress = Math.round((event.loaded / event.total) * 100);
-                            this.currentFileProgress[fileName] = Math.min(this.currentFileProgress[fileName] || 0, chunkProgress);
-                            this.cdr.detectChanges();
-                        } else if (event.type === HttpEventType.Response) {
-                            console.log(
-                                `OneDrive response for ${fileName}${isChunked ? ` (chunk ${chunkMetadata!.chunkIndex}/${totalChunks})` : ''}:`,
-                                JSON.stringify(event.body, null, 2),
-                                `Status: ${event.status}`
-                            );
-                            if (isChunked) {
-                                if (event.status === 202) {
-                                    if (event.body && event.body.nextExpectedRanges) {
-                                        uploadSuccess = true;
+                await new Promise<void>((resolve, reject) => {
+                    const subscription = this.http.put(currentPresigned.uploadUrl, payload, {
+                        headers,
+                        reportProgress: true,
+                        observe: 'events'
+                    }).subscribe({
+                        next: (event: any) => {
+                            if (event.type === HttpEventType.UploadProgress && event.total && isChunked) {
+                                const chunkProgress = Math.round((event.loaded / event.total) * 100);
+                                const key = this.uploadType === 'folder' ? `${fileName}|${presigned.relativePath}` : fileName;
+                                this.currentFileProgress[key] = Math.min(this.currentFileProgress[key] || 0, chunkProgress);
+                                console.log(`Upload progress for ${fileName} (chunk ${chunkMetadata?.chunkIndex || 'single'}): ${chunkProgress}%`);
+                                this.cdr.detectChanges();
+                            } else if (event.type === HttpEventType.Response) {
+                                console.log(
+                                    `OneDrive response for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}:`,
+                                    JSON.stringify(event.body, null, 2),
+                                    `Status: ${event.status}`
+                                );
+                                if (isChunked) {
+                                    if (event.status === 202) {
+                                        if (event.body && event.body.nextExpectedRanges) {
+                                            uploadSuccess = true;
+                                        } else {
+                                            throw new Error(`Invalid response for chunk ${chunkMetadata!.chunkIndex} of ${fileName}: Missing nextExpectedRanges`);
+                                        }
+                                    } else if (event.status === 201 || event.status === 200) {
+                                        if (chunkMetadata!.endByte + 1 === chunkMetadata!.totalSize) {
+                                            if (event.body && event.body.id && event.body.name) {
+                                                uploadSuccess = true;
+                                            } else {
+                                                throw new Error(`Final chunk for ${fileName} response missing file metadata: ${JSON.stringify(event.body)}`);
+                                            }
+                                        } else {
+                                            throw new Error(`Unexpected 201/200 status for non-final chunk ${chunkMetadata!.chunkIndex} of ${fileName}`);
+                                        }
                                     } else {
-                                        throw new Error(`Invalid response for chunk ${chunkMetadata!.chunkIndex} of ${fileName}: Missing nextExpectedRanges`);
+                                        throw new Error(`Unexpected status ${event.status} for chunk ${chunkMetadata!.chunkIndex} of ${fileName}`);
                                     }
-                                } else if (event.status === 201 || event.status === 200) {
-                                    if (chunkMetadata!.endByte + 1 === chunkMetadata!.totalSize) {
+                                } else {
+                                    if (event.status === 201 || event.status === 200) {
                                         if (event.body && event.body.id && event.body.name) {
                                             uploadSuccess = true;
                                         } else {
-                                            throw new Error(`Final chunk for ${fileName} response missing file metadata: ${JSON.stringify(event.body)}`);
+                                            throw new Error(`Non-chunked upload for ${fileName} response missing file metadata: ${JSON.stringify(event.body)}`);
                                         }
                                     } else {
-                                        throw new Error(`Unexpected 201/200 status for non-final chunk ${chunkMetadata!.chunkIndex} of ${fileName}`);
+                                        throw new Error(`Unexpected status ${event.status} for non-chunked upload of ${fileName}`);
                                     }
-                                } else {
-                                    throw new Error(`Unexpected status ${event.status} for chunk ${chunkMetadata!.chunkIndex} of ${fileName}`);
                                 }
-                            } else {
-                                if (event.status === 201 || event.status === 200) {
-                                    if (event.body && event.body.id && event.body.name) {
-                                        uploadSuccess = true;
-                                    } else {
-                                        throw new Error(`Non-chunked upload for ${fileName} response missing file metadata: ${JSON.stringify(event.body)}`);
-                                    }
-                                } else {
-                                    throw new Error(`Unexpected status ${event.status} for non-chunked upload of ${fileName}`);
-                                }
-                            }
-                            if (uploadSuccess) {
-                                if (!isChunked) {
+                                if (uploadSuccess && !isChunked) {
                                     this.uploadedChunks++;
-                                    this.currentFileProgress[fileName] = 100;
+                                    const key = this.uploadType === 'folder' ? `${fileName}|${presigned.relativePath}` : fileName;
+                                    this.currentFileProgress[key] = 100;
                                     this.overallProgress = Math.round((this.uploadedChunks / this.totalChunks) * 100);
+                                    console.log(`Non-chunked upload completed for ${fileName}, overall progress: ${this.overallProgress}%`);
                                     this.cdr.detectChanges();
                                 }
                             }
-                        }
-                    },
-                    error: (err: any) => {
-                        let errorMessage = `Failed to upload file ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}: ${err.status} ${err.statusText}`;
-                        if (err.error && err.error.error && err.error.error.message) {
-                            errorMessage += ` - ${err.error.error.message}`;
-                        }
-                        console.error('Upload error details:', JSON.stringify(err, null, 2));
-                        if (retries < maxRetries - 1 && (err.status === 429 || err.status === 503 || err.status === 416 || err.status === 409)) {
-                            const retryAfter = err.headers?.get('Retry-After') ? parseInt(err.headers.get('Retry-After'), 10) * 1000 : 1000 * (2 ** retries);
-                            retries++;
-                            console.warn(`Retrying upload for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}, attempt ${retries + 1} after ${retryAfter}ms`);
-                            if (err.status === 409 && isChunked) {
-                                this.refreshPresignedUrl(
-                                    file,
-                                    fileName,
-                                    this.folderPath.replace(/^\/+|\/+$/g, '') || 'root',
-                                    this.uploadType === 'folder' ? this.selectedFiles.find(item => item.sanitizedFileName === fileName)?.relativePath || '.' : '',
-                                    chunkMetadata!.chunkIndex,
-                                    chunkMetadata!.startByte,
-                                    chunkMetadata!.endByte,
-                                    chunkMetadata!.totalSize
-                                ).then(newUrl => {
-                                    if (newUrl) {
-                                        currentPresigned = newUrl;
-                                        console.log(`Refreshed presigned URL for ${fileName} (chunk ${chunkMetadata!.chunkIndex}):`, newUrl.uploadUrl);
-                                    }
-                                    setTimeout(() => this.uploadWithRetry(file, currentPresigned, fileName, fileIndex, totalFiles, totalChunks, maxRetries), retryAfter);
-                                });
-                            } else {
-                                setTimeout(() => this.uploadWithRetry(file, currentPresigned, fileName, fileIndex, totalFiles, totalChunks, maxRetries), retryAfter);
+                        },
+                        error: (err: any) => {
+                            let errorMessage = `Failed to upload ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}: ${err.status} ${err.statusText}`;
+                            if (err.error && err.error.error && err.error.error.message) {
+                                errorMessage += ` - ${err.error.error.message}`;
                             }
-                        } else {
-                            this.handleError(new Error(errorMessage));
-                            this.uploading = false;
-                            this.cdr.detectChanges();
+                            console.error('Upload error details:', JSON.stringify(err, null, 2));
+                            reject(new Error(errorMessage));
+                        },
+                        complete: () => {
+                            console.log(`Upload completed for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}`);
+                            resolve();
                         }
-                    },
-                    complete: () => {
-                        console.log(`Upload completed for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}`);
-                    }
+                    });
+                    this.subscriptions.push(subscription);
                 });
-                this.subscriptions.push(subscription);
-                await new Promise<void>(resolve => {
-                    subscription.add(() => resolve());
-                });
-                return uploadSuccess;
+
+                if (uploadSuccess) {
+                    console.log(`Upload successful for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}`);
+                    return true;
+                }
+                throw new Error(`Upload failed for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}`);
             } catch (err: any) {
                 if (retries < maxRetries - 1) {
                     retries++;
-                    console.warn(`Retrying upload for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}, attempt ${retries + 1}`);
-                    await new Promise(resolve => setTimeout(resolve, 1000 * (2 ** retries)));
-                    if (isChunked && err.message.includes('eTag mismatch')) {
+                    const retryAfter = err.status && [429, 503, 416, 409].includes(err.status)
+                        ? (err.headers?.get('Retry-After') ? parseInt(err.headers.get('Retry-After'), 10) * 1000 : 1000 * (2 ** retries))
+                        : 1000 * (2 ** retries);
+                    console.warn(`Retrying upload for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}, attempt ${retries + 1} after ${retryAfter}ms`);
+
+                    if (isChunked && (err.message.includes('eTag mismatch') || err.message.includes('Invalid chunk range') || err.status === 416 || err.status === 409)) {
                         const newUrl = await this.refreshPresignedUrl(
                             file,
                             fileName,
-                            this.folderPath.replace(/^\/+|\/+$/g, '') || 'root',
-                            this.uploadType === 'folder' ? this.selectedFiles.find(item => item.sanitizedFileName === fileName)?.relativePath || '.' : '',
+                            normalizedFolderPath,
+                            presigned.relativePath || '.',
                             chunkMetadata!.chunkIndex,
                             chunkMetadata!.startByte,
                             chunkMetadata!.endByte,
@@ -1128,6 +1135,8 @@ export class UploadComponent implements OnInit, OnDestroy {
                             console.log(`Refreshed presigned URL for ${fileName} (chunk ${chunkMetadata!.chunkIndex}):`, newUrl.uploadUrl);
                         }
                     }
+
+                    await new Promise(resolve => setTimeout(resolve, retryAfter));
                     continue;
                 }
                 const errorMessage = `Failed to upload ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''} after ${maxRetries} attempts: ${err.message || err}`;
