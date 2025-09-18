@@ -138,7 +138,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     private readonly CONCURRENCY_LIMIT = 10;
     private readonly CHUNK_SIZE_ALIGNMENT = 327680;
     private readonly MAX_RETRIES = 3;
-    private readonly BATCH_SIZE = 100; // Process 100 files per batch
+    private readonly BATCH_SIZE = 50; // Process 100 files per batch
 
     constructor(
         private http: HttpClient,
