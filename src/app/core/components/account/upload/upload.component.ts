@@ -4,8 +4,8 @@ import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { Subscription, lastValueFrom } from 'rxjs';
 
-// Utility function to limit concurrency
-function pLimit(concurrency: number) {
+// Utility function to limit concurrency with explicit type
+function pLimit(concurrency: number): <T>(fn: () => Promise<T>) => Promise<T> {
     let active = 0;
     const queue: Array<() => void> = [];
     async function run<T>(fn: () => Promise<T>): Promise<T> {
@@ -132,13 +132,15 @@ export class UploadComponent implements OnInit, OnDestroy {
     isFolderContentsLoading: boolean = false;
     nextLink: string = '';
     private subscriptions: Subscription[] = [];
+    private totalFiles: number = 0;
+    private uploadedFiles: number = 0;
     private totalChunks: number = 0;
     private uploadedChunks: number = 0;
     public readonly MAX_PATH_LENGTH = 255;
     private readonly CONCURRENCY_LIMIT = 10;
     private readonly CHUNK_SIZE_ALIGNMENT = 327680;
     private readonly MAX_RETRIES = 3;
-    private readonly BATCH_SIZE = 50; // Process 100 files per batch
+    private readonly BATCH_SIZE = 20; // Aligned with backend BATCH_SIZE
 
     constructor(
         private http: HttpClient,
@@ -229,6 +231,8 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.overallProgress = 0;
         this.currentFileProgress = {};
         this.currentFileIndex = 0;
+        this.totalFiles = 0;
+        this.uploadedFiles = 0;
         this.totalChunks = 0;
         this.uploadedChunks = 0;
         this.message = '';
@@ -255,18 +259,20 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.overallProgress = 0;
         this.currentFileProgress = {};
         this.currentFileIndex = 0;
+        this.totalFiles = 0;
+        this.uploadedFiles = 0;
         this.totalChunks = 0;
         this.uploadedChunks = 0;
 
         const files: File[] = Array.from(event.target.files);
         let topLevelFolder = '';
+        const skippedFiles: string[] = [];
 
         for (const file of files) {
             if (file.size <= 0) {
-                this.message = `Invalid file size for ${file.name}: ${file.size} bytes`;
-                this.isSuccess = false;
-                this.cdr.detectChanges();
-                return;
+                skippedFiles.push(`Invalid file size for ${file.name}: ${file.size} bytes`);
+                console.warn(`Skipping file ${file.name} due to invalid size: ${file.size} bytes`);
+                continue;
             }
             let relativePath = '';
             const sanitizedFileName = this.sanitizeFileName(file.name);
@@ -286,24 +292,37 @@ export class UploadComponent implements OnInit, OnDestroy {
                     relativePath = '.';
                 }
                 if (relativePath.length > this.MAX_PATH_LENGTH) {
-                    this.message = `Relative path too long for ${file.name} (max ${this.MAX_PATH_LENGTH} characters)`;
-                    this.isSuccess = false;
-                    this.cdr.detectChanges();
-                    return;
+                    skippedFiles.push(`Relative path too long for ${file.name} (max ${this.MAX_PATH_LENGTH} characters)`);
+                    console.warn(`Skipping file ${file.name} due to relative path length: ${relativePath.length}`);
+                    continue;
                 }
             }
             this.selectedFiles.push({ file, relativePath, sanitizedFileName });
         }
 
+        if (skippedFiles.length > 0) {
+            this.message = `Skipped ${skippedFiles.length} invalid file(s): ${skippedFiles.join('; ')}`;
+            this.isSuccess = false;
+            this.cdr.detectChanges();
+        }
+
         if (this.selectedFiles.length > 0) {
+            this.totalFiles = this.selectedFiles.length;
             this.fileName = this.uploadType === 'file' ? this.selectedFiles[0].sanitizedFileName : this.sanitizeFileName(topLevelFolder);
             this.validateFileNameInput();
+        } else if (skippedFiles.length > 0 && files.length === skippedFiles.length) {
+            this.message = `All selected files were invalid and skipped: ${skippedFiles.join('; ')}`;
+            this.isSuccess = false;
+            this.cdr.detectChanges();
+            return;
         }
+
         console.log('Selected files:', this.selectedFiles.map(item => ({
             original: item.file.name,
             sanitized: item.sanitizedFileName,
             relativePath: item.relativePath
         })));
+        console.log(`Total files selected: ${this.selectedFiles.length}, Skipped files: ${skippedFiles.length}`);
         this.cdr.detectChanges();
     }
 
@@ -649,6 +668,8 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.overallProgress = 0;
         this.currentFileProgress = {};
         this.currentFileIndex = 0;
+        this.totalFiles = this.selectedFiles.length;
+        this.uploadedFiles = 0;
         this.totalChunks = 0;
         this.uploadedChunks = 0;
         this.message = this.uploadType === 'folder' ? 'Preparing folder structure for upload...' : 'Preparing files for upload...';
@@ -659,6 +680,14 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         if (this.uploadType === 'file') {
             const uploadPromises: Promise<boolean>[] = [];
+            const fileChunkCounts = new Map<string, { total: number; uploaded: number }>();
+
+            // Initialize chunk counts and progress for each file
+            for (const { file, sanitizedFileName } of this.selectedFiles) {
+                const rawFileName = this.fileName || sanitizedFileName;
+                fileChunkCounts.set(rawFileName, { total: 0, uploaded: 0 });
+                this.currentFileProgress[rawFileName] = 0;
+            }
 
             for (let i = 0; i < this.selectedFiles.length; i++) {
                 const { file, sanitizedFileName } = this.selectedFiles[i];
@@ -701,8 +730,8 @@ export class UploadComponent implements OnInit, OnDestroy {
                             throw new Error(`No valid presigned URLs received for ${rawFileName}`);
                         }
 
+                        fileChunkCounts.set(rawFileName, { ...fileChunkCounts.get(rawFileName)!, total: sortedUrls.length });
                         this.totalChunks += sortedUrls.length;
-                        let uploadedChunksForFile = 0;
 
                         for (const presigned of sortedUrls) {
                             console.log(`Processing chunk ${presigned.chunkIndex || 'single'} for ${rawFileName}`);
@@ -713,22 +742,22 @@ export class UploadComponent implements OnInit, OnDestroy {
                                 i,
                                 this.selectedFiles.length,
                                 sortedUrls.length,
-                                normalizedFolderPath
+                                normalizedFolderPath,
+                                fileChunkCounts
                             );
                             if (!success) {
                                 throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${rawFileName}`);
                             }
-                            uploadedChunksForFile++;
+                            fileChunkCounts.get(rawFileName)!.uploaded++;
                             this.uploadedChunks++;
-                            this.currentFileProgress[rawFileName] = Math.round((uploadedChunksForFile / sortedUrls.length) * 100);
-                            this.overallProgress = Math.round((this.uploadedChunks / this.totalChunks) * 100);
-                            console.log(`Chunk ${presigned.chunkIndex || 'single'} uploaded for ${rawFileName}, progress: ${this.currentFileProgress[rawFileName]}%`);
-                            this.cdr.detectChanges();
                         }
 
-                        console.log(`All ${sortedUrls.length} chunks uploaded for ${rawFileName}`);
+                        // Update progress only when all chunks of the file are uploaded
                         this.currentFileProgress[rawFileName] = 100;
-                        this.message = `Completed upload of file ${i + 1} of ${this.selectedFiles.length}: ${rawFileName}`;
+                        this.uploadedFiles++;
+                        this.overallProgress = Math.min(Math.round((this.uploadedFiles / this.totalFiles) * 100), 100);
+                        console.log(`All chunks uploaded for ${rawFileName}, file progress: 100%, overall progress: ${this.overallProgress}%`);
+                        this.message = `Completed upload of file ${this.uploadedFiles} of ${this.totalFiles}: ${rawFileName}`;
                         this.cdr.detectChanges();
                         return true;
                     } catch (err: any) {
@@ -757,21 +786,30 @@ export class UploadComponent implements OnInit, OnDestroy {
             const topLevelFolder = this.fileName || 'uploaded_folder';
             const finalFolderPath = normalizedFolderPath ? `${normalizedFolderPath}/${this.sanitizeFileName(topLevelFolder)}` : this.sanitizeFileName(topLevelFolder);
 
-            // Split files into batches
+            // Split files into batches aligned with backend BATCH_SIZE
             const batches: FileWithPath[][] = [];
             for (let i = 0; i < this.selectedFiles.length; i += this.BATCH_SIZE) {
                 batches.push(this.selectedFiles.slice(i, i + this.BATCH_SIZE));
             }
 
+            // Initialize chunk counts for each file
+            const fileChunkCounts = new Map<string, { total: number; uploaded: number; file: File }>();
+            this.selectedFiles.forEach(item => {
+                const key = `${item.sanitizedFileName}|${item.relativePath}`;
+                fileChunkCounts.set(key, { total: 0, uploaded: 0, file: item.file });
+                this.currentFileProgress[key] = 0;
+            });
+
             this.message = `Preparing to upload ${this.selectedFiles.length} files in ${batches.length} batches...`;
             this.cdr.detectChanges();
 
             let totalFilesProcessed = 0;
-            const uploadPromises: Promise<boolean>[] = [];
+            const batchErrors: string[] = [];
 
+            // Process each batch and start uploads immediately
             for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
                 const batch = batches[batchIndex];
-                uploadPromises.push(limit(async () => {
+                await limit(async () => {
                     try {
                         const url = 'https://datakavach.com/isparxcloud/upload-folder';
                         const formData = new FormData();
@@ -802,10 +840,10 @@ export class UploadComponent implements OnInit, OnDestroy {
 
                         this.totalChunks += response.successUrls.length;
 
-                        const fileChunkCounts = new Map<string, { total: number; uploaded: number; file: File }>();
                         batch.forEach(item => {
+                            const key = `${item.sanitizedFileName}|${item.relativePath}`;
                             const totalChunks = response.successUrls.filter(url => url.fileName === item.sanitizedFileName && url.relativePath === item.relativePath).length;
-                            fileChunkCounts.set(`${item.sanitizedFileName}|${item.relativePath}`, { total: totalChunks, uploaded: 0, file: item.file });
+                            fileChunkCounts.set(key, { ...fileChunkCounts.get(key)!, total: totalChunks });
                         });
 
                         const fileUrlGroups = new Map<string, UploadResponse['successUrls']>();
@@ -817,7 +855,7 @@ export class UploadComponent implements OnInit, OnDestroy {
                             fileUrlGroups.get(key)!.push(url);
                         });
 
-                        const batchUploadPromises: Promise<boolean>[] = [];
+                        const filePromises: Promise<boolean>[] = [];
 
                         for (const [key, urls] of fileUrlGroups) {
                             const sortedUrls = urls.sort((a, b) => {
@@ -832,7 +870,7 @@ export class UploadComponent implements OnInit, OnDestroy {
                                 continue;
                             }
 
-                            batchUploadPromises.push(limit(async () => {
+                            filePromises.push(limit(async () => {
                                 try {
                                     const totalChunks = sortedUrls.length;
                                     let uploadedChunks = 0;
@@ -846,7 +884,8 @@ export class UploadComponent implements OnInit, OnDestroy {
                                             totalFilesProcessed,
                                             this.selectedFiles.length,
                                             totalChunks,
-                                            finalFolderPath
+                                            finalFolderPath,
+                                            fileChunkCounts
                                         );
                                         if (!success) {
                                             throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${fileName} (relativePath: ${relativePath})`);
@@ -854,43 +893,47 @@ export class UploadComponent implements OnInit, OnDestroy {
                                         uploadedChunks++;
                                         this.uploadedChunks++;
                                         fileChunkCounts.get(key)!.uploaded = uploadedChunks;
-                                        this.currentFileProgress[`${fileName}|${relativePath}`] = Math.round((uploadedChunks / totalChunks) * 100);
-                                        this.overallProgress = Math.round((this.uploadedChunks / this.totalChunks) * 100);
-                                        console.log(`Chunk ${presigned.chunkIndex || 'single'} uploaded for ${fileName} (relativePath: ${relativePath}), progress: ${this.currentFileProgress[`${fileName}|${relativePath}`]}%`);
-                                        this.message = `Uploading file ${totalFilesProcessed + 1} of ${this.selectedFiles.length}: ${fileName} (chunk ${uploadedChunks}/${totalChunks})`;
-                                        this.cdr.detectChanges();
                                     }
 
-                                    console.log(`All ${totalChunks} chunks uploaded for ${fileName} (relativePath: ${relativePath})`);
-                                    this.currentFileProgress[`${fileName}|${relativePath}`] = 100;
+                                    // Update progress only when all chunks of the file are uploaded
+                                    this.currentFileProgress[key] = 100;
+                                    this.uploadedFiles++;
+                                    this.overallProgress = Math.min(Math.round((this.uploadedFiles / this.totalFiles) * 100), 100);
+                                    console.log(`All chunks uploaded for ${fileName} (relativePath: ${relativePath}), file progress: 100%, overall progress: ${this.overallProgress}%`);
+                                    this.message = `Completed upload of file ${this.uploadedFiles} of ${this.totalFiles}: ${fileName}`;
                                     totalFilesProcessed++;
-                                    this.message = `Completed upload of file ${totalFilesProcessed} of ${this.selectedFiles.length}: ${fileName}`;
                                     this.cdr.detectChanges();
                                     return true;
                                 } catch (err: any) {
                                     console.error(`Failed to upload file ${fileName} (relativePath: ${relativePath}):`, err);
+                                    this.handleError(new Error(`Failed to upload ${fileName} (relativePath: ${relativePath}): ${err.message || err}`));
                                     return false;
                                 }
                             }));
                         }
 
-                        const batchResults = await Promise.all(batchUploadPromises);
-                        successfulUploads += batchResults.filter(success => success).length;
-                        return batchResults.every(success => success);
+                        const fileResults = await Promise.all(filePromises);
+                        successfulUploads += fileResults.filter(success => success).length;
+                        if (!fileResults.every(success => success)) {
+                            batchErrors.push(`Batch ${batchIndex + 1} had ${fileResults.filter(success => !success).length} file(s) fail`);
+                        }
                     } catch (err: any) {
                         console.error(`Batch ${batchIndex + 1} upload exception:`, err);
-                        this.handleError(err);
-                        return false;
+                        batchErrors.push(`Batch ${batchIndex + 1} failed: ${err.message || err}`);
                     }
-                }));
+                });
+            }
+
+            // Wait for all batches to complete
+            for (let i = 0; i < this.CONCURRENCY_LIMIT; i++) {
+                await limit(() => Promise.resolve());
             }
 
             try {
-                const batchResults = await Promise.all(uploadPromises);
-                if (batchResults.every(success => success)) {
+                if (batchErrors.length === 0 && successfulUploads === this.selectedFiles.length) {
                     this.handleSuccess(`Folder uploaded successfully: ${successfulUploads} files processed in ${batches.length} batches`);
                 } else {
-                    this.handleError(new Error(`Only ${successfulUploads} of ${this.selectedFiles.length} files uploaded successfully`));
+                    this.handleError(new Error(`Only ${successfulUploads} of ${this.selectedFiles.length} files uploaded successfully in ${batches.length} batches. Errors: ${batchErrors.join('; ')}`));
                 }
             } catch (err: any) {
                 console.error('Folder upload exception:', err);
@@ -957,12 +1000,14 @@ export class UploadComponent implements OnInit, OnDestroy {
         totalFiles: number,
         totalChunks: number,
         normalizedFolderPath: string,
+        fileChunkCounts: Map<string, { total: number; uploaded: number; file?: File }>,
         maxRetries: number = this.MAX_RETRIES
     ): Promise<boolean> {
         let retries = 0;
         let isChunked = false;
         let chunkMetadata: ChunkMetadata | undefined;
         let currentPresigned = presigned;
+        const progressKey = this.uploadType === 'folder' ? `${fileName}|${presigned.relativePath}` : fileName;
 
         console.log(`Starting upload for ${fileName} (relativePath: ${presigned.relativePath || '.'}, chunkIndex: ${presigned.chunkIndex || 'single'})`);
         console.log(`Presigned metadata:`, JSON.stringify(currentPresigned, null, 2));
@@ -1065,12 +1110,10 @@ export class UploadComponent implements OnInit, OnDestroy {
                         observe: 'events'
                     }).subscribe({
                         next: (event: any) => {
-                            if (event.type === HttpEventType.UploadProgress && event.total && isChunked) {
+                            if (event.type === HttpEventType.UploadProgress && event.total) {
+                                // Optional: Log progress for debugging, but don't update UI here
                                 const chunkProgress = Math.round((event.loaded / event.total) * 100);
-                                const key = this.uploadType === 'folder' ? `${fileName}|${presigned.relativePath}` : fileName;
-                                this.currentFileProgress[key] = Math.min(this.currentFileProgress[key] || 0, chunkProgress);
                                 console.log(`Upload progress for ${fileName} (chunk ${chunkMetadata?.chunkIndex || 'single'}): ${chunkProgress}%`);
-                                this.cdr.detectChanges();
                             } else if (event.type === HttpEventType.Response) {
                                 console.log(
                                     `OneDrive response for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}:`,
@@ -1108,14 +1151,6 @@ export class UploadComponent implements OnInit, OnDestroy {
                                         throw new Error(`Unexpected status ${event.status} for non-chunked upload of ${fileName}`);
                                     }
                                 }
-                                if (uploadSuccess && !isChunked) {
-                                    this.uploadedChunks++;
-                                    const key = this.uploadType === 'folder' ? `${fileName}|${presigned.relativePath}` : fileName;
-                                    this.currentFileProgress[key] = 100;
-                                    this.overallProgress = Math.round((this.uploadedChunks / this.totalChunks) * 100);
-                                    console.log(`Non-chunked upload completed for ${fileName}, overall progress: ${this.overallProgress}%`);
-                                    this.cdr.detectChanges();
-                                }
                             }
                         },
                         error: (err: any) => {
@@ -1136,6 +1171,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
                 if (uploadSuccess) {
                     console.log(`Upload successful for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}`);
+                    fileChunkCounts.get(progressKey)!.uploaded++;
                     return true;
                 }
                 throw new Error(`Upload failed for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}`);
@@ -1198,8 +1234,8 @@ export class UploadComponent implements OnInit, OnDestroy {
             errorMessage = error.map((err: any) => err.error || err).join('; ');
         }
         this.message = errorMessage;
-        if (errorMessage.includes('/uploadSession') || errorMessage.includes('eTag mismatch')) {
-            this.message += '. The file(s) may have partially uploaded. Please check the destination folder in OneDrive and try again.';
+        if (errorMessage.includes('/uploadSession') || errorMessage.includes('eTag mismatch') || errorMessage.includes('429')) {
+            this.message += '. The file(s) may have partially uploaded or hit a rate limit. Please check the destination folder in OneDrive and try again.';
         }
         this.isLoading = false;
         const modal = new (window as any).bootstrap.Modal(document.getElementById('errorModal'));
@@ -1238,6 +1274,8 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.overallProgress = 0;
         this.currentFileProgress = {};
         this.currentFileIndex = 0;
+        this.totalFiles = 0;
+        this.uploadedFiles = 0;
         this.totalChunks = 0;
         this.uploadedChunks = 0;
         this.message = '';
