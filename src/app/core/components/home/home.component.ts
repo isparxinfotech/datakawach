@@ -86,12 +86,12 @@ export class HomeComponent implements OnInit {
     // },
     {
       name: 'Professional',
-      price: '₹14999/-Year',
+      price: '₹19999/-Year',
       features: ['1TB Storage', 'Advanced Security', '24/7 Support']
     },
     {
       name: 'Enterprise',
-      price: '₹19999/-Year',
+      price: '₹29999/-Year',
       features: ['5TB Storage', 'Military-grade Security', 'Dedicated Support']
     }
   ];
