@@ -131,6 +131,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     isSchedulesLoading: boolean = false;
     isFolderContentsLoading: boolean = false;
     nextLink: string = '';
+    currentStep: number = 1; // Added for wizard navigation
     private subscriptions: Subscription[] = [];
     private totalFiles: number = 0;
     private uploadedFiles: number = 0;
@@ -155,6 +156,56 @@ export class UploadComponent implements OnInit, OnDestroy {
     ngOnInit(): void {
         this.isLoading = true;
         this.initializeUser();
+    }
+
+    // Wizard navigation methods
+    nextStep(): void {
+        if (this.currentStep < (this.needsBackup === 'yes' ? 4 : 4)) {
+            // Validate current step before proceeding
+            if (this.currentStep === 1 && !this.uploadType) {
+                this.message = 'Please select an upload type';
+                this.isSuccess = false;
+                this.cdr.detectChanges();
+                return;
+            }
+            if (this.currentStep === 2 && !this.selectedRootFolder) {
+                this.message = 'Please select a root folder';
+                this.isSuccess = false;
+                this.cdr.detectChanges();
+                return;
+            }
+            if (this.currentStep === 3) {
+                if (this.uploadType === 'file' && (!this.fileName || this.fileNameError)) {
+                    this.message = 'Please enter a valid file name';
+                    this.isSuccess = false;
+                    this.cdr.detectChanges();
+                    return;
+                }
+                if (this.needsBackup === 'yes' && !this.localPath) {
+                    this.message = 'Please enter a local path for backup';
+                    this.isSuccess = false;
+                    this.cdr.detectChanges();
+                    return;
+                }
+                if (this.needsBackup === 'no' && this.selectedFiles.length === 0) {
+                    this.message = 'Please select at least one file or folder to upload';
+                    this.isSuccess = false;
+                    this.cdr.detectChanges();
+                    return;
+                }
+            }
+            this.currentStep++;
+            this.message = ''; // Clear message on step change
+            this.cdr.detectChanges();
+        }
+    }
+
+    previousStep(): void {
+        if (this.currentStep > 1) {
+            this.currentStep--;
+            this.message = ''; // Clear message on step change
+            this.cdr.detectChanges();
+        }
     }
 
     public getPathUpToIndex(index: number): string {
@@ -793,7 +844,7 @@ export class UploadComponent implements OnInit, OnDestroy {
             }
 
             // Initialize chunk counts for each file
-            const fileChunkCounts = new Map<string, { total: number; uploaded: number; file: File }>();
+            const fileChunkCounts = new Map<string, { total: number; uploaded: number; file?: File }>();
             this.selectedFiles.forEach(item => {
                 const key = `${item.sanitizedFileName}|${item.relativePath}`;
                 fileChunkCounts.set(key, { total: 0, uploaded: 0, file: item.file });
@@ -1259,6 +1310,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.selectedRootFolder = currentSelectedRootFolder;
         this.folderPathSegments = this.folderPath ? this.folderPath.split('/') : [];
         this.folderName = this.folderPath;
+        this.currentStep = 1; // Reset to first step after success
         this.cdr.detectChanges();
     }
 
@@ -1280,6 +1332,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.uploadedChunks = 0;
         this.message = '';
         this.isSuccess = false;
+        this.currentStep = 1; // Reset to first step
         this.cdr.detectChanges();
     }
 

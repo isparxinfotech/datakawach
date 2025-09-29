@@ -62,6 +62,10 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   searchQuery: string = '';
   sortBy: string = 'name';
 
+  createdDateTime: string | null = null;
+  expirationDate: string | null = null;
+  daysLeft: number | null = null;
+
   private storageChart: Chart<'doughnut', number[], string> | undefined;
   private folderUsageChart: Chart | undefined;
 
@@ -84,6 +88,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.cloudProvider = this.userSessionDetails.cloudProvider.toLowerCase();
       if (this.cloudProvider === 'onedrive') {
         this.listRootFolders();
+        this.fetchUserCreatedDateTime();
       } else {
         this.errorMessage = 'Only OneDrive is supported for corporate dashboard.';
         this.cdr.detectChanges();
@@ -94,6 +99,59 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     this.fetchTotalUsers();
+  }
+
+  private fetchUserCreatedDateTime(): void {
+    if (!this.username) {
+      this.errorMessage = 'Username is missing. Cannot fetch created date time.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const url = `https://datakavach.com/isparxcloud/user-created-date?username=${encodeURIComponent(this.username)}`; // Update to https://api.datakavach.com/isparxcloud for production
+
+    const sub = this.http.get<{ createdDateTime?: string }>(url, { headers: this.getAuthHeaders() })
+      .pipe(
+        retry({ count: 2, delay: 1000 }),
+        catchError((err) => {
+          this.errorMessage = err.error?.error || 'Failed to fetch user created date time.';
+          console.error('Error fetching user created date time:', err);
+          this.cdr.detectChanges();
+          return throwError(() => new Error(this.errorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          if (response.createdDateTime) {
+            this.createdDateTime = response.createdDateTime;
+            this.calculateExpirationDate();
+          } else {
+            this.errorMessage = 'Created date time not found in response.';
+          }
+          this.cdr.detectChanges();
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
+  private calculateExpirationDate(): void {
+    if (!this.createdDateTime) return;
+
+    const createdDate = new Date(this.createdDateTime);
+    const expiration = new Date(createdDate);
+    expiration.setFullYear(createdDate.getFullYear() + 1); // Subscription expires after 1 year
+
+    this.expirationDate = expiration.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const today = new Date();
+    const timeDiff = expiration.getTime() - today.getTime();
+    this.daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+    this.cdr.detectChanges();
   }
 
   ngAfterViewInit(): void {
