@@ -121,6 +121,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     currentFileProgress: { [key: string]: number } = {};
     currentFileIndex: number = 0;
     message: string = '';
+    validationMessage: string = '';
     isSuccess: boolean = false;
     userSessionDetails: userSessionDetails | null | undefined = null;
     backupSchedules: BackupSchedule[] = [];
@@ -131,7 +132,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     isSchedulesLoading: boolean = false;
     isFolderContentsLoading: boolean = false;
     nextLink: string = '';
-    currentStep: number = 1; // Added for wizard navigation
+    currentStep: number = 1;
     private subscriptions: Subscription[] = [];
     private totalFiles: number = 0;
     private uploadedFiles: number = 0;
@@ -141,7 +142,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     private readonly CONCURRENCY_LIMIT = 10;
     private readonly CHUNK_SIZE_ALIGNMENT = 327680;
     private readonly MAX_RETRIES = 3;
-    private readonly BATCH_SIZE = 20; // Aligned with backend BATCH_SIZE
+    private readonly BATCH_SIZE = 20;
 
     constructor(
         private http: HttpClient,
@@ -153,49 +154,78 @@ export class UploadComponent implements OnInit, OnDestroy {
         return String(this.userSessionDetails?.userType) === '8';
     }
 
+    isScheduleFormValid(): boolean {
+        if (!this.backupTime) {
+            return false;
+        }
+        if (!this.retentionDays || this.retentionDays < 1) {
+            return false;
+        }
+        if (!this.backupFrequency) {
+            return false;
+        }
+        if (this.backupFrequency === 'Weekly' && !this.dayOfWeek) {
+            return false;
+        }
+        if (this.backupFrequency === 'Monthly' && (!this.dayOfMonth || this.dayOfMonth < 1 || this.dayOfMonth > 31)) {
+            return false;
+        }
+        return true;
+    }
+
     ngOnInit(): void {
         this.isLoading = true;
         this.initializeUser();
+        this.currentStep = 1;
+        this.needsBackup = 'yes';
+        this.cdr.detectChanges();
     }
 
-    // Wizard navigation methods
     nextStep(): void {
+        if (this.currentStep === 1 && !this.uploadType) {
+            this.validationMessage = 'Please select an upload type (Files or Folder)';
+            this.isSuccess = false;
+            this.cdr.detectChanges();
+            return;
+        }
+        if (this.currentStep === 2 && !this.selectedRootFolder) {
+            this.validationMessage = 'Please select a root folder';
+            this.isSuccess = false;
+            this.cdr.detectChanges();
+            return;
+        }
+        if (this.currentStep === 3) {
+            if (this.uploadType === 'file' && (!this.fileName || this.fileNameError)) {
+                this.validationMessage = 'Please enter a valid file name';
+                this.isSuccess = false;
+                this.cdr.detectChanges();
+                return;
+            }
+            if (this.needsBackup === 'yes' && !this.localPath) {
+                this.validationMessage = 'Please enter a local file or folder path';
+                this.isSuccess = false;
+                this.cdr.detectChanges();
+                return;
+            }
+            if (this.needsBackup === 'no' && this.selectedFiles.length === 0) {
+                this.validationMessage = 'Please select at least one file or folder to upload';
+                this.isSuccess = false;
+                this.cdr.detectChanges();
+                return;
+            }
+        }
+        if (this.currentStep === 4 && this.needsBackup === 'yes') {
+            if (!this.isScheduleFormValid()) {
+                this.validationMessage = 'Please fill all required schedule fields correctly';
+                this.isSuccess = false;
+                this.cdr.detectChanges();
+                return;
+            }
+        }
         if (this.currentStep < (this.needsBackup === 'yes' ? 4 : 4)) {
-            // Validate current step before proceeding
-            if (this.currentStep === 1 && !this.uploadType) {
-                this.message = 'Please select an upload type';
-                this.isSuccess = false;
-                this.cdr.detectChanges();
-                return;
-            }
-            if (this.currentStep === 2 && !this.selectedRootFolder) {
-                this.message = 'Please select a root folder';
-                this.isSuccess = false;
-                this.cdr.detectChanges();
-                return;
-            }
-            if (this.currentStep === 3) {
-                if (this.uploadType === 'file' && (!this.fileName || this.fileNameError)) {
-                    this.message = 'Please enter a valid file name';
-                    this.isSuccess = false;
-                    this.cdr.detectChanges();
-                    return;
-                }
-                if (this.needsBackup === 'yes' && !this.localPath) {
-                    this.message = 'Please enter a local path for backup';
-                    this.isSuccess = false;
-                    this.cdr.detectChanges();
-                    return;
-                }
-                if (this.needsBackup === 'no' && this.selectedFiles.length === 0) {
-                    this.message = 'Please select at least one file or folder to upload';
-                    this.isSuccess = false;
-                    this.cdr.detectChanges();
-                    return;
-                }
-            }
             this.currentStep++;
-            this.message = ''; // Clear message on step change
+            this.validationMessage = '';
+            this.message = '';
             this.cdr.detectChanges();
         }
     }
@@ -203,9 +233,70 @@ export class UploadComponent implements OnInit, OnDestroy {
     previousStep(): void {
         if (this.currentStep > 1) {
             this.currentStep--;
-            this.message = ''; // Clear message on step change
+            this.validationMessage = '';
+            this.message = '';
             this.cdr.detectChanges();
         }
+    }
+
+    onBackupChoiceChange(choice: 'yes' | 'no'): void {
+        this.needsBackup = choice;
+        this.currentStep = 1;
+        this.uploadType = 'file';
+        this.selectedRootFolder = '';
+        this.folderPath = '';
+        this.folderPathSegments = [];
+        this.folderContents = [];
+        this.fileName = '';
+        this.fileNameError = '';
+        this.localPath = '';
+        this.backupTime = '';
+        this.retentionDays = 7;
+        this.backupFrequency = 'Daily';
+        this.dayOfWeek = '';
+        this.dayOfMonth = null;
+        this.selectedFiles = [];
+        this.overallProgress = 0;
+        this.currentFileProgress = {};
+        this.currentFileIndex = 0;
+        this.totalFiles = 0;
+        this.uploadedFiles = 0;
+        this.totalChunks = 0;
+        this.uploadedChunks = 0;
+        this.message = '';
+        this.validationMessage = '';
+        this.cdr.detectChanges();
+    }
+
+    onUploadTypeChange(): void {
+        this.selectedFiles = [];
+        this.fileName = '';
+        this.fileNameError = '';
+        this.overallProgress = 0;
+        this.currentFileProgress = {};
+        this.currentFileIndex = 0;
+        this.totalFiles = 0;
+        this.uploadedFiles = 0;
+        this.totalChunks = 0;
+        this.uploadedChunks = 0;
+        this.message = '';
+        this.validationMessage = '';
+        this.cdr.detectChanges();
+    }
+
+    validateFileNameInput(): void {
+        this.fileNameError = '';
+        this.validationMessage = '';
+        if (!this.fileName && this.uploadType === 'file') {
+            this.fileNameError = 'File name is required';
+        } else if (this.fileName) {
+            if (/[<>:"\/\\|?*]/.test(this.fileName)) {
+                this.fileNameError = 'File name contains invalid characters';
+            } else if (this.fileName.length > this.MAX_PATH_LENGTH) {
+                this.fileNameError = `File name is too long (max ${this.MAX_PATH_LENGTH} characters)`;
+            }
+        }
+        this.cdr.detectChanges();
     }
 
     public getPathUpToIndex(index: number): string {
@@ -226,6 +317,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     async initializeUser() {
         this.message = '';
+        this.validationMessage = '';
         this.userSessionDetails = this.authService.getLoggedInUserDetails();
         console.log('userSessionDetails:', this.userSessionDetails);
 
@@ -263,147 +355,9 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
     }
 
-    onBackupChoiceChange() {
-        if (this.needsBackup === 'no') {
-            this.localPath = '';
-            this.backupTime = '';
-            this.retentionDays = 7;
-            this.backupFrequency = 'Daily';
-            this.dayOfWeek = '';
-            this.dayOfMonth = null;
-        }
-        this.message = '';
-        this.cdr.detectChanges();
-    }
-
-    onUploadTypeChange() {
-        this.selectedFiles = [];
-        this.fileName = '';
-        this.overallProgress = 0;
-        this.currentFileProgress = {};
-        this.currentFileIndex = 0;
-        this.totalFiles = 0;
-        this.uploadedFiles = 0;
-        this.totalChunks = 0;
-        this.uploadedChunks = 0;
-        this.message = '';
-        this.cdr.detectChanges();
-    }
-
-    validateFileNameInput(): void {
-        this.fileNameError = '';
-        if (!this.fileName && this.uploadType === 'file') {
-            this.fileNameError = 'File name is required';
-        } else if (this.fileName) {
-            if (/[<>:"\/\\|?*]/.test(this.fileName)) {
-                this.fileNameError = 'File name contains invalid characters';
-            } else if (this.fileName.length > this.MAX_PATH_LENGTH) {
-                this.fileNameError = `File name is too long (max ${this.MAX_PATH_LENGTH} characters)`;
-            }
-        }
-        this.cdr.detectChanges();
-    }
-
-    onFilesSelected(event: any) {
-        this.selectedFiles = [];
-        this.message = '';
-        this.overallProgress = 0;
-        this.currentFileProgress = {};
-        this.currentFileIndex = 0;
-        this.totalFiles = 0;
-        this.uploadedFiles = 0;
-        this.totalChunks = 0;
-        this.uploadedChunks = 0;
-
-        const files: File[] = Array.from(event.target.files);
-        let topLevelFolder = '';
-        const skippedFiles: string[] = [];
-
-        for (const file of files) {
-            if (file.size <= 0) {
-                skippedFiles.push(`Invalid file size for ${file.name}: ${file.size} bytes`);
-                console.warn(`Skipping file ${file.name} due to invalid size: ${file.size} bytes`);
-                continue;
-            }
-            let relativePath = '';
-            const sanitizedFileName = this.sanitizeFileName(file.name);
-            if (this.uploadType === 'folder' && file.webkitRelativePath) {
-                relativePath = file.webkitRelativePath.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
-                if (!topLevelFolder) {
-                    topLevelFolder = relativePath.split('/')[0];
-                }
-                relativePath = relativePath.startsWith(topLevelFolder + '/')
-                    ? relativePath.substring(topLevelFolder.length + 1)
-                    : relativePath;
-                relativePath = relativePath
-                    .split('/')
-                    .map(segment => this.sanitizeFileName(segment))
-                    .join('/');
-                if (!relativePath) {
-                    relativePath = '.';
-                }
-                if (relativePath.length > this.MAX_PATH_LENGTH) {
-                    skippedFiles.push(`Relative path too long for ${file.name} (max ${this.MAX_PATH_LENGTH} characters)`);
-                    console.warn(`Skipping file ${file.name} due to relative path length: ${relativePath.length}`);
-                    continue;
-                }
-            }
-            this.selectedFiles.push({ file, relativePath, sanitizedFileName });
-        }
-
-        if (skippedFiles.length > 0) {
-            this.message = `Skipped ${skippedFiles.length} invalid file(s): ${skippedFiles.join('; ')}`;
-            this.isSuccess = false;
-            this.cdr.detectChanges();
-        }
-
-        if (this.selectedFiles.length > 0) {
-            this.totalFiles = this.selectedFiles.length;
-            this.fileName = this.uploadType === 'file' ? this.selectedFiles[0].sanitizedFileName : this.sanitizeFileName(topLevelFolder);
-            this.validateFileNameInput();
-        } else if (skippedFiles.length > 0 && files.length === skippedFiles.length) {
-            this.message = `All selected files were invalid and skipped: ${skippedFiles.join('; ')}`;
-            this.isSuccess = false;
-            this.cdr.detectChanges();
-            return;
-        }
-
-        console.log('Selected files:', this.selectedFiles.map(item => ({
-            original: item.file.name,
-            sanitized: item.sanitizedFileName,
-            relativePath: item.relativePath
-        })));
-        console.log(`Total files selected: ${this.selectedFiles.length}, Skipped files: ${skippedFiles.length}`);
-        this.cdr.detectChanges();
-    }
-
-    isScheduleFormValid(): boolean {
-        if (this.needsBackup === 'no') {
-            return !!(
-                this.userSessionDetails?.username &&
-                this.folderPath &&
-                this.folderPath.trim() !== '' &&
-                (this.uploadType === 'folder' || (this.fileName && !this.fileNameError)) &&
-                this.selectedFiles.length > 0
-            );
-        }
-        return !!(
-            this.userSessionDetails?.username &&
-            this.folderPath &&
-            this.folderPath.trim() !== '' &&
-            (this.uploadType === 'folder' || (this.fileName && !this.fileNameError)) &&
-            this.localPath &&
-            this.backupTime &&
-            this.retentionDays > 0 &&
-            this.backupFrequency &&
-            (this.backupFrequency !== 'Weekly' || this.dayOfWeek) &&
-            (this.backupFrequency !== 'Monthly' || (this.dayOfMonth && this.dayOfMonth >= 1 && this.dayOfMonth <= 31))
-        );
-    }
-
     async onCreateSchedule() {
         if (!this.isScheduleFormValid()) {
-            this.message = 'Please fill all required fields correctly';
+            this.validationMessage = 'Please fill all required fields correctly';
             this.isSuccess = false;
             this.cdr.detectChanges();
             return;
@@ -411,6 +365,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         this.scheduling = true;
         this.message = '';
+        this.validationMessage = '';
 
         if (this.needsBackup === 'no') {
             await this.onUpload();
@@ -489,6 +444,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         this.isSchedulesLoading = true;
         this.message = '';
+        this.validationMessage = '';
         const url = `https://datakavach.com/isparxcloud/schedules?username=${encodeURIComponent(this.userSessionDetails.username)}`;
 
         try {
@@ -595,9 +551,17 @@ export class UploadComponent implements OnInit, OnDestroy {
             this.folderPath = this.selectedRootFolder;
             this.folderPathSegments = this.folderPath.split('/').filter(segment => segment);
             this.message = '';
+            this.validationMessage = '';
             this.folderContents = [];
             this.nextLink = '';
-            this.loadFolderContents(this.folderPath);
+            // Only load folder contents for Storage mode (needsBackup === 'no')
+            if (this.needsBackup === 'no' && !this.isCustomerUserType) {
+                this.loadFolderContents(this.folderPath);
+            } else {
+                // For Auto Backup or customer user type, do not load folder contents
+                this.isFolderContentsLoading = false;
+                this.cdr.detectChanges();
+            }
         } else {
             this.folderPath = '';
             this.folderPathSegments = [];
@@ -605,14 +569,22 @@ export class UploadComponent implements OnInit, OnDestroy {
             this.nextLink = '';
             this.message = 'No root folder selected';
             this.isSuccess = false;
+            this.cdr.detectChanges();
         }
-        this.cdr.detectChanges();
     }
 
     navigateToFolder(path: string): void {
+        // Prevent subfolder navigation for Auto Backup mode
+        if (this.needsBackup === 'yes') {
+            this.message = 'Subfolder navigation is not available in Auto Backup mode';
+            this.isSuccess = false;
+            this.cdr.detectChanges();
+            return;
+        }
         this.folderPath = path || 'root';
         this.folderPathSegments = this.folderPath === 'root' ? [] : this.folderPath.split('/').filter(segment => segment);
         this.message = '';
+        this.validationMessage = '';
         this.folderContents = [];
         this.nextLink = '';
         this.loadFolderContents(this.folderPath);
@@ -620,6 +592,13 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     selectSubFolder(folderName: string): void {
+        // Prevent subfolder navigation for Auto Backup mode
+        if (this.needsBackup === 'yes') {
+            this.message = 'Subfolder navigation is not available in Auto Backup mode';
+            this.isSuccess = false;
+            this.cdr.detectChanges();
+            return;
+        }
         if (!this.folderPath || this.folderPath === 'root') {
             this.folderPath = folderName;
         } else {
@@ -627,6 +606,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         }
         this.folderPathSegments = this.folderPath.split('/').filter(segment => segment);
         this.message = '';
+        this.validationMessage = '';
         this.folderContents = [];
         this.nextLink = '';
         this.loadFolderContents(this.folderPath);
@@ -637,6 +617,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.dayOfWeek = '';
         this.dayOfMonth = null;
         this.message = '';
+        this.validationMessage = '';
         this.cdr.detectChanges();
     }
 
@@ -653,12 +634,22 @@ export class UploadComponent implements OnInit, OnDestroy {
         const userType = this.userSessionDetails.userType;
         this.isFolderContentsLoading = true;
         this.message = '';
+        this.validationMessage = '';
 
         if (userType !== undefined && String(userType) === '8') {
             this.folderContents = [];
             this.nextLink = '';
             this.message = 'Subfolder navigation is not available for this user type.';
             this.isSuccess = false;
+            this.isFolderContentsLoading = false;
+            this.cdr.detectChanges();
+            return;
+        }
+
+        // Skip loading folder contents for Auto Backup mode
+        if (this.needsBackup === 'yes') {
+            this.folderContents = [];
+            this.nextLink = '';
             this.isFolderContentsLoading = false;
             this.cdr.detectChanges();
             return;
@@ -699,7 +690,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     async onUpload() {
         if (!this.userSessionDetails?.username || !this.folderPath || this.selectedFiles.length === 0) {
-            this.message = 'Please select a folder and at least one file or folder for upload';
+            this.validationMessage = 'Please select a folder and at least one file or folder for upload';
             this.isSuccess = false;
             this.uploading = false;
             this.cdr.detectChanges();
@@ -708,7 +699,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         const normalizedFolderPath = this.folderPath.replace(/^\/+|\/+$/g, '') || 'root';
         if (!normalizedFolderPath) {
-            this.message = 'Selected folder path is invalid';
+            this.validationMessage = 'Selected folder path is invalid';
             this.isSuccess = false;
             this.uploading = false;
             this.cdr.detectChanges();
@@ -724,6 +715,7 @@ export class UploadComponent implements OnInit, OnDestroy {
         this.totalChunks = 0;
         this.uploadedChunks = 0;
         this.message = this.uploadType === 'folder' ? 'Preparing folder structure for upload...' : 'Preparing files for upload...';
+        this.validationMessage = '';
         this.cdr.detectChanges();
 
         const limit = pLimit(this.CONCURRENCY_LIMIT);
@@ -734,14 +726,15 @@ export class UploadComponent implements OnInit, OnDestroy {
             const fileChunkCounts = new Map<string, { total: number; uploaded: number }>();
 
             // Initialize chunk counts and progress for each file
-            for (const { file, sanitizedFileName } of this.selectedFiles) {
+            for (let i = 0; i < this.selectedFiles.length; i++) {
+                const { file, sanitizedFileName }: { file: File; sanitizedFileName: string } = this.selectedFiles[i];
                 const rawFileName = this.fileName || sanitizedFileName;
                 fileChunkCounts.set(rawFileName, { total: 0, uploaded: 0 });
                 this.currentFileProgress[rawFileName] = 0;
             }
 
             for (let i = 0; i < this.selectedFiles.length; i++) {
-                const { file, sanitizedFileName } = this.selectedFiles[i];
+                const { file, sanitizedFileName }: { file: File; sanitizedFileName: string } = this.selectedFiles[i];
                 const rawFileName = this.fileName || sanitizedFileName;
 
                 uploadPromises.push(limit(async () => {
@@ -803,7 +796,6 @@ export class UploadComponent implements OnInit, OnDestroy {
                             this.uploadedChunks++;
                         }
 
-                        // Update progress only when all chunks of the file are uploaded
                         this.currentFileProgress[rawFileName] = 100;
                         this.uploadedFiles++;
                         this.overallProgress = Math.min(Math.round((this.uploadedFiles / this.totalFiles) * 100), 100);
@@ -833,17 +825,14 @@ export class UploadComponent implements OnInit, OnDestroy {
                 this.cdr.detectChanges();
             }
         } else {
-            // Batch processing for folder upload
             const topLevelFolder = this.fileName || 'uploaded_folder';
             const finalFolderPath = normalizedFolderPath ? `${normalizedFolderPath}/${this.sanitizeFileName(topLevelFolder)}` : this.sanitizeFileName(topLevelFolder);
 
-            // Split files into batches aligned with backend BATCH_SIZE
             const batches: FileWithPath[][] = [];
             for (let i = 0; i < this.selectedFiles.length; i += this.BATCH_SIZE) {
                 batches.push(this.selectedFiles.slice(i, i + this.BATCH_SIZE));
             }
 
-            // Initialize chunk counts for each file
             const fileChunkCounts = new Map<string, { total: number; uploaded: number; file?: File }>();
             this.selectedFiles.forEach(item => {
                 const key = `${item.sanitizedFileName}|${item.relativePath}`;
@@ -857,7 +846,6 @@ export class UploadComponent implements OnInit, OnDestroy {
             let totalFilesProcessed = 0;
             const batchErrors: string[] = [];
 
-            // Process each batch and start uploads immediately
             for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
                 const batch = batches[batchIndex];
                 await limit(async () => {
@@ -946,7 +934,6 @@ export class UploadComponent implements OnInit, OnDestroy {
                                         fileChunkCounts.get(key)!.uploaded = uploadedChunks;
                                     }
 
-                                    // Update progress only when all chunks of the file are uploaded
                                     this.currentFileProgress[key] = 100;
                                     this.uploadedFiles++;
                                     this.overallProgress = Math.min(Math.round((this.uploadedFiles / this.totalFiles) * 100), 100);
@@ -975,7 +962,6 @@ export class UploadComponent implements OnInit, OnDestroy {
                 });
             }
 
-            // Wait for all batches to complete
             for (let i = 0; i < this.CONCURRENCY_LIMIT; i++) {
                 await limit(() => Promise.resolve());
             }
@@ -1061,278 +1047,156 @@ export class UploadComponent implements OnInit, OnDestroy {
         const progressKey = this.uploadType === 'folder' ? `${fileName}|${presigned.relativePath}` : fileName;
 
         console.log(`Starting upload for ${fileName} (relativePath: ${presigned.relativePath || '.'}, chunkIndex: ${presigned.chunkIndex || 'single'})`);
-        console.log(`Presigned metadata:`, JSON.stringify(currentPresigned, null, 2));
-        console.log(`isChunked check:`, {
-            hasChunkIndex: !!currentPresigned.chunkIndex,
-            hasStartByte: !!currentPresigned.startByte,
-            hasEndByte: !!currentPresigned.endByte,
-            hasTotalSize: !!currentPresigned.totalSize,
-            hasSessionId: !!currentPresigned.sessionId,
-            fileSize: file.size,
-            uploadUrl: currentPresigned.uploadUrl,
-            totalChunks
-        });
 
-        isChunked =
-            currentPresigned.chunkIndex !== undefined &&
-            currentPresigned.startByte !== undefined &&
-            currentPresigned.endByte !== undefined &&
-            currentPresigned.totalSize !== undefined &&
-            currentPresigned.sessionId !== undefined;
+        if (presigned.chunkIndex && presigned.startByte && presigned.endByte && presigned.totalSize && presigned.sessionId) {
+            isChunked = true;
+            chunkMetadata = {
+                chunkIndex: parseInt(presigned.chunkIndex, 10),
+                startByte: parseInt(presigned.startByte, 10),
+                endByte: parseInt(presigned.endByte, 10),
+                totalSize: parseInt(presigned.totalSize, 10),
+                sessionId: presigned.sessionId
+            };
+        }
 
-        while (retries < maxRetries) {
+        while (retries <= maxRetries) {
             try {
-                let payload: Blob = file;
-                let contentRange = '';
-                let headers = new HttpHeaders({
-                    'Content-Type': file.type || 'application/octet-stream',
-                    ...(currentPresigned.sessionId && { 'x-ms-session-id': currentPresigned.sessionId })
-                });
-
-                if (isChunked) {
-                    chunkMetadata = {
-                        chunkIndex: parseInt(currentPresigned.chunkIndex!, 10),
-                        startByte: parseInt(currentPresigned.startByte!, 10),
-                        endByte: parseInt(currentPresigned.endByte!, 10),
-                        totalSize: parseInt(currentPresigned.totalSize!, 10),
-                        sessionId: currentPresigned.sessionId!
-                    };
-
-                    if (
-                        isNaN(chunkMetadata.chunkIndex) ||
-                        isNaN(chunkMetadata.startByte) ||
-                        isNaN(chunkMetadata.endByte) ||
-                        isNaN(chunkMetadata.totalSize)
-                    ) {
-                        throw new Error(`Invalid chunk metadata for ${fileName}: ${JSON.stringify(chunkMetadata)}`);
-                    }
-
-                    if (chunkMetadata.totalSize !== file.size) {
-                        throw new Error(
-                            `Chunk metadata mismatch for ${fileName}: expected totalSize=${file.size}, got ${chunkMetadata.totalSize}`
-                        );
-                    }
-
-                    if (
-                        chunkMetadata.startByte < 0 ||
-                        chunkMetadata.endByte < chunkMetadata.startByte ||
-                        chunkMetadata.endByte >= chunkMetadata.totalSize ||
-                        chunkMetadata.startByte >= chunkMetadata.totalSize
-                    ) {
-                        throw new Error(
-                            `Invalid chunk range for ${fileName}: startByte=${chunkMetadata.startByte}, endByte=${chunkMetadata.endByte}, totalSize=${chunkMetadata.totalSize}`
-                        );
-                    }
-
-                    const chunkSize = chunkMetadata.endByte - chunkMetadata.startByte + 1;
-                    if (chunkSize % this.CHUNK_SIZE_ALIGNMENT !== 0 && chunkMetadata.endByte + 1 !== chunkMetadata.totalSize) {
-                        console.warn(
-                            `Chunk size for ${fileName} (chunk ${chunkMetadata.chunkIndex}) is ${chunkSize} bytes, not aligned to 320KB (${this.CHUNK_SIZE_ALIGNMENT} bytes). Proceeding anyway.`
-                        );
-                    }
-
-                    payload = file.slice(chunkMetadata.startByte, chunkMetadata.endByte + 1);
-                    contentRange = `bytes ${chunkMetadata.startByte}-${chunkMetadata.endByte}/${chunkMetadata.totalSize}`;
-                    headers = headers.set('Content-Range', contentRange);
-
-                    console.log(`Chunked upload details:`, {
-                        chunkIndex: chunkMetadata.chunkIndex,
-                        contentRange,
-                        startByte: chunkMetadata.startByte,
-                        endByte: chunkMetadata.endByte,
-                        totalSize: chunkMetadata.totalSize,
-                        chunkSize,
-                        sessionId: chunkMetadata.sessionId
-                    });
-                } else {
-                    console.log(`Non-chunked upload for ${fileName}:`, { fileSize: file.size });
-                    if (currentPresigned.uploadUrl.includes('/uploadSession') && totalChunks === 1) {
-                        contentRange = `bytes 0-${file.size - 1}/${file.size}`;
-                        headers = headers.set('Content-Range', contentRange);
-                        console.log(`Single-chunk /uploadSession for ${fileName}:`, { contentRange });
-                    }
+                let fileSlice: Blob = file;
+                if (isChunked && chunkMetadata) {
+                    fileSlice = file.slice(chunkMetadata.startByte, chunkMetadata.endByte + 1);
                 }
 
-                let uploadSuccess = false;
-                await new Promise<void>((resolve, reject) => {
-                    const subscription = this.http.put(currentPresigned.uploadUrl, payload, {
-                        headers,
-                        reportProgress: true,
-                        observe: 'events'
-                    }).subscribe({
-                        next: (event: any) => {
-                            if (event.type === HttpEventType.UploadProgress && event.total) {
-                                // Optional: Log progress for debugging, but don't update UI here
-                                const chunkProgress = Math.round((event.loaded / event.total) * 100);
-                                console.log(`Upload progress for ${fileName} (chunk ${chunkMetadata?.chunkIndex || 'single'}): ${chunkProgress}%`);
-                            } else if (event.type === HttpEventType.Response) {
-                                console.log(
-                                    `OneDrive response for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}:`,
-                                    JSON.stringify(event.body, null, 2),
-                                    `Status: ${event.status}`
-                                );
-                                if (isChunked) {
-                                    if (event.status === 202) {
-                                        if (event.body && event.body.nextExpectedRanges) {
-                                            uploadSuccess = true;
-                                        } else {
-                                            throw new Error(`Invalid response for chunk ${chunkMetadata!.chunkIndex} of ${fileName}: Missing nextExpectedRanges`);
-                                        }
-                                    } else if (event.status === 201 || event.status === 200) {
-                                        if (chunkMetadata!.endByte + 1 === chunkMetadata!.totalSize) {
-                                            if (event.body && event.body.id && event.body.name) {
-                                                uploadSuccess = true;
-                                            } else {
-                                                throw new Error(`Final chunk for ${fileName} response missing file metadata: ${JSON.stringify(event.body)}`);
-                                            }
-                                        } else {
-                                            throw new Error(`Unexpected 201/200 status for non-final chunk ${chunkMetadata!.chunkIndex} of ${fileName}`);
-                                        }
-                                    } else {
-                                        throw new Error(`Unexpected status ${event.status} for chunk ${chunkMetadata!.chunkIndex} of ${fileName}`);
-                                    }
-                                } else {
-                                    if (event.status === 201 || event.status === 200) {
-                                        if (event.body && event.body.id && event.body.name) {
-                                            uploadSuccess = true;
-                                        } else {
-                                            throw new Error(`Non-chunked upload for ${fileName} response missing file metadata: ${JSON.stringify(event.body)}`);
-                                        }
-                                    } else {
-                                        throw new Error(`Unexpected status ${event.status} for non-chunked upload of ${fileName}`);
-                                    }
-                                }
-                            }
-                        },
-                        error: (err: any) => {
-                            let errorMessage = `Failed to upload ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}: ${err.status} ${err.statusText}`;
-                            if (err.error && err.error.error && err.error.error.message) {
-                                errorMessage += ` - ${err.error.error.message}`;
-                            }
-                            console.error('Upload error details:', JSON.stringify(err, null, 2));
-                            reject(new Error(errorMessage));
-                        },
-                        complete: () => {
-                            console.log(`Upload completed for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}`);
-                            resolve();
-                        }
-                    });
-                    this.subscriptions.push(subscription);
+                const headers = new HttpHeaders({
+                    'Content-Type': file.type || 'application/octet-stream'
                 });
 
-                if (uploadSuccess) {
-                    console.log(`Upload successful for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}`);
-                    fileChunkCounts.get(progressKey)!.uploaded++;
+                console.log(`Uploading ${isChunked ? `chunk ${chunkMetadata!.chunkIndex}` : 'file'} for ${fileName} to ${currentPresigned.uploadUrl}`);
+                const response = await lastValueFrom(this.http.put(currentPresigned.uploadUrl, fileSlice, {
+                    headers,
+                    reportProgress: true,
+                    observe: 'events'
+                }));
+
+                if (response.type === HttpEventType.UploadProgress && response.loaded && response.total) {
+                    const progress = Math.round((response.loaded / response.total) * 100);
+                    this.currentFileProgress[progressKey] = isChunked
+                        ? Math.round((fileChunkCounts.get(progressKey)!.uploaded / fileChunkCounts.get(progressKey)!.total) * 100)
+                        : progress;
+                    this.cdr.detectChanges();
+                }
+
+                if (response.type === HttpEventType.Response) {
+                    console.log(`Successfully uploaded ${isChunked ? `chunk ${chunkMetadata!.chunkIndex}` : 'file'} for ${fileName}`);
                     return true;
                 }
-                throw new Error(`Upload failed for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex}/${totalChunks})` : ''}`);
             } catch (err: any) {
-                if (retries < maxRetries - 1) {
-                    retries++;
-                    const retryAfter = err.status && [429, 503, 416, 409].includes(err.status)
-                        ? (err.headers?.get('Retry-After') ? parseInt(err.headers.get('Retry-After'), 10) * 1000 : 1000 * (2 ** retries))
-                        : 1000 * (2 ** retries);
-                    console.warn(`Retrying upload for ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''}, attempt ${retries + 1} after ${retryAfter}ms`);
+                retries++;
+                console.warn(`Upload attempt ${retries} failed for ${fileName} (relativePath: ${presigned.relativePath || '.'}, chunkIndex: ${presigned.chunkIndex || 'single'}):`, err);
 
-                    if (isChunked && (err.message.includes('eTag mismatch') || err.message.includes('Invalid chunk range') || err.status === 416 || err.status === 409)) {
-                        const newUrl = await this.refreshPresignedUrl(
+                if (retries <= maxRetries) {
+                    this.message = `Retrying upload for ${fileName} (Attempt ${retries + 1}/${maxRetries + 1})...`;
+                    this.cdr.detectChanges();
+
+                    if (isChunked && chunkMetadata) {
+                        const newPresigned = await this.refreshPresignedUrl(
                             file,
                             fileName,
                             normalizedFolderPath,
                             presigned.relativePath || '.',
-                            chunkMetadata!.chunkIndex,
-                            chunkMetadata!.startByte,
-                            chunkMetadata!.endByte,
-                            chunkMetadata!.totalSize
+                            chunkMetadata.chunkIndex,
+                            chunkMetadata.startByte,
+                            chunkMetadata.endByte,
+                            chunkMetadata.totalSize
                         );
-                        if (newUrl) {
-                            currentPresigned = newUrl;
-                            console.log(`Refreshed presigned URL for ${fileName} (chunk ${chunkMetadata!.chunkIndex}):`, newUrl.uploadUrl);
+                        if (newPresigned) {
+                            currentPresigned = newPresigned;
+                        } else {
+                            console.error(`Failed to refresh presigned URL for ${fileName} (chunk ${chunkMetadata.chunkIndex}) after ${retries} retries`);
+                            this.handleError(new Error(`Failed to refresh presigned URL for ${fileName} (chunk ${chunkMetadata.chunkIndex})`));
+                            return false;
                         }
                     }
-
-                    await new Promise(resolve => setTimeout(resolve, retryAfter));
+                    await new Promise(resolve => setTimeout(resolve, 1000 * retries));
                     continue;
                 }
-                const errorMessage = `Failed to upload ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''} after ${maxRetries} attempts: ${err.message || err}`;
-                this.handleError(new Error(errorMessage));
+
+                console.error(`Upload failed for ${fileName} (relativePath: ${presigned.relativePath || '.'}, chunkIndex: ${presigned.chunkIndex || 'single'}) after ${maxRetries} retries:`, err);
+                this.handleError(new Error(`Failed to upload ${fileName} (chunk ${isChunked ? chunkMetadata!.chunkIndex : 'unknown'}): ${err.message || err}`));
                 return false;
             }
         }
-        const finalError = `Failed to upload ${fileName}${isChunked ? ` (chunk ${chunkMetadata?.chunkIndex ?? 'unknown'}/${totalChunks})` : ''} after ${maxRetries} attempts`;
-        this.handleError(new Error(finalError));
+
         return false;
     }
 
     private getAuthHeaders(): HttpHeaders {
-        const token = this.userSessionDetails?.jwtToken || '';
         return new HttpHeaders({
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${this.userSessionDetails?.jwtToken || ''}`
         });
     }
 
-    private handleError(error: any) {
-        console.error('Error details:', error);
-        this.uploading = false;
-        this.scheduling = false;
-        this.isSuccess = false;
-        let errorMessage = 'An error occurred';
-        if (error.error && error.error.message) {
-            errorMessage = error.error.message;
-        } else if (error.message) {
-            errorMessage = error.message;
-        } else if (Array.isArray(error)) {
-            errorMessage = error.map((err: any) => err.error || err).join('; ');
-        }
-        this.message = errorMessage;
-        if (errorMessage.includes('/uploadSession') || errorMessage.includes('eTag mismatch') || errorMessage.includes('429')) {
-            this.message += '. The file(s) may have partially uploaded or hit a rate limit. Please check the destination folder in OneDrive and try again.';
-        }
-        this.isLoading = false;
-        const modal = new (window as any).bootstrap.Modal(document.getElementById('errorModal'));
-        modal.show();
-        this.cdr.detectChanges();
-    }
-
-    private handleSuccess(response: any) {
-        this.uploading = false;
-        this.scheduling = false;
+    private handleSuccess(message: string): void {
+        this.message = message;
         this.isSuccess = true;
-        this.message = typeof response === 'string' ? response : 'Operation completed successfully!';
-        const modal = new (window as any).bootstrap.Modal(document.getElementById('successModal'));
-        modal.show();
-        const currentNeedsBackup = this.needsBackup;
-        const currentFolderPath = this.folderPath;
-        const currentSelectedRootFolder = this.selectedRootFolder;
-        this.resetForm();
-        this.needsBackup = currentNeedsBackup;
-        this.folderPath = currentFolderPath;
-        this.selectedRootFolder = currentSelectedRootFolder;
-        this.folderPathSegments = this.folderPath ? this.folderPath.split('/') : [];
-        this.folderName = this.folderPath;
-        this.currentStep = 1; // Reset to first step after success
+        this.uploading = false;
+        this.scheduling = false;
+        this.validationMessage = '';
         this.cdr.detectChanges();
+        const modal = document.getElementById('successModal');
+        if (modal) {
+            (window as any).bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
     }
 
-    private resetForm() {
-        this.selectedFiles = [];
-        this.fileName = '';
-        this.localPath = '';
-        this.backupTime = '';
-        this.retentionDays = 7;
-        this.backupFrequency = 'Daily';
-        this.dayOfWeek = '';
-        this.dayOfMonth = null;
-        this.overallProgress = 0;
-        this.currentFileProgress = {};
-        this.currentFileIndex = 0;
-        this.totalFiles = 0;
-        this.uploadedFiles = 0;
-        this.totalChunks = 0;
-        this.uploadedChunks = 0;
-        this.message = '';
+    private handleError(err: Error): void {
+        this.message = err.message || 'An unexpected error occurred';
         this.isSuccess = false;
-        this.currentStep = 1; // Reset to first step
+        this.uploading = false;
+        this.scheduling = false;
+        this.validationMessage = '';
+        this.cdr.detectChanges();
+        const modal = document.getElementById('errorModal');
+        if (modal) {
+            (window as any).bootstrap.Modal.getOrCreateInstance(modal).show();
+        }
+    }
+
+    onFilesSelected(event: Event): void {
+        const input = event.target as HTMLInputElement;
+        if (!input.files || input.files.length === 0) {
+            this.selectedFiles = [];
+            this.message = 'No files selected';
+            this.isSuccess = false;
+            this.cdr.detectChanges();
+            return;
+        }
+
+        this.selectedFiles = [];
+        this.message = '';
+        this.validationMessage = '';
+        const files = Array.from(input.files);
+        const folderPathPrefix = this.uploadType === 'folder' ? files[0]?.webkitRelativePath?.split('/')[0] || '' : '';
+
+        for (const file of files) {
+            const sanitizedFileName = this.sanitizeFileName(file.name);
+            let relativePath = '.';
+            if (this.uploadType === 'folder') {
+                const fullPath = file.webkitRelativePath || file.name;
+                relativePath = fullPath.startsWith(folderPathPrefix)
+                    ? fullPath.substring(folderPathPrefix.length + 1) || '.'
+                    : fullPath;
+                relativePath = relativePath === file.name ? '.' : relativePath;
+            }
+
+            this.selectedFiles.push({
+                file,
+                relativePath,
+                sanitizedFileName
+            });
+        }
+
+        this.message = `${this.selectedFiles.length} ${this.uploadType === 'file' ? 'file(s)' : 'file(s) in folder'} selected`;
+        this.isSuccess = true;
         this.cdr.detectChanges();
     }
 
