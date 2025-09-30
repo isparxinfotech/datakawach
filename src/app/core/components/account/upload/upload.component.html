@@ -446,7 +446,7 @@
                   type="button"
                   (click)="onUpload()"
                   [disabled]="!folderPath || uploading || fileNameError || rootFolders.length === 0 || (needsBackup === 'no' && selectedFiles.length === 0)"
-                  class="px-8 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all duration-300 disabled:bg-gray-400 shadow-md hover:shadow-lg"
+                  class="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 disabled:bg-gray-400 shadow-md hover:shadow-lg"
                 >
                   {{ uploading ? 'Uploading...' + (message.includes('Retrying') ? ' (Retrying)' : '') : 'Upload ' + (uploadType === 'file' ? 'Files' : 'Folder') }}
                 </button>
@@ -546,7 +546,7 @@
                   {{ uploadType === 'file' ? selectedFiles.length + ' file(s) uploaded successfully' + (message.includes('chunk') ? ' (chunked upload completed)' : '') : 'Folder uploaded successfully with ' + selectedFiles.length + ' file(s)' }}
                 </div>
                 <div class="modal-footer bg-teal-50">
-                  <button type="button" class="btn bg-teal-600 text-white hover:bg-teal-700 rounded-lg px-6 py-2 shadow-md" data-bs-dismiss="modal">OK</button>
+                  <button type="button" class="btn bg-teal-600 text-blue hover:bg-teal-700 rounded-lg px-6 py-2 shadow-md" data-bs-dismiss="modal">OK</button>
                 </div>
               </div>
             </div>
@@ -566,7 +566,7 @@
                   <small *ngIf="message.includes('chunk')" class="block mt-2 text-sm">This may be related to a chunked upload. Check logs for details.</small>
                 </div>
                 <div class="modal-footer bg-red-50">
-                  <button type="button" class="btn bg-red-600 text-white hover:bg-red-700 rounded-lg px-6 py-2 shadow-md" data-bs-dismiss="modal">OK</button>
+                  <button type="button" class="btn bg-red-600 text-blue hover:bg-red-700 rounded-lg px-6 py-2 shadow-md" data-bs-dismiss="modal">OK</button>
                 </div>
               </div>
             </div>
