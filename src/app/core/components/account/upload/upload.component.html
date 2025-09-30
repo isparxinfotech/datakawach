@@ -241,6 +241,16 @@
             <!-- Step 3: File/Folder Details -->
             <div *ngIf="currentStep === 3" class="animate__animated animate__fadeIn">
               <div class="space-y-8">
+                <div>
+                  <label class="block text-blue-500 font-semibold mb-3 text-lg">Email</label>
+                  <input
+                    type="text"
+                    [value]="userSessionDetails.username"
+                    disabled
+                    class="w-full p-4 border border-blue-300 rounded-lg bg-blue-50 text-blue-500 shadow-md"
+                  >
+                </div>
+
                 <div *ngIf="uploadType === 'file'">
                   <label for="fileName" class="block text-blue-500 font-semibold mb-3 text-lg">File Name</label>
                   <input
@@ -263,7 +273,7 @@
                 <div>
                   <label for="fileInput" class="block text-blue-500 font-semibold mb-3 text-lg">
                     <i class="fas {{ uploadType === 'file' ? 'fa-file-upload' : 'fa-folder-open' }} mr-2 text-yellow-500"></i>
-                    Select {{ uploadType === 'file' ? 'Files' : 'Folder' }} {{ needsBackup === 'yes' ? '' : '(Required)' }}
+                    Select {{ uploadType === 'file' ? 'Files' : 'Folder' }} {{ needsBackup === 'yes' ? '(Optional for Initial Upload)' : '(Required)' }}
                   </label>
                   <input
                     type="file"
