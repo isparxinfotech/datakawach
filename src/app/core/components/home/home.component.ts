@@ -79,11 +79,6 @@ export class HomeComponent implements OnInit {
   ];
 
   pricingPlans = [
-    // {
-    //   name: 'Basic',
-    //   price: 'Free',
-    //   features: ['5GB Storage', 'Basic Security', 'Email Support']
-    // },
     {
       name: 'Professional',
       price: '₹19999/-Year',
@@ -102,6 +97,8 @@ export class HomeComponent implements OnInit {
     emailjs.init({
       publicKey: 'edjBReV-xD-W_FME5' // Replace with your EmailJS Public Key
     });
+    // Add event listener for keydown to block dev tools shortcuts
+    document.addEventListener('keydown', this.disableDevTools.bind(this));
   }
 
   toggleMenu(): void {
@@ -153,7 +150,6 @@ export class HomeComponent implements OnInit {
           this.contactData.companyEmail
         ];
         if (!requiredFields.every(field => field !== '' && field !== null && field !== undefined)) {
-          alert('Please fill all required company fields.');
           this.isSubmitting = false;
           return;
         }
@@ -172,7 +168,6 @@ export class HomeComponent implements OnInit {
           this.contactData.personalEmail
         ];
         if (!requiredFields.every(field => field !== '' && field !== null && field !== undefined)) {
-          alert('Please fill all required personal fields.');
           this.isSubmitting = false;
           return;
         }
@@ -182,24 +177,44 @@ export class HomeComponent implements OnInit {
           reply_to: this.contactData.personalEmail || ''
         };
       } else {
-        alert('Please select a form type (Company or Personal).');
         this.isSubmitting = false;
         return;
       }
 
-      // Log templateParams for debugging
-      console.log('Sending templateParams:', JSON.stringify(templateParams, null, 2));
-
       // Send email to admin
-      const response = await emailjs.send('service_f5r9z8d', 'template_3a36wjg', templateParams);
-      console.log('EmailJS response:', response);
-      alert('Form submitted successfully! You will receive a confirmation email.');
+      await emailjs.send('service_f5r9z8d', 'template_3a36wjg', templateParams);
       this.closeContactForm();
     } catch (error: any) {
-      console.error('Failed to send email:', error);
-      alert(`Failed to submit form: ${error.text || 'Unknown error'}. Please try again later.`);
+      // Handle error silently
     } finally {
       this.isSubmitting = false;
     }
+  }
+
+  disableRightClick(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  disableDevTools(event: KeyboardEvent): void {
+    // Block F12
+    if (event.key === 'F12') {
+      event.preventDefault();
+      return;
+    }
+
+    // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+    if (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'i' || event.key === 'J' || event.key === 'j')) {
+      event.preventDefault();
+      return;
+    }
+    if (event.ctrlKey && (event.key === 'U' || event.key === 'u')) {
+      event.preventDefault();
+      return;
+    }
+  }
+
+  // Clean up event listener when component is destroyed
+  ngOnDestroy(): void {
+    document.removeEventListener('keydown', this.disableDevTools.bind(this));
   }
 }

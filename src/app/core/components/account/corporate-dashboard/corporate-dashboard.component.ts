@@ -43,6 +43,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   loading: boolean = false;
   errorMessage: string = '';
   successMessage: string = '';
+  deleteSuccessMessage: string = '';
   totalSize: number = 0;
   totalStorage: number = 5_000_000_000_000; // 5 TB in bytes
   remainingStorage: number = this.totalStorage;
@@ -58,6 +59,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   selectedItem: OneDriveItem | null = null;
   shareLink: string = '';
   shareError: string = '';
+
+  showDeleteModal: boolean = false;
+  deleteError: string = '';
 
   searchQuery: string = '';
   sortBy: string = 'name';
@@ -99,6 +103,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     this.fetchTotalUsers();
+
+    // Add event listener for keydown to block dev tools shortcuts
+    document.addEventListener('keydown', this.disableDevTools.bind(this));
   }
 
   private fetchUserCreatedDateTime(): void {
@@ -108,14 +115,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       return;
     }
 
-    const url = `https://datakavach.com/isparxcloud/user-created-date?username=${encodeURIComponent(this.username)}`; // Update to https://api.datakavach.com/isparxcloud for production
+    const url = `https://datakavach.com/isparxcloud/user-created-date?username=${encodeURIComponent(this.username)}`;
 
     const sub = this.http.get<{ createdDateTime?: string }>(url, { headers: this.getAuthHeaders() })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.errorMessage = err.error?.error || 'Failed to fetch user created date time.';
-          console.error('Error fetching user created date time:', err);
           this.cdr.detectChanges();
           return throwError(() => new Error(this.errorMessage));
         })
@@ -169,6 +175,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.closeShareModal();
         });
       }
+      const deleteModalElement = document.getElementById('deleteModal');
+      if (deleteModalElement) {
+        deleteModalElement.addEventListener('hidden.bs.modal', () => {
+          this.closeDeleteModal();
+        });
+      }
       this.cdr.detectChanges();
     }, 0);
   }
@@ -186,8 +198,20 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.cdr.detectChanges();
   }
 
+  private showDeleteSuccessToast(message: string): void {
+    this.deleteSuccessMessage = message;
+    const toastElement = document.getElementById('deleteSuccessToast');
+    if (toastElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Toast) {
+        const toast = new bootstrap.Toast(toastElement);
+        toast.show();
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
   private initializeCharts(): void {
-    console.log('Attempting to initialize charts...');
     this.updateStorageChart();
     this.initFolderUsageChart();
   }
@@ -206,7 +230,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         catchError((err) => {
           this.errorMessage = 'Failed to fetch user count. Please try again later.';
           this.totalUsers = 0;
-          console.error('Error fetching user list:', err);
           this.cdr.detectChanges();
           return throwError(() => new Error(this.errorMessage));
         })
@@ -280,7 +303,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   downloadFolder(folderName: string): void {
     if (!this.username || !folderName) {
       this.errorMessage = 'Invalid folder or user email.';
-      console.error('Invalid parameters:', { folderName, username: this.username });
       this.cdr.detectChanges();
       return;
     }
@@ -290,9 +312,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.successMessage = '';
 
     const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
-    const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`; // Update to https://api.datakavach.com/isparxcloud for production
-
-    console.log(`Downloading folder: ${folderPath} (URL: ${url})`);
+    const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
     const sub = this.http
       .get(url, { headers: this.getAuthHeaders(), responseType: 'blob' })
@@ -309,7 +329,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             errorMessage = 'Server error. Please contact support.';
           }
           this.errorMessage = errorMessage;
-          console.error(`Failed to download folder "${folderPath}": ${errorMessage}`, err);
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
         })
@@ -319,7 +338,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           const blob = new Blob([response], { type: 'application/zip' });
           saveAs(blob, `${folderName}.zip`);
           this.successMessage = `Folder "${folderName}" downloaded successfully as ZIP.`;
-          console.log(`Folder "${folderName}" downloaded successfully as ZIP.`);
           this.loading = false;
           this.cdr.detectChanges();
         }
@@ -370,7 +388,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder);
-    const url = 'https://datakavach.com/isparxcloud/rename-folder'; // Update to https://api.datakavach.com/isparxcloud for production
+    const url = 'https://datakavach.com/isparxcloud/rename-folder';
 
     const requestBody = {
       username: this.username,
@@ -397,7 +415,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
           }
           this.renameError = errorMessage;
-          console.error(`Error renaming folder "${folderPath}" to "${this.newFolderName}": ${errorMessage}`, err);
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
         })
@@ -449,10 +466,92 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.cdr.detectChanges();
   }
 
+  openDeleteModal(item: OneDriveItem): void {
+    this.selectedItem = item;
+    this.deleteError = '';
+    this.successMessage = '';
+    this.deleteSuccessMessage = '';
+    this.showDeleteModal = true;
+    const modalElement = document.getElementById('deleteModal');
+    if (modalElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Modal) {
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
+  closeDeleteModal(): void {
+    this.showDeleteModal = false;
+    this.selectedItem = null;
+    this.deleteError = '';
+    const modalElement = document.getElementById('deleteModal');
+    if (modalElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Modal) {
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+          modal.hide();
+        }
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
+  deleteItem(): void {
+    if (!this.username || !this.selectedItem?.name) {
+      this.deleteError = 'Invalid item or user email.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    this.loading = true;
+    this.deleteError = '';
+    this.successMessage = '';
+    this.deleteSuccessMessage = '';
+
+    const itemPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${this.selectedItem.name}` : this.selectedItem.name);
+    const url = `https://datakavach.com/isparxcloud/delete-item?username=${encodeURIComponent(this.username)}&itemPath=${encodeURIComponent(itemPath)}&isFolder=${this.selectedItem.type === 'folder'}`;
+
+    const sub = this.http.delete<{ message?: string }>(url, { headers: this.getAuthHeaders() })
+      .pipe(
+        catchError((err) => {
+          this.loading = false;
+          let errorMessage = err.error?.error || `Failed to delete ${this.selectedItem?.type}. Please try again.`;
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+          } else if (err.status === 404) {
+            errorMessage = `${this.selectedItem?.type === 'folder' ? 'Folder' : 'File'} "${itemPath}" not found.`;
+          } else if (err.status === 400) {
+            errorMessage = err.error.error || 'Invalid request. Please check the item and try again.';
+          } else if (err.status === 500) {
+            errorMessage = 'Server error. Please contact support.';
+          }
+          this.deleteError = errorMessage;
+          this.cdr.detectChanges();
+          return throwError(() => new Error(errorMessage));
+        })
+      )
+      .subscribe({
+        next: (response) => {
+          const message = response.message || `${this.selectedItem?.type === 'folder' ? 'Folder' : 'File'} "${this.selectedItem?.name}" deleted successfully.`;
+          this.successMessage = message; // For alert
+          this.deleteSuccessMessage = message; // For toast
+          this.showDeleteSuccessToast(message);
+          this.closeDeleteModal();
+          this.loadFolderContents(this.currentPath);
+          this.loading = false;
+          this.cdr.detectChanges();
+        }
+      });
+    this.subscriptions.push(sub);
+  }
+
   generateShareLink(item: OneDriveItem): void {
     if (!this.username || !item.name) {
       this.shareError = 'Invalid item or user email.';
-      console.error('Invalid parameters:', { itemName: item.name, username: this.username });
       this.cdr.detectChanges();
       return;
     }
@@ -463,14 +562,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     const itemPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
     const endpoint = item.type === 'folder' ? 'share-folder' : 'share-file';
-    const url = `https://datakavach.com/isparxcloud/${endpoint}`; // Update to https://api.datakavach.com/isparxcloud for production
+    const url = `https://datakavach.com/isparxcloud/${endpoint}`;
 
     const requestBody = {
       username: this.username,
       folderPath: itemPath
     };
-
-    console.log(`Generating share link for: ${itemPath} (URL: ${url}, Type: ${item.type})`);
 
     const sub = this.http.post<{ shareLink: string }>(url, requestBody, { headers: this.getAuthHeaders() })
       .pipe(
@@ -487,7 +584,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             errorMessage = 'Server error. Please contact support.';
           }
           this.shareError = errorMessage;
-          console.error(`Failed to generate share link for "${itemPath}": ${errorMessage}`, err);
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
         })
@@ -496,14 +592,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         next: (response) => {
           if (!response.shareLink || !response.shareLink.includes('token=')) {
             this.shareError = 'Invalid share link received from server.';
-            console.error('Invalid share link:', response.shareLink);
             this.loading = false;
             this.cdr.detectChanges();
             return;
           }
           this.shareLink = response.shareLink; // Use backend-provided URL directly
           this.successMessage = `Share link for "${item.name}" generated successfully.`;
-          console.log(`Share link for "${item.name}" generated: ${this.shareLink}`);
           this.loading = false;
           this.cdr.detectChanges();
         }
@@ -539,18 +633,15 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
-    const url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`; // Update to https://api.datakavach.com/isparxcloud for production
-
-    console.log(`Fetching folder preview for: ${folderPath} (URL: ${url})`);
+    const url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
     const sub = this.http.get<{ contents?: OneDriveItem[] }>(url, { headers: this.getAuthHeaders() })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
-          console.error(`Failed to fetch preview for folder "${folderPath}":`, err);
           item.previewItems = [];
           item.previewError = err.status === 404 ? `Folder "${folderName}" not found.` : 'Failed to fetch folder preview.';
-          this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+          this.showPreviewToast(item.previewError);
           this.cdr.detectChanges();
           return throwError(() => new Error(item.previewError));
         })
@@ -564,9 +655,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             .map(i => {
               const filePath = this.normalizePath(`${folderPath}/${i.name}`);
               const previewUrl = this.isVideo(i)
-                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
-                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`; // Update to https://api.datakavach.com/isparxcloud for production
-              console.log(`Constructed preview URL for ${i.name}: ${previewUrl}`);
+                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`;
               return {
                 ...i,
                 previewUrl,
@@ -585,15 +675,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
                   retry({ count: 2, delay: 1000 }),
                   catchError((err) => {
                     previewItem.previewError = err.status === 404 ? `Video "${previewItem.name}" not found.` : 'Failed to verify video preview.';
-                    this.showPreviewToast(previewItem.previewError); // Safe: previewItem.previewError is set to a string
-                    console.error(`Preflight check failed for ${previewItem.name}:`, err);
+                    this.showPreviewToast(previewItem.previewError);
                     this.cdr.detectChanges();
                     return throwError(() => new Error(previewItem.previewError));
                   })
                 )
                 .subscribe({
                   next: () => {
-                    console.log(`Preflight check passed for ${previewItem.name}`);
                     if (index === 0 && item.isHovered) {
                       setTimeout(() => {
                         this.cdr.detectChanges(); // Ensure DOM is updated
@@ -612,9 +700,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             item.previewError = undefined;
           } else {
             item.previewError = item.previewItems.length > 0 ? item.previewItems[0].previewError : 'No previewable items in folder.';
-            this.showPreviewToast(item.previewError || 'No previewable items available.'); // Fallback to string
+            this.showPreviewToast(item.previewError || 'No previewable items available.');
           }
-          console.log(`Fetched preview items for ${folderName}:`, item.previewItems);
           this.cdr.detectChanges();
         }
       });
@@ -626,23 +713,18 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     item.isHovered = true;
     item.previewError = undefined;
 
-    console.log(`Hovering over item: ${item.name}, Type: ${item.type}, MIME: ${item.mimeType}, ID: ${item.id}`);
-
     if (item.type === 'folder') {
       this.fetchFolderPreview(item.name, item);
     } else if (this.isImage(item) || this.isVideo(item)) {
       const filePath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
-      console.log(`Constructing preview for ${item.name}: filePath=${filePath}, username=${this.username}`);
       item.previewDuration = this.isVideo(item) ? 5 : undefined;
       item.previewUrl = this.isVideo(item)
-        ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
-        : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`; // Update to https://api.datakavach.com/isparxcloud for production
-      console.log(`Preview URL for ${item.name}: ${item.previewUrl}`);
+        ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
+        : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`;
 
       if (!item.previewUrl) {
         item.previewError = 'No preview URL available.';
-        this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
-        console.warn(`No preview URL for ${item.name}`);
+        this.showPreviewToast(item.previewError);
         this.cdr.detectChanges();
         return;
       }
@@ -653,7 +735,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       // Perform preflight check for videos
       if (this.isVideo(item)) {
         const checkUrl = item.previewUrl;
-        console.log(`Performing preflight check for ${item.name} at URL: ${checkUrl}`);
         const sub = this.http.head(checkUrl, { headers: this.getAuthHeaders() })
           .pipe(
             retry({ count: 2, delay: 1000 }),
@@ -662,38 +743,26 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
                 ? `Video "${item.name}" not found at path "${filePath}".`
                 : `Failed to verify video preview for "${item.name}": ${err.message || 'Unknown error'}`;
               item.previewError = errorMessage;
-              this.showPreviewToast(errorMessage); // Safe: errorMessage is a string
-              console.error(`Preflight check failed for ${item.name}:`, {
-                status: err.status,
-                statusText: err.statusText,
-                url: err.url,
-                message: err.message,
-                filePath,
-                username: this.username
-              });
+              this.showPreviewToast(errorMessage);
               this.cdr.detectChanges();
               return throwError(() => new Error(errorMessage));
             })
           )
           .subscribe({
             next: () => {
-              console.log(`Preflight check passed for ${item.name}`);
               // Ensure previewUrl and video element are available
               setTimeout(() => {
                 if (!item.previewUrl) {
-                  console.warn(`Preview URL is undefined for ${item.name} after preflight check`);
                   item.previewError = 'Preview URL lost after preflight check.';
-                  this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+                  this.showPreviewToast(item.previewError);
                   this.cdr.detectChanges();
                   return;
                 }
                 const videoSelector = `#video-preview-${item.id}`;
                 const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
-                console.log(`Checking video element for ${item.name}: Selector=${videoSelector}, Found=${!!videoElement}`);
                 if (!videoElement) {
-                  console.warn(`Video element not found for ${item.name} with selector: ${videoSelector}`);
                   item.previewError = 'Video element not found for preview.';
-                  this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
+                  this.showPreviewToast(item.previewError);
                   this.cdr.detectChanges();
                   return;
                 }
@@ -705,8 +774,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       }
     } else {
       item.previewError = 'No preview available for this file type.';
-      this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
-      console.warn(`No preview for ${item.name}: Unsupported type or missing MIME type`);
+      this.showPreviewToast(item.previewError);
       this.cdr.detectChanges();
     }
   }
@@ -744,20 +812,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       ? item.previewItems[index].previewUrl
       : item.previewUrl;
 
-    console.log(`Attempting to play video for ${item.name} with selector: ${videoSelector}, Element found: ${!!videoElement}, URL: ${previewUrl}`);
-
     if (!previewUrl) {
       item.previewError = 'No video preview URL available.';
-      this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
-      console.warn(`No preview URL for ${item.name}`);
+      this.showPreviewToast(item.previewError);
       this.cdr.detectChanges();
       return;
     }
 
     if (!videoElement) {
       item.previewError = 'Video element not found.';
-      this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
-      console.warn(`Video element not found for ${item.name} with selector: ${videoSelector}`);
+      this.showPreviewToast(item.previewError);
       this.cdr.detectChanges();
       return;
     }
@@ -768,16 +832,14 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     videoElement.load(); // Force reload to ensure src is applied
     videoElement.play().catch(err => {
       item.previewError = err.status === 404 ? `Video "${item.name}" not found.` : `Failed to play video preview: ${err.message || 'Unknown error'}`;
-      this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
-      console.error(`Failed to play video preview for ${item.name}:`, err);
+      this.showPreviewToast(item.previewError);
       this.cdr.detectChanges();
       setTimeout(() => {
         videoElement.src = previewUrl; // Reassign src for retry
         videoElement.load();
         videoElement.play().catch(err2 => {
           item.previewError = `Video playback failed after retry: ${err2.message || 'Unknown error'}`;
-          this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
-          console.error(`Retry failed for ${item.name}:`, err2);
+          this.showPreviewToast(item.previewError);
           this.cdr.detectChanges();
         });
       }, 50);
@@ -819,16 +881,15 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.loading = true;
     this.errorMessage = '';
     this.successMessage = '';
+    this.deleteSuccessMessage = '';
     this.oneDriveContents = [];
     this.filteredContents = [];
     this.totalSize = 0;
 
     const normalizedFolderPath = this.normalizePath(folderPath);
     const url = normalizedFolderPath
-      ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}` // Update to https://api.datakavach.com/isparxcloud for production
-      : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`; // Update to https://api.datakavach.com/isparxcloud for production
-
-    console.log(`Loading contents for folder path: ${normalizedFolderPath || 'root'} (URL: ${url})`);
+      ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}`
+      : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
 
     const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(url, { headers: this.getAuthHeaders() })
       .pipe(
@@ -844,314 +905,58 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
           }
           this.errorMessage = errorMessage;
-          console.error(`Error loading folder contents: ${errorMessage}`, err);
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
         })
       )
       .subscribe({
         next: (response) => {
-          console.log('Raw API response:', response);
-          let items: OneDriveItem[] = [];
-          if (normalizedFolderPath) {
-            items = response.contents || [];
-          } else {
-            items = response.folders || [];
-          }
+          this.oneDriveContents = (response.contents || response.folders || []).map(item => ({
+            ...item,
+            type: item.type || (item.mimeType ? 'file' : 'folder'),
+            isHovered: false,
+            previewUrl: undefined,
+            previewItems: item.type === 'folder' ? [] : undefined,
+            previewError: undefined
+          }));
 
-          if (!Array.isArray(items)) {
-            this.errorMessage = `Invalid response format from server. Expected an array of items.`;
-            console.error('Invalid response:', response);
-            this.loading = false;
-            this.oneDriveContents = [];
-            this.cdr.detectChanges();
-            return;
-          }
-
-          this.oneDriveContents = items.map(item => {
-            const filePath = this.normalizePath(normalizedFolderPath ? `${normalizedFolderPath}/${item.name}` : item.name);
-            const thumbnailUrl = (this.isImage(item) || this.isVideo(item))
-              ? this.isVideo(item)
-                ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
-                : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
-              : undefined;
-            console.log(`Constructed thumbnail URL for ${item.name}: ${thumbnailUrl}`);
-            return {
-              name: item.name || 'Unknown',
-              id: item.id || 'N/A',
-              size: item.size || 0,
-              type: item.type || 'folder',
-              downloadUrl: item.downloadUrl,
-              thumbnailUrl,
-              mimeType: item.mimeType,
-              isHovered: false,
-              previewUrl: undefined,
-              previewDuration: this.isVideo(item) ? 5 : undefined,
-              previewItems: [],
-              previewError: undefined
-            };
-          });
-          console.log('Mapped oneDriveContents:', this.oneDriveContents);
+          // Calculate total size
           this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
           this.remainingStorage = this.totalStorage - this.totalSize;
+
+          // Initialize filtered contents
           this.filteredContents = [...this.oneDriveContents];
           this.sortContents();
-          this.loading = false;
+          this.filterContents();
+
+          // Update charts
           this.updateStorageChart();
           this.initFolderUsageChart();
-          if (this.oneDriveContents.length === 0) {
-            this.errorMessage = `No items found in ${normalizedFolderPath || 'root'}.`;
-          }
 
-          this.nextLink = '';
-          if (response.nextLink) {
-            const baseUrl = normalizedFolderPath
-              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}` // Update to https://api.datakavach.com/isparxcloud for production
-              : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`; // Update to https://api.datakavach.com/isparxcloud for production
-            this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
-          }
+          // Handle pagination
+          this.nextLink = response.nextLink || '';
 
+          this.loading = false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.loading = false;
           this.cdr.detectChanges();
         }
       });
     this.subscriptions.push(sub);
-  }
-
-  loadMoreContents(): void {
-    if (!this.nextLink || this.loading) {
-      return;
-    }
-
-    this.loading = true;
-    this.errorMessage = '';
-    this.successMessage = '';
-
-    const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(this.nextLink, { headers: this.getAuthHeaders() })
-      .pipe(
-        catchError((err) => {
-          this.loading = false;
-          let errorMessage = err.error?.error || 'Failed to load more contents. Please try again.';
-          if (err.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again.';
-          } else if (err.status === 404) {
-            errorMessage = `No more contents available.`;
-          }
-          this.errorMessage = errorMessage;
-          console.error(`Error loading more contents: ${errorMessage}`, err);
-          this.cdr.detectChanges();
-          return throwError(() => new Error(errorMessage));
-        })
-      )
-      .subscribe({
-        next: (response) => {
-          console.log('Raw API response for more contents:', response);
-          let items: OneDriveItem[] = response.contents || response.folders || [];
-
-          if (!Array.isArray(items)) {
-            this.errorMessage = `Invalid response format from server. Expected an array of items.`;
-            console.error('Invalid response:', response);
-            this.loading = false;
-            this.cdr.detectChanges();
-            return;
-          }
-
-          const newItems = items.map(item => {
-            const filePath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
-            return {
-              name: item.name || 'Unknown',
-              id: item.id || 'N/A',
-              size: item.size || 0,
-              type: item.type || 'folder',
-              downloadUrl: item.downloadUrl,
-              thumbnailUrl: (this.isImage(item) || this.isVideo(item))
-                ? this.isVideo(item)
-                  ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
-                  : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}` // Update to https://api.datakavach.com/isparxcloud for production
-                : undefined,
-              mimeType: item.mimeType,
-              isHovered: false,
-              previewUrl: undefined,
-              previewDuration: this.isVideo(item) ? 5 : undefined,
-              previewItems: [],
-              previewError: undefined
-            };
-          });
-
-          this.oneDriveContents = [...this.oneDriveContents, ...newItems];
-          this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
-          this.remainingStorage = this.totalStorage - this.totalSize;
-          this.filteredContents = [...this.oneDriveContents];
-          this.sortContents();
-          this.loading = false;
-          this.updateStorageChart();
-          this.initFolderUsageChart();
-          console.log('Loaded more contents:', newItems);
-
-          this.nextLink = '';
-          if (response.nextLink) {
-            const baseUrl = this.currentPath
-              ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(this.currentPath)}` // Update to https://api.datakavach.com/isparxcloud for production
-              : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`; // Update to https://api.datakavach.com/isparxcloud for production
-            this.nextLink = `${baseUrl}&nextLink=${encodeURIComponent(response.nextLink)}`;
-          }
-
-          this.cdr.detectChanges();
-        }
-      });
-    this.subscriptions.push(sub);
-  }
-
-  updateStorageChart(): void {
-    const ctx = document.getElementById('storageChart') as HTMLCanvasElement;
-    if (!ctx) {
-      console.error('Storage chart canvas not found');
-      return;
-    }
-
-    if (this.storageChart) {
-      this.storageChart.destroy();
-    }
-
-    try {
-      this.storageChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Used Storage', 'Remaining Storage'],
-          datasets: [{
-            data: [this.totalSize, this.remainingStorage],
-            backgroundColor: this.isBlackAndWhiteTheme ? ['#666', '#ccc'] : ['#007bff', '#e9ecef'],
-            borderColor: this.isBlackAndWhiteTheme ? ['#333', '#999'] : ['#0056b3', '#ced4da'],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: {
-                font: {
-                  size: 12,
-                  weight: 'bold'
-                },
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
-              }
-            },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  const label = context.label || '';
-                  const value = context.raw as number;
-                  return `${label}: ${this.formatSize(value)}`;
-                }
-              }
-            }
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Error initializing storage chart:', error);
-    }
-  }
-
-  initFolderUsageChart(): void {
-    const ctx = document.getElementById('folderUsageChart') as HTMLCanvasElement;
-    if (!ctx) {
-      console.error('Folder usage chart canvas not found');
-      return;
-    }
-
-    if (this.folderUsageChart) {
-      this.folderUsageChart.destroy();
-    }
-
-    const folders = this.filteredContents.filter(item => item.type === 'folder');
-    const folderNames = folders.map(folder => folder.name);
-    const folderSizes = folders.map(folder => folder.size / (1024 * 1024));
-
-    try {
-      this.folderUsageChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: folderNames,
-          datasets: [{
-            label: 'Storage Used (MB)',
-            data: folderSizes,
-            backgroundColor: this.isBlackAndWhiteTheme ? ['#666'] : ['#007bff'],
-            borderColor: this.isBlackAndWhiteTheme ? ['#333'] : ['#0056b3'],
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Storage (MB)',
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
-              },
-              ticks: {
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
-              },
-              grid: {
-                color: this.isBlackAndWhiteTheme ? '#ccc' : '#e9ecef'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Folders',
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
-              },
-              ticks: {
-                color: this.isBlackAndWhiteTheme ? '#333' : '#1e293b'
-              },
-              grid: {
-                display: false
-              }
-            }
-          },
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              callbacks: {
-                label: (context) => {
-                  return `${context.raw} MB`;
-                }
-              }
-            }
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Error initializing folder usage chart:', error);
-    }
-  }
-
-  hasFolders(): boolean {
-    return this.filteredContents.some(item => item.type === 'folder');
-  }
-
-  formatSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
   filterContents(): void {
-    this.filteredContents = this.oneDriveContents.filter(item =>
-      item.name.toLowerCase().includes(this.searchQuery.toLowerCase())
-    );
+    if (!this.searchQuery.trim()) {
+      this.filteredContents = [...this.oneDriveContents];
+    } else {
+      const query = this.searchQuery.toLowerCase().trim();
+      this.filteredContents = this.oneDriveContents.filter(item =>
+        item.name.toLowerCase().includes(query)
+      );
+    }
     this.sortContents();
-    this.initFolderUsageChart();
     this.cdr.detectChanges();
   }
 
@@ -1162,30 +967,236 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       } else if (this.sortBy === 'type') {
         return a.type.localeCompare(b.type);
       } else if (this.sortBy === 'size') {
-        return a.size - b.size;
+        return (b.size || 0) - (a.size || 0);
       }
       return 0;
     });
-    this.initFolderUsageChart();
+    this.cdr.detectChanges();
+  }
+
+  formatSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  hasFolders(): boolean {
+    return this.filteredContents.some(item => item.type === 'folder');
+  }
+
+  updateStorageChart(): void {
+    const canvas = document.getElementById('storageChart') as HTMLCanvasElement;
+    if (!canvas) {
+      return;
+    }
+
+    if (this.storageChart) {
+      this.storageChart.destroy();
+    }
+
+    const colors = this.isBlackAndWhiteTheme
+      ? ['#333333', '#cccccc']
+      : ['#007bff', '#e9ecef'];
+
+    this.storageChart = new Chart<'doughnut', number[], string>(canvas, {
+      type: 'doughnut',
+      data: {
+        labels: ['Used', 'Free'],
+        datasets: [{
+          data: [this.totalSize, this.remainingStorage],
+          backgroundColor: colors,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
+            }
+          },
+          title: {
+            display: true,
+            text: 'Storage Usage',
+            color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
+          }
+        }
+      }
+    });
+    this.cdr.detectChanges();
+  }
+
+  initFolderUsageChart(): void {
+    const canvas = document.getElementById('folderUsageChart') as HTMLCanvasElement;
+    if (!canvas) {
+      return;
+    }
+
+    if (this.folderUsageChart) {
+      this.folderUsageChart.destroy();
+    }
+
+    const folders = this.filteredContents.filter(item => item.type === 'folder');
+    const labels = folders.map(item => item.name);
+    const data = folders.map(item => item.size || 0);
+    const colors = this.isBlackAndWhiteTheme
+      ? ['#333333', '#555555', '#777777', '#999999', '#bbbbbb']
+      : ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8'];
+
+    this.folderUsageChart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Folder Size',
+          data,
+          backgroundColor: colors.slice(0, labels.length),
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Size (Bytes)',
+              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
+            },
+            ticks: {
+              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
+            }
+          },
+          x: {
+            title: {
+              display: true,
+              text: 'Folders',
+              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
+            },
+            ticks: {
+              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          title: {
+            display: true,
+            text: 'Folder Usage',
+            color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
+          }
+        }
+      }
+    });
     this.cdr.detectChanges();
   }
 
   onImgError(event: Event, item: OneDriveItem): void {
-    console.error(`Failed to load preview for ${item.name} (${item.type}) at URL: ${item.previewUrl}`, event);
-    item.previewError = 'Failed to load image preview.';
-    this.showPreviewToast(item.previewError); // Safe: item.previewError is set to a string
-    const imgElement = event.target as HTMLImageElement;
-    imgElement.style.display = 'none';
+    item.previewError = `Failed to load preview for "${item.name}".`;
+    this.showPreviewToast(item.previewError);
     this.cdr.detectChanges();
   }
 
+  disableRightClick(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  disableDevTools(event: KeyboardEvent): void {
+    // Block F12
+    if (event.key === 'F12') {
+      event.preventDefault();
+      return;
+    }
+    // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+    if (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'i' || event.key === 'J' || event.key === 'j')) {
+      event.preventDefault();
+      return;
+    }
+    if (event.ctrlKey && (event.key === 'U' || event.key === 'u')) {
+      event.preventDefault();
+      return;
+    }
+  }
+
   ngOnDestroy(): void {
-    this.subscriptions.forEach(sub => sub.unsubscribe());
+    // Clean up charts
     if (this.storageChart) {
       this.storageChart.destroy();
     }
     if (this.folderUsageChart) {
       this.folderUsageChart.destroy();
     }
+
+    // Unsubscribe from all HTTP subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+
+    // Clean up modal event listeners
+    const renameModalElement = document.getElementById('renameModal');
+    if (renameModalElement) {
+      renameModalElement.removeEventListener('hidden.bs.modal', () => {
+        this.closeRenameModal();
+      });
+    }
+    const shareModalElement = document.getElementById('shareModal');
+    if (shareModalElement) {
+      shareModalElement.removeEventListener('hidden.bs.modal', () => {
+        this.closeShareModal();
+      });
+    }
+    const deleteModalElement = document.getElementById('deleteModal');
+    if (deleteModalElement) {
+      deleteModalElement.removeEventListener('hidden.bs.modal', () => {
+        this.closeDeleteModal();
+      });
+    }
+
+    // Clean up toasts
+    const previewToastElement = document.getElementById('previewToast');
+    if (previewToastElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Toast) {
+        const toast = bootstrap.Toast.getInstance(previewToastElement);
+        if (toast) {
+          toast.dispose();
+        }
+      }
+    }
+    const deleteSuccessToastElement = document.getElementById('deleteSuccessToast');
+    if (deleteSuccessToastElement) {
+      const bootstrap = (window as any).bootstrap;
+      if (bootstrap && bootstrap.Toast) {
+        const toast = bootstrap.Toast.getInstance(deleteSuccessToastElement);
+        if (toast) {
+          toast.dispose();
+        }
+      }
+    }
+
+    // Clean up any active video elements
+    this.oneDriveContents.forEach(item => {
+      if (item.isHovered && (this.isVideo(item) || (item.type === 'folder' && item.previewItems?.some(i => this.isVideo(i))))) {
+        const videoSelector = item.type === 'folder' && item.previewItems?.length
+          ? `#video-preview-${item.id}-0`
+          : `#video-preview-${item.id}`;
+        const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
+        if (videoElement) {
+          videoElement.pause();
+          videoElement.currentTime = 0;
+          videoElement.src = '';
+        }
+      }
+    });
+
+    // Remove keydown event listener
+    document.removeEventListener('keydown', this.disableDevTools.bind(this));
   }
 }

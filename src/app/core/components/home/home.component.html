@@ -1,4 +1,4 @@
-<div class="home-container">
+<div class="home-container" (contextmenu)="disableRightClick($event)">
   <header class="navbar">
     <div class="logo">Datakavach</div>
     <nav [ngClass]="{'open': isMenuOpen}">

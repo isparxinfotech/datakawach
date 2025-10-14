@@ -71,8 +71,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   constructor(private authService: AuthService, private http: HttpClient) {}
 
   ngOnInit(): void {
-    console.log('Raw session storage:', localStorage.getItem('userDetails'));
-
     // Clear stale session data
     localStorage.removeItem('userDetails');
     localStorage.removeItem('jwtToken');
@@ -80,7 +78,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
 
     if (!this.userSessionDetails) {
-      console.warn('No user session found. Fetching user details.');
       this.oneDriveErrorMessage = 'User session not found. Please log in again.';
       this.fetchUserDetails();
       return;
@@ -89,7 +86,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     const { username, cloudProvider, retentionNeeded, userType } = this.userSessionDetails;
 
     if (!username || !cloudProvider) {
-      console.error('User session details incomplete:', this.userSessionDetails);
       this.oneDriveErrorMessage = 'Session details incomplete. Fetching user details.';
       this.fetchUserDetails();
       return;
@@ -98,28 +94,27 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.email = username;
     this.cloudProvider = cloudProvider.toLowerCase();
     this.retentionNeeded = retentionNeeded !== undefined ? retentionNeeded : null;
-    console.log('Initial retention needed:', this.retentionNeeded);
 
     // Fetch user details to get creatorEmail and confirm retentionNeeded
     this.fetchUserDetails();
+
+    // Add event listener for keydown to block dev tools shortcuts
+    document.addEventListener('keydown', this.disableDevTools.bind(this));
   }
 
   private fetchUserDetails(): void {
     if (!this.email) {
-      console.warn('No email available for fetching user details');
       this.oneDriveErrorMessage = 'User email not found. Please log in again.';
       return;
     }
 
     const url = `https://datakavach.com/api/auth/users/current?email=${encodeURIComponent(this.email)}`;
-    console.log('Fetching user details from:', url);
 
     this.http
       .get<userSessionDetails & { createdBy?: string }>(url, { headers: this.getAuthHeaders() })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
-          console.error('Error fetching user details:', err);
           let errorMessage = 'Failed to fetch user details. Please try again later.';
           if (err.status === 401) {
             errorMessage = 'Unauthorized: Invalid or missing token. Please log in again.';
@@ -136,17 +131,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (userDetails) => {
-          console.log('Fetched user details:', userDetails);
           this.userSessionDetails = userDetails;
           this.retentionNeeded = userDetails.retentionNeeded !== undefined ? userDetails.retentionNeeded : null;
           this.cloudProvider = userDetails.cloudProvider?.toLowerCase() || '';
           this.email = userDetails.username || this.email;
           this.creatorEmail = userDetails.createdBy || '';
-          console.log('Updated details:', {
-            retentionNeeded: this.retentionNeeded,
-            creatorEmail: this.creatorEmail,
-            userType: userDetails.userType
-          });
 
           // Update local storage
           localStorage.setItem('userDetails', JSON.stringify(userDetails));
@@ -161,7 +150,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             } else if (this.cloudProvider === 'onedrive') {
               this.listRootFolders();
             } else {
-              console.warn('Unsupported cloud provider:', this.cloudProvider);
               this.oneDriveErrorMessage = `Unsupported cloud provider: ${this.cloudProvider}`;
             }
           }
@@ -171,11 +159,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
   private getAuthHeaders(): HttpHeaders {
     const token = this.userSessionDetails?.jwtToken || localStorage.getItem('jwtToken') || '';
-    if (!token) {
-      console.error('No JWT token found in userSessionDetails or localStorage');
-    } else {
-      console.log('Using JWT token:', token);
-    }
     return new HttpHeaders({
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -224,12 +207,10 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   loadOneDriveFolders(): void {
     if (!this.email) {
       this.oneDriveErrorMessage = 'User email is missing. Please log in again.';
-      console.error('No email available for folder fetch');
       return;
     }
 
     if (this.foldersLoaded) {
-      console.log('Folders already loaded:', this.oneDriveFolders);
       return;
     }
 
@@ -247,7 +228,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     }
 
     const url = `https://datakavach.com/isparxcloud/${endpoint}?username=${encodeURIComponent(this.email)}`;
-    console.log(`Fetching OneDrive folders using ${endpoint} API:`, { url, email: this.email, retentionNeeded: this.retentionNeeded, userType });
 
     this.folderSubscription = this.http
       .get<any>(url, {
@@ -270,20 +250,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             errorMessage = 'Network or CORS error. Please check your connection.';
           }
           this.oneDriveErrorMessage = err.error?.error || errorMessage;
-          console.error(`OneDrive ${endpoint} error:`, {
-            status: err.status,
-            statusText: err.statusText,
-            url: err.url,
-            message: err.message,
-            error: err.error,
-            email: this.email
-          });
           return throwError(() => new Error(this.oneDriveErrorMessage));
         })
       )
       .subscribe({
         next: (response) => {
-          console.log(`Raw response from /${endpoint}:`, JSON.stringify(response, null, 2));
           try {
             if (endpoint === 'customer-folder') {
               // Handle customer-folder response: { folder: string }
@@ -323,15 +294,10 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
               this.foldersLoaded = true;
             }
           } catch (parseError: any) {
-            console.error(`Error parsing /${endpoint} response:`, {
-              error: parseError.message,
-              response: JSON.stringify(response, null, 2)
-            });
             this.oneDriveErrorMessage = `Invalid server response from OneDrive ${endpoint}.`;
             this.oneDriveFolders = [];
           }
           this.loadingOneDrive = false;
-          console.log('OneDrive folders loaded:', this.oneDriveFolders);
         }
       });
   }
@@ -339,14 +305,12 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   listOneDriveContents(): void {
     if (!this.email || !this.folderName) {
       this.oneDriveErrorMessage = 'Please select a folder from the dropdown.';
-      console.error('Missing parameters:', { email: this.email, folderName: this.folderName });
       return;
     }
 
     const isValidFolder = this.oneDriveFolders.some((folder) => folder.name === this.folderName);
     if (!isValidFolder) {
       this.oneDriveErrorMessage = `Invalid folder selected: "${this.folderName}".`;
-      console.error('Invalid folderName:', this.folderName);
       return;
     }
 
@@ -358,7 +322,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   private loadFolderContents(folderPath: string): void {
     if (!this.email) {
       this.oneDriveErrorMessage = 'User email is missing. Please log in again.';
-      console.error('No email available for folder contents fetch');
       return;
     }
 
@@ -370,8 +333,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     const url = folderPath
       ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=${encodedFolderPath}`
       : `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=root`;
-
-    console.log('Fetching OneDrive contents:', { url, email: this.email, folderPath });
 
     this.contentsSubscription = this.http
       .get<{ contents: OneDriveContent[]; nextLink: string }>(url, {
@@ -394,21 +355,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             errorMessage = 'Network or CORS error. Please check your connection.';
           }
           this.oneDriveErrorMessage = err.error?.error || errorMessage;
-          console.error('OneDrive contents error:', {
-            status: err.status,
-            statusText: err.statusText,
-            url: err.url,
-            message: err.message,
-            error: err.error,
-            email: this.email,
-            folderPath
-          });
           return throwError(() => new Error(this.oneDriveErrorMessage));
         })
       )
       .subscribe({
         next: (response) => {
-          console.log('Raw response from /folder-contents:', JSON.stringify(response, null, 2));
           try {
             if (!response || typeof response !== 'object' || !Array.isArray(response.contents)) {
               throw new Error('Invalid response format: Expected { contents: [{ name, type, id, size, downloadUrl? }], nextLink: string }');
@@ -421,24 +372,16 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
                 size: item.size !== undefined ? item.size : undefined,
                 downloadUrl: item.downloadUrl || ''
               };
-              if (item.type === 'file' && !item.downloadUrl) {
-                console.warn(`Missing downloadUrl for file: ${item.name}`);
-              }
               return content;
             });
             if (this.oneDriveContents.length === 0) {
               this.oneDriveErrorMessage = `No contents found in "${folderPath || 'root'}" for "${this.email}".`;
             }
           } catch (parseError: any) {
-            console.error('Error parsing /folder-contents response:', {
-              error: parseError.message,
-              response: JSON.stringify(response, null, 2)
-            });
             this.oneDriveErrorMessage = 'Invalid server response from OneDrive.';
             this.oneDriveContents = [];
           }
           this.loadingOneDrive = false;
-          console.log('OneDrive contents loaded:', this.oneDriveContents);
         }
       });
   }
@@ -446,13 +389,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   generateOtp(): void {
     if (!this.email) {
       this.oneDriveErrorMessage = 'User email is missing. Please log in again.';
-      console.error('No email available for OTP generation');
       return;
     }
 
     this.otpErrorMessage = '';
     const url = `https://datakavach.com/isparxcloud/generate-otp?username=${encodeURIComponent(this.email)}`;
-    console.log('Generating OTP:', { url, email: this.email, creatorEmail: this.creatorEmail });
 
     this.http
       .post<{ message: string }>(url, {}, { headers: this.getAuthHeaders() })
@@ -465,17 +406,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             errorMessage = 'Server error generating OTP. Please try again later.';
           }
           this.otpErrorMessage = err.error?.error || errorMessage;
-          console.error('OTP generation error:', {
-            status: err.status,
-            error: err.error,
-            creatorEmail: this.creatorEmail
-          });
           return throwError(() => new Error(this.otpErrorMessage));
         })
       )
       .subscribe({
         next: (response) => {
-          console.log('OTP generated:', response);
           this.otpErrorMessage = this.creatorEmail
             ? `OTP sent to creator's email (${this.creatorEmail}). Please check and enter the OTP.`
             : 'OTP sent to creator\'s email. Please check and enter the OTP.';
@@ -486,19 +421,16 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   verifyOtpAndDownload(): void {
     if (!this.email || !this.otpInput || !this.folderToDownload) {
       this.otpErrorMessage = 'Missing OTP or folder details.';
-      console.error('Missing parameters:', { email: this.email, otp: this.otpInput, folder: this.folderToDownload });
       return;
     }
 
     const url = `https://datakavach.com/isparxcloud/verify-otp?username=${encodeURIComponent(this.email)}&otp=${encodeURIComponent(this.otpInput)}`;
-    console.log('Verifying OTP:', { url, email: this.email });
 
     this.http
       .post<{ isValid: boolean }>(url, {}, { headers: this.getAuthHeaders() })
       .pipe(
         catchError((err) => {
           this.otpErrorMessage = err.error?.error || 'Failed to verify OTP. Please try again.';
-          console.error('OTP verification error:', err);
           return throwError(() => new Error(this.otpErrorMessage));
         })
       )
@@ -519,7 +451,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   downloadFolder(folderName: string): void {
     if (!folderName || !this.email) {
       this.oneDriveErrorMessage = 'Invalid folder or user details.';
-      console.error('Invalid parameters:', { folderName, email: this.email });
       return;
     }
 
@@ -540,7 +471,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
     const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
     const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
-    console.log('Downloading folder:', { folderName, folderPath, url });
 
     this.http
       .get(url, {
@@ -551,7 +481,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         catchError((err) => {
           this.loadingOneDrive = false;
           this.oneDriveErrorMessage = err.error?.error || 'Failed to download folder. Please try again.';
-          console.error('Folder download error:', err);
           return throwError(() => new Error(this.oneDriveErrorMessage));
         })
       )
@@ -572,7 +501,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   loadS3Buckets(): void {
     if (!this.email) {
       this.s3ErrorMessage = 'User email is missing. Please log in again.';
-      console.error('No email available for S3 bucket fetch');
       return;
     }
 
@@ -581,7 +509,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.buckets = [];
 
     const url = `https://datakavach.com/s3/buckets?username=${encodeURIComponent(this.email)}`;
-    console.log('Fetching S3 buckets:', { url, email: this.email });
 
     this.bucketSubscription = this.http
       .get<{ buckets: S3Bucket[] }>(url, {
@@ -600,14 +527,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             errorMessage = 'No S3 buckets found for your account.';
           }
           this.s3ErrorMessage = err.error?.error || errorMessage;
-          console.error('S3 bucket error:', {
-            status: err.status,
-            statusText: err.statusText,
-            url: err.url,
-            message: err.message,
-            error: err.error,
-            email: this.email
-          });
           return throwError(() => new Error(this.s3ErrorMessage));
         })
       )
@@ -618,7 +537,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             this.s3ErrorMessage = 'No S3 buckets found for your account.';
           }
           this.loadingS3 = false;
-          console.log('S3 buckets loaded:', this.buckets);
         }
       });
   }
@@ -626,7 +544,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   listS3BucketContents(bucketName: string): void {
     if (!this.email || !bucketName) {
       this.s3ErrorMessage = 'Please select a bucket.';
-      console.error('Missing parameters:', { email: this.email, bucketName });
       return;
     }
 
@@ -636,7 +553,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.s3Contents = [];
 
     const url = `https://datakavach.com/s3/contents?username=${encodeURIComponent(this.email)}&bucketName=${encodeURIComponent(bucketName)}`;
-    console.log('Fetching S3 bucket contents:', { url, email: this.email, bucketName });
 
     this.contentsSubscription = this.http
       .get<{ contents: S3Content[] }>(url, {
@@ -655,15 +571,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             errorMessage = `No contents found in bucket "${bucketName}".`;
           }
           this.s3ErrorMessage = err.error?.error || errorMessage;
-          console.error('S3 contents error:', {
-            status: err.status,
-            statusText: err.statusText,
-            url: err.url,
-            message: err.message,
-            error: err.error,
-            email: this.email,
-            bucketName
-          });
           return throwError(() => new Error(this.s3ErrorMessage));
         })
       )
@@ -674,7 +581,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             this.s3ErrorMessage = `No contents found in bucket "${bucketName}".`;
           }
           this.loadingS3 = false;
-          console.log('S3 contents loaded:', this.s3Contents);
         }
       });
   }
@@ -682,7 +588,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   listS3FolderContents(bucketName: string, prefix: string): void {
     if (!this.email || !bucketName || !prefix) {
       this.s3ErrorMessage = 'Invalid bucket or folder path.';
-      console.error('Missing parameters:', { email: this.email, bucketName, prefix });
       return;
     }
 
@@ -692,7 +597,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.s3Contents = [];
 
     const url = `https://datakavach.com/s3/contents?username=${encodeURIComponent(this.email)}&bucketName=${encodeURIComponent(bucketName)}&prefix=${encodeURIComponent(prefix)}`;
-    console.log('Fetching S3 folder contents:', { url, email: this.email, bucketName, prefix });
 
     this.contentsSubscription = this.http
       .get<{ contents: S3Content[] }>(url, {
@@ -711,16 +615,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             errorMessage = `No contents found in folder "${prefix}" of bucket "${bucketName}".`;
           }
           this.s3ErrorMessage = err.error?.error || errorMessage;
-          console.error('S3 folder contents error:', {
-            status: err.status,
-            statusText: err.statusText,
-            url: err.url,
-            message: err.message,
-            error: err.error,
-            email: this.email,
-            bucketName,
-            prefix
-          });
           return throwError(() => new Error(this.s3ErrorMessage));
         })
       )
@@ -731,7 +625,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             this.s3ErrorMessage = `No contents found in folder "${prefix}" of bucket "${bucketName}".`;
           }
           this.loadingS3 = false;
-          console.log('S3 folder contents loaded:', this.s3Contents);
         }
       });
   }
@@ -745,7 +638,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
   viewFile(downloadUrl: string): void {
     if (!downloadUrl) {
-      console.error('Invalid download URL');
       this.oneDriveErrorMessage = 'Invalid file URL. Please try again.';
       return;
     }
@@ -767,12 +659,10 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
   downloadFile(downloadUrl: string, fileName: string): void {
     if (!downloadUrl || !fileName) {
-      console.error('Invalid parameters:', { downloadUrl, fileName });
       this.oneDriveErrorMessage = 'Invalid file details.';
       return;
     }
 
-    console.log('Downloading file:', fileName);
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = fileName;
@@ -781,9 +671,32 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     document.body.removeChild(link);
   }
 
+  disableRightClick(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  disableDevTools(event: KeyboardEvent): void {
+    // Block F12
+    if (event.key === 'F12') {
+      event.preventDefault();
+      return;
+    }
+
+    // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+    if (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'i' || event.key === 'J' || event.key === 'j')) {
+      event.preventDefault();
+      return;
+    }
+    if (event.ctrlKey && (event.key === 'U' || event.key === 'u')) {
+      event.preventDefault();
+      return;
+    }
+  }
+
   ngOnDestroy(): void {
     this.bucketSubscription?.unsubscribe();
     this.contentsSubscription?.unsubscribe();
     this.folderSubscription?.unsubscribe();
+    document.removeEventListener('keydown', this.disableDevTools.bind(this));
   }
 }

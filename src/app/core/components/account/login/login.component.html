@@ -1,4 +1,4 @@
-<section class="d-flex align-items-center">
+<section class="d-flex align-items-center" (contextmenu)="disableRightClick($event)">
   <div class="container">
     <div class="row align-items-center">
       <!-- Left Side - Illustration and Text -->
@@ -34,16 +34,16 @@
                   <div *ngIf="frmValidate.get('username')?.errors?.['email']">Please enter a valid Email</div>
                 </div>
               </div>
-            <div class="input-group">
-  <input [type]="showPassword ? 'text' : 'password'" id="password" class="form-control form-control-lg" placeholder="Password"
-         formControlName="password" [ngClass]="{'is-invalid': submitted && frmValidate.get('password')?.errors}">
-  <button type="button" class="btn btn-outline-secondary" (click)="togglePasswordVisibility()" tabindex="-1">
-    <i class="bi" [ngClass]="showPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
-  </button>
-</div>
-<div *ngIf="submitted && frmValidate.get('password')?.errors" class="invalid-feedback d-block">
-  <div *ngIf="frmValidate.get('password')?.errors?.['required']">Please enter Password</div>
-</div>
+              <div class="input-group">
+                <input [type]="showPassword ? 'text' : 'password'" id="password" class="form-control form-control-lg" placeholder="Password"
+                       formControlName="password" [ngClass]="{'is-invalid': submitted && frmValidate.get('password')?.errors}">
+                <button type="button" class="btn btn-outline-secondary" (click)="togglePasswordVisibility()" tabindex="-1">
+                  <i class="bi" [ngClass]="showPassword ? 'bi-eye-slash' : 'bi-eye'"></i>
+                </button>
+              </div>
+              <div *ngIf="submitted && frmValidate.get('password')?.errors" class="invalid-feedback d-block">
+                <div *ngIf="frmValidate.get('password')?.errors?.['required']">Please enter Password</div>
+              </div>
 
               <div class="mb-3 text-end">
                 <a href="/forgot-password" class="text-decoration-none text-muted">Forgot password?</a>

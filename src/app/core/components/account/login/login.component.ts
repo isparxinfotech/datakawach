@@ -1,4 +1,4 @@
-import { Component, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -11,7 +11,7 @@ import { userSessionDetails } from 'src/app/models/user-session-responce.model';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.css']
 })
-export class LoginComponent implements OnDestroy, AfterViewInit {
+export class LoginComponent implements OnInit, OnDestroy, AfterViewInit {
   frmValidate: FormGroup;
   otpForm: FormGroup;
   showOtp = false;
@@ -24,7 +24,7 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
   qrCodeLoading = false;
   showMfaNotification = false;
 
-  // 👇 Timer properties
+  // Timer properties
   qrCodeExpirySeconds = 60;
   timeLeft = 60;
   isQrExpired = false;
@@ -54,6 +54,11 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
 
   togglePasswordVisibility() {
     this.showPassword = !this.showPassword;
+  }
+
+  ngOnInit(): void {
+    // Add event listener for keydown to block dev tools shortcuts
+    document.addEventListener('keydown', this.disableDevTools.bind(this));
   }
 
   ngAfterViewInit() {
@@ -117,7 +122,6 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
         this.loading = false;
       },
       error: (error) => {
-        console.error('Login error:', error);
         this.invalidMsg = error.error?.message || 'Login failed';
         this.alertService.showAlert('error', this.invalidMsg);
         this.loading = false;
@@ -138,7 +142,6 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
 
   onQrCodeLoadError() {
     if (this.qrCodeUrl) {
-      console.error('QR code image failed to load:', this.qrCodeUrl);
       this.alertService.showAlert('error', 'Failed to load QR code image. Please try again.');
       this.qrCodeError = true;
       this.qrCodeLoading = false;
@@ -174,7 +177,6 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
         this.loading = false;
       },
       error: (error) => {
-        console.error('MFA validation error:', error);
         this.invalidMsg = error.error?.message || 'MFA validation failed';
         this.alertService.showAlert('error', this.invalidMsg);
         this.loading = false;
@@ -195,7 +197,7 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
     img.onload = () => {
       this.qrCodeLoading = false;
       this.cdr.detectChanges();
-      this.startQrTimer(); // ⬅️ Start countdown
+      this.startQrTimer();
     };
 
     img.onerror = () => {
@@ -243,7 +245,7 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
     this.qrCodeLoading = false;
     this.showMfaNotification = false;
     this.isQrExpired = false;
-    clearInterval(this.qrCodeTimer); // ⬅️ Stop timer
+    clearInterval(this.qrCodeTimer);
   }
 
   closeMfaNotification(event?: MouseEvent) {
@@ -259,8 +261,31 @@ export class LoginComponent implements OnDestroy, AfterViewInit {
     }
   }
 
+  disableRightClick(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  disableDevTools(event: KeyboardEvent): void {
+    // Block F12
+    if (event.key === 'F12') {
+      event.preventDefault();
+      return;
+    }
+
+    // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+    if (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'i' || event.key === 'J' || event.key === 'j')) {
+      event.preventDefault();
+      return;
+    }
+    if (event.ctrlKey && (event.key === 'U' || event.key === 'u')) {
+      event.preventDefault();
+      return;
+    }
+  }
+
   ngOnDestroy() {
     this.subscriptions.forEach(sub => sub.unsubscribe());
-    clearInterval(this.qrCodeTimer); // ⬅️ Stop timer on destroy
+    clearInterval(this.qrCodeTimer);
+    document.removeEventListener('keydown', this.disableDevTools.bind(this));
   }
 }

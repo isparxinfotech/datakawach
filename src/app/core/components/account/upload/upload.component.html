@@ -14,7 +14,7 @@
   </div>
 
   <!-- Scrollable Main Content -->
-  <div class="flex-1 overflow-y-auto p-4 md:p-10 ml-0 md:ml-64">
+  <div class="flex-1 overflow-y-auto p-4 md:p-10 ml-0 md:ml-64" (contextmenu)="disableRightClick($event)">
     <!-- Mobile Header -->
     <div class="md:hidden flex items-center bg-gradient-to-r from-blue-500 to-teal-500 text-white p-4 rounded-2xl mb-8 shadow-lg">
       <a href="dashboard" class="text-white mr-4" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">

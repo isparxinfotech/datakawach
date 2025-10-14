@@ -1,4 +1,4 @@
-<div class="container-fluid p-0 d-flex h-100" [ngClass]="{'black-and-white-theme': isBlackAndWhiteTheme}" style="display: flex; height: 100%;">
+<div class="container-fluid p-0 d-flex h-100" [ngClass]="{'black-and-white-theme': isBlackAndWhiteTheme}" style="display: flex; height: 100%;" (contextmenu)="disableRightClick($event)">
   <app-dynamic-menus></app-dynamic-menus>
 
   <div class="bg-light flex-fill" style="flex: 1; display: flex; flex-direction: column; background: #f8fafc; overflow-y: auto;">
@@ -161,12 +161,19 @@
                             Rename
                           </button>
                         </ng-container>
-                        <button class="btn btn-outline-blue btn-sm" (click)="openShareModal(item)" style="border-color: #007bff; color: #007bff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease, color 0.3s ease;">
+                        <button class="btn btn-outline-blue btn-sm me-1" (click)="openShareModal(item)" style="border-color: #007bff; color: #007bff; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease, color 0.3s ease;">
                           <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px; fill: currentColor;">
                             <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.037 4.037 0 0 1-.128-.71z"/>
                             <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 0 0-4.243-4.243z"/>
                           </svg>
                           Share
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" (click)="openDeleteModal(item)" style="border-color: #dc3545; color: #dc3545; padding: 6px 12px; font-size: 0.85rem; border-radius: 5px; display: inline-flex; align-items: center; transition: background 0.3s ease, color 0.3s ease;">
+                          <svg class="button-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="width: 16px; height: 16px; margin-right: 6px; fill: currentColor;">
+                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                          </svg>
+                          Delete
                         </button>
                       </td>
                     </tr>
@@ -270,7 +277,29 @@
             </div>
           </div>
 
-          <!-- Toast for Preview Errors -->
+          <!-- Delete Confirmation Modal -->
+          <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true" [ngClass]="{'show d-block': showDeleteModal}" style="background-color: rgba(0,0,0,0.5);" *ngIf="showDeleteModal">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content" style="border: none; border-radius: 10px; background: #fff;">
+                <div class="modal-header">
+                  <h5 class="modal-title" id="deleteModalLabel" style="font-weight: 600; color: #1e293b;">Confirm Delete: {{ selectedItem?.name }}</h5>
+                  <button type="button" class="btn-close" (click)="closeDeleteModal()" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                  <p>Are you sure you want to delete this {{ selectedItem?.type }}? This action cannot be undone.</p>
+                  <div *ngIf="deleteError" class="alert alert-danger" role="alert" style="border-radius: 5px;">
+                    {{ deleteError }}
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" (click)="closeDeleteModal()" style="background: #6c757d; border: none; color: #fff; padding: 6px 12px; border-radius: 5px;">Cancel</button>
+                  <button type="button" class="btn btn-danger" (click)="deleteItem()" style="background: #dc3545; border: none; color: #fff; padding: 6px 12px; border-radius: 5px;">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toast for Preview and Delete Notifications -->
           <div class="toast-container position-fixed bottom-0 end-0 p-3">
             <div id="previewToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
               <div class="toast-header">
@@ -279,6 +308,15 @@
               </div>
               <div class="toast-body">
                 {{ previewToastMessage }}
+              </div>
+            </div>
+            <div id="deleteSuccessToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="3000">
+              <div class="toast-header">
+                <strong class="me-auto">Success</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+              </div>
+              <div class="toast-body">
+                {{ deleteSuccessMessage }}
               </div>
             </div>
           </div>

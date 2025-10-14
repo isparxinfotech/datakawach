@@ -39,7 +39,7 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       createdBy: ['', Validators.required],
       folderName: [''],
       corpoName: ['none'],
-      userType: ['', [Validators.required]], // Changed to required field
+      userType: ['', [Validators.required]],
       landlineNumber: ['0000000000'],
       cloudProvider: ['', Validators.required]
     }, { validators: this.passwordMatchValidator });
@@ -71,7 +71,6 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
     if (!this.userSessionDetails?.username || !this.userSessionDetails.cloudProvider) {
-      console.error("No logged-in user or cloud provider found in session!");
       this.userMessage = "Please log in with a valid user to create a user.";
       this.modalDisplayStyle = "block";
       return;
@@ -81,21 +80,20 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
       cloudProvider: this.userSessionDetails.cloudProvider,
       userType: '5' // Default to User
     });
-    console.log('Logged-in user details set - createdBy:', this.userSessionDetails.username, 
-                'cloudProvider:', this.userSessionDetails.cloudProvider);
 
     // Fetch current IP address from backend
     this.authService.getClientIp().subscribe({
       next: (response: { ip: string }) => {
         this.currentIp = response.ip;
         this.frmValidate.patchValue({ ipAddress: this.currentIp }); // Auto-fill IP address
-        console.log('Current IP fetched:', this.currentIp);
       },
-      error: (err: any) => {
-        console.error('Failed to fetch IP:', err);
+      error: () => {
         this.currentIp = 'Unable to fetch';
       }
     });
+
+    // Add event listener for keydown to block dev tools shortcuts
+    document.addEventListener('keydown', this.disableDevTools.bind(this));
   }
 
   get f(): { [key: string]: AbstractControl } {
@@ -105,24 +103,20 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
   onCreateUserAccount(): void {
     this.submitted = true;
     if (this.frmValidate.invalid) {
-      console.log('Form is invalid:', this.frmValidate.errors);
       return;
     }
 
     this.registerUserRequest = this.frmValidate.value as RegisterUserRequest;
     this.registerUserRequest.folderName = this.registerUserRequest.email;
 
-    console.log('Submitting to backend:', this.registerUserRequest);
     this.registerUserRequestSubscription = this.authService.registerUser(this.registerUserRequest)
       .subscribe({
-        next: (response) => {
-          console.log('Success response:', response);
+        next: () => {
           this.userMessage = "User registered successfully!";
           this.modalDisplayStyle = "block";
           this.onReset();
         },
         error: (error) => {
-          console.error('Error response:', error.status, error.error);
           this.userMessage = error.error?.message || "User already exists or folder creation failed.";
           this.modalDisplayStyle = "block";
         }
@@ -151,14 +145,12 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
     this.uploadSubscription = this.authService.uploadUsersExcel(formData)
       .subscribe({
         next: (response: any) => {
-          console.log('Excel upload response:', response);
           this.userMessage = response.message || "Users created successfully from Excel!";
           this.modalDisplayStyle = "block";
           this.selectedFile = null;
           (document.getElementById('excelFile') as HTMLInputElement).value = '';
         },
         error: (error) => {
-          console.error('Excel upload error:', error);
           this.userMessage = error.error?.message || "Failed to process Excel file.";
           this.modalDisplayStyle = "block";
         }
@@ -181,12 +173,35 @@ export class CreateUserAccountComponent implements OnInit, OnDestroy {
     (document.getElementById('excelFile') as HTMLInputElement).value = '';
   }
 
+  disableRightClick(event: MouseEvent): void {
+    event.preventDefault();
+  }
+
+  disableDevTools(event: KeyboardEvent): void {
+    // Block F12
+    if (event.key === 'F12') {
+      event.preventDefault();
+      return;
+    }
+    // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+    if (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'i' || event.key === 'J' || event.key === 'j')) {
+      event.preventDefault();
+      return;
+    }
+    if (event.ctrlKey && (event.key === 'U' || event.key === 'u')) {
+      event.preventDefault();
+      return;
+    }
+  }
+
   ngOnDestroy(): void {
     this.registerUserRequestSubscription?.unsubscribe();
     this.uploadSubscription?.unsubscribe();
+    // Remove keydown event listener
+    document.removeEventListener('keydown', this.disableDevTools.bind(this));
   }
 
-  closeModel(): void {
+  closeModal(): void {
     this.modalDisplayStyle = "none";
     this.redirectToCorpList();
   }

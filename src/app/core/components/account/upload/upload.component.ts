@@ -157,6 +157,37 @@ export class UploadComponent implements OnInit, OnDestroy {
     ngOnInit(): void {
         this.isLoading = true;
         this.initializeUser();
+
+        // Add event listener for keydown to block dev tools shortcuts
+        document.addEventListener('keydown', this.disableDevTools.bind(this));
+    }
+
+    ngOnDestroy(): void {
+        this.subscriptions.forEach(sub => sub.unsubscribe());
+        this.subscriptions = [];
+        // Remove keydown event listener
+        document.removeEventListener('keydown', this.disableDevTools.bind(this));
+    }
+
+    disableRightClick(event: MouseEvent): void {
+        event.preventDefault();
+    }
+
+    disableDevTools(event: KeyboardEvent): void {
+        // Block F12
+        if (event.key === 'F12') {
+            event.preventDefault();
+            return;
+        }
+        // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+        if (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'i' || event.key === 'J' || event.key === 'j')) {
+            event.preventDefault();
+            return;
+        }
+        if (event.ctrlKey && (event.key === 'U' || event.key === 'u')) {
+            event.preventDefault();
+            return;
+        }
     }
 
     public getPathUpToIndex(index: number): string {
@@ -178,8 +209,6 @@ export class UploadComponent implements OnInit, OnDestroy {
     async initializeUser() {
         this.message = '';
         this.userSessionDetails = this.authService.getLoggedInUserDetails();
-        console.log('userSessionDetails:', this.userSessionDetails);
-
         if (!this.userSessionDetails?.jwtToken || !this.userSessionDetails?.username) {
             const url = `https://datakavach.com/users/current`;
             try {
@@ -325,7 +354,6 @@ export class UploadComponent implements OnInit, OnDestroy {
         for (const file of files) {
             if (file.size <= 0) {
                 skippedFiles.push(`Invalid file size for ${file.name}: ${file.size} bytes`);
-                console.warn(`Skipping file ${file.name} due to invalid size: ${file.size} bytes`);
                 continue;
             }
             let relativePath = '';
@@ -347,7 +375,6 @@ export class UploadComponent implements OnInit, OnDestroy {
                 }
                 if (relativePath.length > this.MAX_PATH_LENGTH) {
                     skippedFiles.push(`Relative path too long for ${file.name} (max ${this.MAX_PATH_LENGTH} characters)`);
-                    console.warn(`Skipping file ${file.name} due to relative path length: ${relativePath.length}`);
                     continue;
                 }
             }
@@ -371,12 +398,6 @@ export class UploadComponent implements OnInit, OnDestroy {
             return;
         }
 
-        console.log('Selected files:', this.selectedFiles.map(item => ({
-            original: item.file.name,
-            sanitized: item.sanitizedFileName,
-            relativePath: item.relativePath
-        })));
-        console.log(`Total files selected: ${this.selectedFiles.length}, Skipped files: ${skippedFiles.length}`);
         this.cdr.detectChanges();
     }
 
@@ -715,309 +736,284 @@ export class UploadComponent implements OnInit, OnDestroy {
         }
     }
 
-async onUpload() {
-    if (!this.userSessionDetails?.username || !this.folderPath || this.selectedFiles.length === 0) {
-        this.message = 'Please select a folder and at least one file or folder for upload';
-        this.validationMessage = 'Please select a folder and at least one file or folder for upload';
-        this.isSuccess = false;
-        this.uploading = false;
-        this.cdr.detectChanges();
-        return;
-    }
-
-    const normalizedFolderPath = this.folderPath.replace(/^\/+|\/+$/g, '') || 'root';
-    if (!normalizedFolderPath) {
-        this.message = 'Selected folder path is invalid';
-        this.validationMessage = 'Selected folder path is invalid';
-        this.isSuccess = false;
-        this.uploading = false;
-        this.cdr.detectChanges();
-        return;
-    }
-
-    this.uploading = true;
-    this.overallProgress = 0;
-    this.currentFileProgress = {};
-    this.currentFileIndex = 0;
-    this.totalFiles = this.selectedFiles.length;
-    this.uploadedFiles = 0;
-    this.totalChunks = 0;
-    this.uploadedChunks = 0;
-    this.message = this.uploadType === 'folder' ? 'Preparing folder structure for upload...' : 'Preparing files for upload...';
-    this.validationMessage = '';
-    this.cdr.detectChanges();
-
-    const limit = pLimit(this.CONCURRENCY_LIMIT);
-    let successfulUploads = 0;
-
-    if (this.uploadType === 'file') {
-        const uploadPromises: Promise<boolean>[] = [];
-        const fileChunkCounts = new Map<string, { total: number; uploaded: number }>();
-
-        // Initialize chunk counts and progress for each file
-        for (const item of this.selectedFiles) {
-            const { sanitizedFileName } = item; // Destructure only sanitizedFileName
-            const rawFileName = this.fileName || sanitizedFileName;
-            fileChunkCounts.set(rawFileName, { total: 0, uploaded: 0 });
-            this.currentFileProgress[rawFileName] = 0;
-        }
-
-        for (let i = 0; i < this.selectedFiles.length; i++) {
-            const { file, sanitizedFileName }: FileWithPath = this.selectedFiles[i];
-            const rawFileName = this.fileName || sanitizedFileName;
-
-            uploadPromises.push(limit(async () => {
-                try {
-                    const url = 'https://datakavach.com/isparxcloud/generate-upload-url';
-                    const formData = new FormData();
-                    formData.append('username', this.userSessionDetails!.username);
-                    formData.append('folderName', normalizedFolderPath);
-                    formData.append('fileName', rawFileName);
-                    formData.append('fileSize', file.size.toString());
-
-                    console.log('Requesting presigned URL for:', {
-                        fileName: rawFileName,
-                        fileSize: file.size,
-                        folder: normalizedFolderPath
-                    });
-                    const response = await lastValueFrom(this.http.post<UploadResponse>(url, formData, {
-                        headers: this.getAuthHeaders()
-                    }));
-
-                    if (!response || response.errorMessages.length > 0) {
-                        const errors = response?.errorMessages.map(err => err.error) || ['Failed to generate presigned URL'];
-                        throw new Error(`Failed to upload ${rawFileName}: ${errors.join('; ')}`);
-                    }
-
-                    console.log('Presigned URL response:', JSON.stringify(response, null, 2));
-
-                    const sortedUrls = response.successUrls
-                        .filter(url => url.fileName === rawFileName)
-                        .sort((a, b) => {
-                            const indexA = a.chunkIndex ? parseInt(a.chunkIndex, 10) : 0;
-                            const indexB = b.chunkIndex ? parseInt(b.chunkIndex, 10) : 0;
-                            return indexA - indexB;
-                        });
-
-                    if (sortedUrls.length === 0) {
-                        throw new Error(`No valid presigned URLs received for ${rawFileName}`);
-                    }
-
-                    fileChunkCounts.set(rawFileName, { ...fileChunkCounts.get(rawFileName)!, total: sortedUrls.length });
-                    this.totalChunks += sortedUrls.length;
-
-                    for (const presigned of sortedUrls) {
-                        console.log(`Processing chunk ${presigned.chunkIndex || 'single'} for ${rawFileName}`);
-                        const success = await this.uploadWithRetry(
-                            file,
-                            presigned,
-                            rawFileName,
-                            i,
-                            this.selectedFiles.length,
-                            sortedUrls.length,
-                            normalizedFolderPath,
-                            fileChunkCounts
-                        );
-                        if (!success) {
-                            throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${rawFileName}`);
-                        }
-                        fileChunkCounts.get(rawFileName)!.uploaded++;
-                        this.uploadedChunks++;
-                    }
-
-                    // Update progress only when all chunks of the file are uploaded
-                    this.currentFileProgress[rawFileName] = 100;
-                    this.uploadedFiles++;
-                    this.overallProgress = Math.min(Math.round((this.uploadedFiles / this.totalFiles) * 100), 100);
-                    console.log(`All chunks uploaded for ${rawFileName}, file progress: 100%, overall progress: ${this.overallProgress}%`);
-                    this.message = `Completed upload of file ${this.uploadedFiles} of ${this.totalFiles}: ${rawFileName}`;
-                    this.cdr.detectChanges();
-                    return true;
-                } catch (err: any) {
-                    this.handleError(err);
-                    return false;
-                }
-            }));
-        }
-
-        try {
-            const results = await Promise.all(uploadPromises);
-            successfulUploads = results.filter(success => success).length;
-            if (successfulUploads === this.selectedFiles.length) {
-                this.handleSuccess(`All ${successfulUploads} files uploaded successfully`);
-            } else {
-                this.handleError(new Error(`Only ${successfulUploads} of ${this.selectedFiles.length} files uploaded successfully`));
-            }
-        } catch (err: any) {
-            this.handleError(err);
-        } finally {
+    async onUpload() {
+        if (!this.userSessionDetails?.username || !this.folderPath || this.selectedFiles.length === 0) {
+            this.message = 'Please select a folder and at least one file or folder for upload';
+            this.validationMessage = 'Please select a folder and at least one file or folder for upload';
+            this.isSuccess = false;
             this.uploading = false;
             this.cdr.detectChanges();
-        }
-    } else {
-        // Batch processing for folder upload (unchanged from previous version)
-        const topLevelFolder = this.fileName || 'uploaded_folder';
-        const finalFolderPath = normalizedFolderPath ? `${normalizedFolderPath}/${this.sanitizeFileName(topLevelFolder)}` : this.sanitizeFileName(topLevelFolder);
-
-        // Split files into batches aligned with backend BATCH_SIZE
-        const batches: FileWithPath[][] = [];
-        for (let i = 0; i < this.selectedFiles.length; i += this.BATCH_SIZE) {
-            batches.push(this.selectedFiles.slice(i, i + this.BATCH_SIZE));
+            return;
         }
 
-        // Initialize chunk counts for each file
-        const fileChunkCounts = new Map<string, { total: number; uploaded: number; file: File }>();
-        this.selectedFiles.forEach(item => {
-            const key = `${item.sanitizedFileName}|${item.relativePath}`;
-            fileChunkCounts.set(key, { total: 0, uploaded: 0, file: item.file });
-            this.currentFileProgress[key] = 0;
-        });
+        const normalizedFolderPath = this.folderPath.replace(/^\/+|\/+$/g, '') || 'root';
+        if (!normalizedFolderPath) {
+            this.message = 'Selected folder path is invalid';
+            this.validationMessage = 'Selected folder path is invalid';
+            this.isSuccess = false;
+            this.uploading = false;
+            this.cdr.detectChanges();
+            return;
+        }
 
-        this.message = `Preparing to upload ${this.selectedFiles.length} files in ${batches.length} batches...`;
+        this.uploading = true;
+        this.overallProgress = 0;
+        this.currentFileProgress = {};
+        this.currentFileIndex = 0;
+        this.totalFiles = this.selectedFiles.length;
+        this.uploadedFiles = 0;
+        this.totalChunks = 0;
+        this.uploadedChunks = 0;
+        this.message = this.uploadType === 'folder' ? 'Preparing folder structure for upload...' : 'Preparing files for upload...';
+        this.validationMessage = '';
         this.cdr.detectChanges();
 
-        let totalFilesProcessed = 0;
-        const batchErrors: string[] = [];
+        const limit = pLimit(this.CONCURRENCY_LIMIT);
+        let successfulUploads = 0;
 
-        // Process each batch and start uploads immediately
-        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-            const batch = batches[batchIndex];
-            await limit(async () => {
-                try {
-                    const url = 'https://datakavach.com/isparxcloud/upload-folder';
-                    const formData = new FormData();
-                    formData.append('email', this.userSessionDetails!.username);
-                    formData.append('baseFolderName', finalFolderPath);
-                    formData.append('fileNames', batch.map(item => item.sanitizedFileName).join(','));
-                    formData.append('fileSizes', batch.map(item => item.file.size.toString()).join(','));
-                    formData.append('relativePaths', batch.map(item => item.relativePath).join(','));
+        if (this.uploadType === 'file') {
+            const uploadPromises: Promise<boolean>[] = [];
+            const fileChunkCounts = new Map<string, { total: number; uploaded: number }>();
 
-                    console.log(`Requesting presigned URLs for batch ${batchIndex + 1}/${batches.length}:`, {
-                        baseFolderName: finalFolderPath,
-                        filesCount: batch.length,
-                        fileNames: batch.map(item => item.sanitizedFileName),
-                        fileSizes: batch.map(item => item.file.size),
-                        relativePaths: batch.map(item => item.relativePath)
-                    });
+            // Initialize chunk counts and progress for each file
+            for (const item of this.selectedFiles) {
+                const { sanitizedFileName } = item;
+                const rawFileName = this.fileName || sanitizedFileName;
+                fileChunkCounts.set(rawFileName, { total: 0, uploaded: 0 });
+                this.currentFileProgress[rawFileName] = 0;
+            }
 
-                    const response = await lastValueFrom(this.http.post<UploadResponse>(url, formData, {
-                        headers: this.getAuthHeaders()
-                    }));
+            for (let i = 0; i < this.selectedFiles.length; i++) {
+                const { file, sanitizedFileName }: FileWithPath = this.selectedFiles[i];
+                const rawFileName = this.fileName || sanitizedFileName;
 
-                    console.log(`Folder upload presigned URLs for batch ${batchIndex + 1}:`, JSON.stringify(response, null, 2));
+                uploadPromises.push(limit(async () => {
+                    try {
+                        const url = 'https://datakavach.com/isparxcloud/generate-upload-url';
+                        const formData = new FormData();
+                        formData.append('username', this.userSessionDetails!.username);
+                        formData.append('folderName', normalizedFolderPath);
+                        formData.append('fileName', rawFileName);
+                        formData.append('fileSize', file.size.toString());
 
-                    if (!response || response.errorMessages.length > 0) {
-                        const errors = response?.errorMessages.map(err => err.error) || ['Failed to generate presigned URLs for batch'];
-                        throw new Error(`Batch ${batchIndex + 1} failed: ${errors.join('; ')}`);
-                    }
-
-                    this.totalChunks += response.successUrls.length;
-
-                    batch.forEach(item => {
-                        const key = `${item.sanitizedFileName}|${item.relativePath}`;
-                        const totalChunks = response.successUrls.filter(url => url.fileName === item.sanitizedFileName && url.relativePath === item.relativePath).length;
-                        fileChunkCounts.set(key, { ...fileChunkCounts.get(key)!, total: totalChunks });
-                    });
-
-                    const fileUrlGroups = new Map<string, UploadResponse['successUrls']>();
-                    response.successUrls.forEach(url => {
-                        const key = `${url.fileName}|${url.relativePath}`;
-                        if (!fileUrlGroups.has(key)) {
-                            fileUrlGroups.set(key, []);
-                        }
-                        fileUrlGroups.get(key)!.push(url);
-                    });
-
-                    const filePromises: Promise<boolean>[] = [];
-
-                    for (const [key, urls] of fileUrlGroups) {
-                        const sortedUrls = urls.sort((a, b) => {
-                            const indexA = a.chunkIndex ? parseInt(a.chunkIndex, 10) : 0;
-                            const indexB = b.chunkIndex ? parseInt(b.chunkIndex, 10) : 0;
-                            return indexA - indexB;
-                        });
-                        const [fileName, relativePath] = key.split('|');
-                        const fileItem = batch.find(item => item.sanitizedFileName === fileName && item.relativePath === relativePath);
-                        if (!fileItem) {
-                            console.warn(`No matching file found for presigned URL: ${fileName}, relativePath: ${relativePath}`);
-                            continue;
-                        }
-
-                        filePromises.push(limit(async () => {
-                            try {
-                                const totalChunks = sortedUrls.length;
-                                let uploadedChunks = 0;
-
-                                for (const presigned of sortedUrls) {
-                                    console.log(`Processing chunk ${presigned.chunkIndex || 'single'} for ${fileName} (relativePath: ${relativePath})`);
-                                    const success = await this.uploadWithRetry(
-                                        fileItem.file,
-                                        presigned,
-                                        fileName,
-                                        totalFilesProcessed,
-                                        this.selectedFiles.length,
-                                        totalChunks,
-                                        finalFolderPath,
-                                        fileChunkCounts
-                                    );
-                                    if (!success) {
-                                        throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${fileName} (relativePath: ${relativePath})`);
-                                    }
-                                    uploadedChunks++;
-                                    this.uploadedChunks++;
-                                    fileChunkCounts.get(key)!.uploaded = uploadedChunks;
-                                }
-
-                                // Update progress only when all chunks of the file are uploaded
-                                this.currentFileProgress[key] = 100;
-                                this.uploadedFiles++;
-                                this.overallProgress = Math.min(Math.round((this.uploadedFiles / this.totalFiles) * 100), 100);
-                                console.log(`All chunks uploaded for ${fileName} (relativePath: ${relativePath}), file progress: 100%, overall progress: ${this.overallProgress}%`);
-                                this.message = `Completed upload of file ${this.uploadedFiles} of ${this.totalFiles}: ${fileName}`;
-                                totalFilesProcessed++;
-                                this.cdr.detectChanges();
-                                return true;
-                            } catch (err: any) {
-                                console.error(`Failed to upload file ${fileName} (relativePath: ${relativePath}):`, err);
-                                this.handleError(new Error(`Failed to upload ${fileName} (relativePath: ${relativePath}): ${err.message || err}`));
-                                return false;
-                            }
+                        const response = await lastValueFrom(this.http.post<UploadResponse>(url, formData, {
+                            headers: this.getAuthHeaders()
                         }));
+
+                        if (!response || response.errorMessages.length > 0) {
+                            const errors = response?.errorMessages.map(err => err.error) || ['Failed to generate presigned URL'];
+                            throw new Error(`Failed to upload ${rawFileName}: ${errors.join('; ')}`);
+                        }
+
+                        const sortedUrls = response.successUrls
+                            .filter(url => url.fileName === rawFileName)
+                            .sort((a, b) => {
+                                const indexA = a.chunkIndex ? parseInt(a.chunkIndex, 10) : 0;
+                                const indexB = b.chunkIndex ? parseInt(b.chunkIndex, 10) : 0;
+                                return indexA - indexB;
+                            });
+
+                        if (sortedUrls.length === 0) {
+                            throw new Error(`No valid presigned URLs received for ${rawFileName}`);
+                        }
+
+                        fileChunkCounts.set(rawFileName, { ...fileChunkCounts.get(rawFileName)!, total: sortedUrls.length });
+                        this.totalChunks += sortedUrls.length;
+
+                        for (const presigned of sortedUrls) {
+                            const success = await this.uploadWithRetry(
+                                file,
+                                presigned,
+                                rawFileName,
+                                i,
+                                this.selectedFiles.length,
+                                sortedUrls.length,
+                                normalizedFolderPath,
+                                fileChunkCounts
+                            );
+                            if (!success) {
+                                throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${rawFileName}`);
+                            }
+                            fileChunkCounts.get(rawFileName)!.uploaded++;
+                            this.uploadedChunks++;
+                        }
+
+                        // Update progress only when all chunks of the file are uploaded
+                        this.currentFileProgress[rawFileName] = 100;
+                        this.uploadedFiles++;
+                        this.overallProgress = Math.min(Math.round((this.uploadedFiles / this.totalFiles) * 100), 100);
+                        this.message = `Completed upload of file ${this.uploadedFiles} of ${this.totalFiles}: ${rawFileName}`;
+                        this.cdr.detectChanges();
+                        return true;
+                    } catch (err: any) {
+                        this.handleError(err);
+                        return false;
                     }
-
-                    const fileResults = await Promise.all(filePromises);
-                    successfulUploads += fileResults.filter(success => success).length;
-                    if (!fileResults.every(success => success)) {
-                        batchErrors.push(`Batch ${batchIndex + 1} had ${fileResults.filter(success => !success).length} file(s) fail`);
-                    }
-                } catch (err: any) {
-                    console.error(`Batch ${batchIndex + 1} upload exception:`, err);
-                    batchErrors.push(`Batch ${batchIndex + 1} failed: ${err.message || err}`);
-                }
-            });
-        }
-
-        // Wait for all batches to complete
-        for (let i = 0; i < this.CONCURRENCY_LIMIT; i++) {
-            await limit(() => Promise.resolve());
-        }
-
-        try {
-            if (batchErrors.length === 0 && successfulUploads === this.selectedFiles.length) {
-                this.handleSuccess(`Folder uploaded successfully: ${successfulUploads} files processed in ${batches.length} batches`);
-            } else {
-                this.handleError(new Error(`Only ${successfulUploads} of ${this.selectedFiles.length} files uploaded successfully in ${batches.length} batches. Errors: ${batchErrors.join('; ')}`));
+                }));
             }
-        } catch (err: any) {
-            console.error('Folder upload exception:', err);
-            this.handleError(err);
-        } finally {
-            this.uploading = false;
-            this.loadFolderContents(this.folderPath);
+
+            try {
+                const results = await Promise.all(uploadPromises);
+                successfulUploads = results.filter(success => success).length;
+                if (successfulUploads === this.selectedFiles.length) {
+                    this.handleSuccess(`All ${successfulUploads} files uploaded successfully`);
+                } else {
+                    this.handleError(new Error(`Only ${successfulUploads} of ${this.selectedFiles.length} files uploaded successfully`));
+                }
+            } catch (err: any) {
+                this.handleError(err);
+            } finally {
+                this.uploading = false;
+                this.cdr.detectChanges();
+            }
+        } else {
+            // Batch processing for folder upload
+            const topLevelFolder = this.fileName || 'uploaded_folder';
+            const finalFolderPath = normalizedFolderPath ? `${normalizedFolderPath}/${this.sanitizeFileName(topLevelFolder)}` : this.sanitizeFileName(topLevelFolder);
+
+            // Split files into batches aligned with backend BATCH_SIZE
+            const batches: FileWithPath[][] = [];
+            for (let i = 0; i < this.selectedFiles.length; i += this.BATCH_SIZE) {
+                batches.push(this.selectedFiles.slice(i, i + this.BATCH_SIZE));
+            }
+
+            // Initialize chunk counts for each file
+            const fileChunkCounts = new Map<string, { total: number; uploaded: number; file?: File }>();
+            this.selectedFiles.forEach(item => {
+                const key = `${item.sanitizedFileName}|${item.relativePath}`;
+                fileChunkCounts.set(key, { total: 0, uploaded: 0, file: item.file });
+                this.currentFileProgress[key] = 0;
+            });
+
+            this.message = `Preparing to upload ${this.selectedFiles.length} files in ${batches.length} batches...`;
             this.cdr.detectChanges();
+
+            let totalFilesProcessed = 0;
+            const batchErrors: string[] = [];
+
+            // Process each batch and start uploads immediately
+            for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+                const batch = batches[batchIndex];
+                await limit(async () => {
+                    try {
+                        const url = 'https://datakavach.com/isparxcloud/upload-folder';
+                        const formData = new FormData();
+                        formData.append('email', this.userSessionDetails!.username);
+                        formData.append('baseFolderName', finalFolderPath);
+                        formData.append('fileNames', batch.map(item => item.sanitizedFileName).join(','));
+                        formData.append('fileSizes', batch.map(item => item.file.size.toString()).join(','));
+                        formData.append('relativePaths', batch.map(item => item.relativePath).join(','));
+
+                        const response = await lastValueFrom(this.http.post<UploadResponse>(url, formData, {
+                            headers: this.getAuthHeaders()
+                        }));
+
+                        if (!response || response.errorMessages.length > 0) {
+                            const errors = response?.errorMessages.map(err => err.error) || ['Failed to generate presigned URLs for batch'];
+                            throw new Error(`Batch ${batchIndex + 1} failed: ${errors.join('; ')}`);
+                        }
+
+                        this.totalChunks += response.successUrls.length;
+
+                        batch.forEach(item => {
+                            const key = `${item.sanitizedFileName}|${item.relativePath}`;
+                            const totalChunks = response.successUrls.filter(url => url.fileName === item.sanitizedFileName && url.relativePath === item.relativePath).length;
+                            fileChunkCounts.set(key, { ...fileChunkCounts.get(key)!, total: totalChunks });
+                        });
+
+                        const fileUrlGroups = new Map<string, UploadResponse['successUrls']>();
+                        response.successUrls.forEach(url => {
+                            const key = `${url.fileName}|${url.relativePath}`;
+                            if (!fileUrlGroups.has(key)) {
+                                fileUrlGroups.set(key, []);
+                            }
+                            fileUrlGroups.get(key)!.push(url);
+                        });
+
+                        const filePromises: Promise<boolean>[] = [];
+
+                        for (const [key, urls] of fileUrlGroups) {
+                            const sortedUrls = urls.sort((a, b) => {
+                                const indexA = a.chunkIndex ? parseInt(a.chunkIndex, 10) : 0;
+                                const indexB = b.chunkIndex ? parseInt(b.chunkIndex, 10) : 0;
+                                return indexA - indexB;
+                            });
+                            const [fileName, relativePath] = key.split('|');
+                            const fileItem = batch.find(item => item.sanitizedFileName === fileName && item.relativePath === relativePath);
+                            if (!fileItem) {
+                                continue;
+                            }
+
+                            filePromises.push(limit(async () => {
+                                try {
+                                    const totalChunks = sortedUrls.length;
+                                    let uploadedChunks = 0;
+
+                                    for (const presigned of sortedUrls) {
+                                        const success = await this.uploadWithRetry(
+                                            fileItem.file,
+                                            presigned,
+                                            fileName,
+                                            totalFilesProcessed,
+                                            this.selectedFiles.length,
+                                            totalChunks,
+                                            finalFolderPath,
+                                            fileChunkCounts
+                                        );
+                                        if (!success) {
+                                            throw new Error(`Failed to upload chunk ${presigned.chunkIndex || 'unknown'} for ${fileName} (relativePath: ${relativePath})`);
+                                        }
+                                        uploadedChunks++;
+                                        this.uploadedChunks++;
+                                        fileChunkCounts.get(key)!.uploaded = uploadedChunks;
+                                    }
+
+                                    // Update progress only when all chunks of the file are uploaded
+                                    this.currentFileProgress[key] = 100;
+                                    this.uploadedFiles++;
+                                    this.overallProgress = Math.min(Math.round((this.uploadedFiles / this.totalFiles) * 100), 100);
+                                    this.message = `Completed upload of file ${this.uploadedFiles} of ${this.totalFiles}: ${fileName}`;
+                                    totalFilesProcessed++;
+                                    this.cdr.detectChanges();
+                                    return true;
+                                } catch (err: any) {
+                                    this.handleError(new Error(`Failed to upload ${fileName} (relativePath: ${relativePath}): ${err.message || err}`));
+                                    return false;
+                                }
+                            }));
+                        }
+
+                        const fileResults = await Promise.all(filePromises);
+                        successfulUploads += fileResults.filter(success => success).length;
+                        if (!fileResults.every(success => success)) {
+                            batchErrors.push(`Batch ${batchIndex + 1} had ${fileResults.filter(success => !success).length} file(s) fail`);
+                        }
+                    } catch (err: any) {
+                        batchErrors.push(`Batch ${batchIndex + 1} failed: ${err.message || err}`);
+                    }
+                });
+            }
+
+            // Wait for all batches to complete
+            for (let i = 0; i < this.CONCURRENCY_LIMIT; i++) {
+                await limit(() => Promise.resolve());
+            }
+
+            try {
+                if (batchErrors.length === 0 && successfulUploads === this.selectedFiles.length) {
+                    this.handleSuccess(`Folder uploaded successfully: ${successfulUploads} files processed in ${batches.length} batches`);
+                } else {
+                    this.handleError(new Error(`Only ${successfulUploads} of ${this.selectedFiles.length} files uploaded successfully in ${batches.length} batches. Errors: ${batchErrors.join('; ')}`));
+                }
+            } catch (err: any) {
+                this.handleError(err);
+            } finally {
+                this.uploading = false;
+                this.loadFolderContents(this.folderPath);
+                this.cdr.detectChanges();
+            }
         }
     }
-}
 
     private async refreshPresignedUrl(
         file: File,
@@ -1043,7 +1039,6 @@ async onUpload() {
         }
 
         try {
-            console.log(`Requesting new presigned URL for ${fileName} (relativePath: ${relativePath}, chunkIndex: ${chunkIndex})`);
             const response = await lastValueFrom(this.http.post<UploadResponse>(url, formData, {
                 headers: this.getAuthHeaders()
             }));
@@ -1066,10 +1061,8 @@ async onUpload() {
                 throw new Error(`No matching presigned URL found for chunk ${chunkIndex} of ${fileName}`);
             }
 
-            console.log(`Refreshed presigned URL for ${fileName} (chunk ${chunkIndex})`);
             return matchingUrl;
         } catch (err: any) {
-            console.error(`Failed to refresh presigned URL for ${fileName} (chunk ${chunkIndex}):`, err);
             return null;
         }
     }
@@ -1100,8 +1093,6 @@ async onUpload() {
                     'Content-Range': `bytes ${startByte}-${endByte - 1}/${totalSize}`
                 });
 
-                console.log(`Uploading chunk ${chunkIndex} for ${fileName} (relativePath: ${relativePath}, bytes ${startByte}-${endByte - 1}/${totalSize})`);
-
                 const uploadResponse = await lastValueFrom(this.http.put(presigned.uploadUrl, chunk, {
                     headers,
                     reportProgress: true,
@@ -1113,12 +1104,10 @@ async onUpload() {
                     this.currentFileProgress[key] = Math.round((fileChunkCounts.get(key)!.uploaded / fileChunkCounts.get(key)!.total) * 100);
                     this.cdr.detectChanges();
                 } else if (uploadResponse.type === HttpEventType.Response) {
-                    console.log(`Chunk ${chunkIndex} uploaded successfully for ${fileName} (relativePath: ${relativePath})`);
                     return true;
                 }
             } catch (err: any) {
                 retryCount++;
-                console.warn(`Upload attempt ${retryCount} failed for chunk ${chunkIndex} of ${fileName} (relativePath: ${relativePath}):`, err);
                 if (retryCount >= this.MAX_RETRIES) {
                     this.message = `Failed to upload chunk ${chunkIndex} for ${fileName} after ${this.MAX_RETRIES} attempts`;
                     this.validationMessage = this.message;
@@ -1214,10 +1203,5 @@ async onUpload() {
         return new HttpHeaders({
             Authorization: `Bearer ${token}`
         });
-    }
-
-    ngOnDestroy(): void {
-        this.subscriptions.forEach(sub => sub.unsubscribe());
-        this.subscriptions = [];
     }
 }
