@@ -78,6 +78,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   isBlackAndWhiteTheme: boolean = false;
   filteredContents: OneDriveItem[] = [];
 
+  // ✅ keep stable refs for add/removeEventListener
+  private boundDisableDevTools = (e: KeyboardEvent) => this.disableDevTools(e);
+  private onRenameHidden = () => this.closeRenameModal();
+  private onShareHidden = () => this.closeShareModal();
+  private onDeleteHidden = () => this.closeDeleteModal();
+
   constructor(
     private authService: AuthService,
     private http: HttpClient,
@@ -87,9 +93,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   ngOnInit(): void {
     this.userSessionDetails = this.authService.getLoggedInUserDetails();
+
     if (this.userSessionDetails && this.userSessionDetails.username && this.userSessionDetails.cloudProvider) {
       this.username = this.userSessionDetails.username;
       this.cloudProvider = this.userSessionDetails.cloudProvider.toLowerCase();
+
       if (this.cloudProvider === 'onedrive') {
         this.listRootFolders();
         this.fetchUserCreatedDateTime();
@@ -104,8 +112,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     this.fetchTotalUsers();
 
-    // Add event listener for keydown to block dev tools shortcuts
-    document.addEventListener('keydown', this.disableDevTools.bind(this));
+    // ✅ Add event listener for keydown to block dev tools shortcuts
+    document.addEventListener('keydown', this.boundDisableDevTools);
   }
 
   private fetchUserCreatedDateTime(): void {
@@ -117,7 +125,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     const url = `https://datakavach.com/isparxcloud/user-created-date?username=${encodeURIComponent(this.username)}`;
 
-    const sub = this.http.get<{ createdDateTime?: string }>(url, { headers: this.getAuthHeaders() })
+    const sub = this.http.get<{ createdDateTime?: string }>(url, { headers: this.getJsonHeaders() })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
@@ -137,6 +145,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.cdr.detectChanges();
         }
       });
+
     this.subscriptions.push(sub);
   }
 
@@ -163,24 +172,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   ngAfterViewInit(): void {
     setTimeout(() => {
       this.initializeCharts();
+
       const renameModalElement = document.getElementById('renameModal');
-      if (renameModalElement) {
-        renameModalElement.addEventListener('hidden.bs.modal', () => {
-          this.closeRenameModal();
-        });
-      }
+      if (renameModalElement) renameModalElement.addEventListener('hidden.bs.modal', this.onRenameHidden);
+
       const shareModalElement = document.getElementById('shareModal');
-      if (shareModalElement) {
-        shareModalElement.addEventListener('hidden.bs.modal', () => {
-          this.closeShareModal();
-        });
-      }
+      if (shareModalElement) shareModalElement.addEventListener('hidden.bs.modal', this.onShareHidden);
+
       const deleteModalElement = document.getElementById('deleteModal');
-      if (deleteModalElement) {
-        deleteModalElement.addEventListener('hidden.bs.modal', () => {
-          this.closeDeleteModal();
-        });
-      }
+      if (deleteModalElement) deleteModalElement.addEventListener('hidden.bs.modal', this.onDeleteHidden);
+
       this.cdr.detectChanges();
     }, 0);
   }
@@ -225,9 +226,10 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     this.userSessionDetails.userType = 5;
+
     const sub = this.superAdminService.getUsersList(this.userSessionDetails)
       .pipe(
-        catchError((err) => {
+        catchError(() => {
           this.errorMessage = 'Failed to fetch user count. Please try again later.';
           this.totalUsers = 0;
           this.cdr.detectChanges();
@@ -245,6 +247,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.cdr.detectChanges();
         }
       });
+
     this.subscriptions.push(sub);
   }
 
@@ -300,6 +303,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.loadFolderContents(newPath);
   }
 
+  // ✅ FIXED: uses download headers + observe response
   downloadFolder(folderName: string): void {
     if (!this.username || !folderName) {
       this.errorMessage = 'Invalid folder or user email.';
@@ -315,33 +319,44 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
     const sub = this.http
-      .get(url, { headers: this.getAuthHeaders(), responseType: 'blob' })
+      .get(url, {
+        headers: this.getDownloadHeaders(),
+        responseType: 'blob',
+        observe: 'response'
+      })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loading = false;
-          let errorMessage = err.error?.message || 'Failed to download folder. Please try again.';
-          if (err.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again.';
-          } else if (err.status === 404) {
-            errorMessage = `Folder "${folderPath}" not found.`;
-          } else if (err.status === 500) {
-            errorMessage = 'Server error. Please contact support.';
-          }
+
+          let errorMessage = 'Failed to download folder. Please try again.';
+          if (err.status === 401) errorMessage = 'Authentication failed. Please log in again.';
+          else if (err.status === 404) errorMessage = `Folder "${folderPath}" not found.`;
+          else if (err.status === 406) errorMessage = 'Download failed (406). Backend returned ZIP but request Accept was not compatible.';
+          else if (err.status === 500) errorMessage = 'Server error. Please contact support.';
+
           this.errorMessage = errorMessage;
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
         })
       )
       .subscribe({
-        next: (response) => {
-          const blob = new Blob([response], { type: 'application/zip' });
-          saveAs(blob, `${folderName}.zip`);
+        next: (res) => {
+          const blob = res.body as Blob;
+
+          // Try to read filename from Content-Disposition
+          const cd = res.headers.get('content-disposition') || '';
+          const match = /filename="(.+?)"/i.exec(cd);
+          const fileName = match?.[1] || `${folderName}.zip`;
+
+          saveAs(blob, fileName);
+
           this.successMessage = `Folder "${folderName}" downloaded successfully as ZIP.`;
           this.loading = false;
           this.cdr.detectChanges();
         }
       });
+
     this.subscriptions.push(sub);
   }
 
@@ -351,6 +366,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.renameError = '';
     this.successMessage = '';
     this.showRenameModal = true;
+
     const modalElement = document.getElementById('renameModal');
     if (modalElement) {
       const bootstrap = (window as any).bootstrap;
@@ -367,14 +383,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.selectedFolder = '';
     this.newFolderName = '';
     this.renameError = '';
+
     const modalElement = document.getElementById('renameModal');
     if (modalElement) {
       const bootstrap = (window as any).bootstrap;
       if (bootstrap && bootstrap.Modal) {
         const modal = bootstrap.Modal.getInstance(modalElement);
-        if (modal) {
-          modal.hide();
-        }
+        if (modal) modal.hide();
       }
     }
     this.cdr.detectChanges();
@@ -400,20 +415,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.renameError = '';
     this.successMessage = '';
 
-    const sub = this.http.patch<{ message?: string }>(url, requestBody, { headers: this.getAuthHeaders() })
+    const sub = this.http.patch<{ message?: string }>(url, requestBody, { headers: this.getJsonHeaders() })
       .pipe(
         catchError((err) => {
           this.loading = false;
           let errorMessage = err.error?.message || 'Failed to rename folder. Please try again.';
-          if (err.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again.';
-          } else if (err.status === 404) {
-            errorMessage = `Folder "${folderPath}" not found.`;
-          } else if (err.status === 400) {
-            errorMessage = err.error.message || 'Invalid request. Please check the folder name and try again.';
-          } else if (err.error?.includes('multi-factor authentication')) {
-            errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
-          }
+          if (err.status === 401) errorMessage = 'Authentication failed. Please log in again.';
+          else if (err.status === 404) errorMessage = `Folder "${folderPath}" not found.`;
+          else if (err.status === 400) errorMessage = err.error.message || 'Invalid request. Please check the folder name and try again.';
+          else if (err.error?.includes('multi-factor authentication')) errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
+
           this.renameError = errorMessage;
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
@@ -428,6 +439,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.cdr.detectChanges();
         }
       });
+
     this.subscriptions.push(sub);
   }
 
@@ -437,6 +449,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.shareError = '';
     this.showShareModal = true;
     this.generateShareLink(item);
+
     const modalElement = document.getElementById('shareModal');
     if (modalElement) {
       const bootstrap = (window as any).bootstrap;
@@ -453,14 +466,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.selectedItem = null;
     this.shareLink = '';
     this.shareError = '';
+
     const modalElement = document.getElementById('shareModal');
     if (modalElement) {
       const bootstrap = (window as any).bootstrap;
       if (bootstrap && bootstrap.Modal) {
         const modal = bootstrap.Modal.getInstance(modalElement);
-        if (modal) {
-          modal.hide();
-        }
+        if (modal) modal.hide();
       }
     }
     this.cdr.detectChanges();
@@ -472,6 +484,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.successMessage = '';
     this.deleteSuccessMessage = '';
     this.showDeleteModal = true;
+
     const modalElement = document.getElementById('deleteModal');
     if (modalElement) {
       const bootstrap = (window as any).bootstrap;
@@ -487,14 +500,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.showDeleteModal = false;
     this.selectedItem = null;
     this.deleteError = '';
+
     const modalElement = document.getElementById('deleteModal');
     if (modalElement) {
       const bootstrap = (window as any).bootstrap;
       if (bootstrap && bootstrap.Modal) {
         const modal = bootstrap.Modal.getInstance(modalElement);
-        if (modal) {
-          modal.hide();
-        }
+        if (modal) modal.hide();
       }
     }
     this.cdr.detectChanges();
@@ -515,20 +527,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     const itemPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${this.selectedItem.name}` : this.selectedItem.name);
     const url = `https://datakavach.com/isparxcloud/delete-item?username=${encodeURIComponent(this.username)}&itemPath=${encodeURIComponent(itemPath)}&isFolder=${this.selectedItem.type === 'folder'}`;
 
-    const sub = this.http.delete<{ message?: string }>(url, { headers: this.getAuthHeaders() })
+    const sub = this.http.delete<{ message?: string }>(url, { headers: this.getJsonHeaders() })
       .pipe(
         catchError((err) => {
           this.loading = false;
           let errorMessage = err.error?.error || `Failed to delete ${this.selectedItem?.type}. Please try again.`;
-          if (err.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again.';
-          } else if (err.status === 404) {
-            errorMessage = `${this.selectedItem?.type === 'folder' ? 'Folder' : 'File'} "${itemPath}" not found.`;
-          } else if (err.status === 400) {
-            errorMessage = err.error.error || 'Invalid request. Please check the item and try again.';
-          } else if (err.status === 500) {
-            errorMessage = 'Server error. Please contact support.';
-          }
+          if (err.status === 401) errorMessage = 'Authentication failed. Please log in again.';
+          else if (err.status === 404) errorMessage = `${this.selectedItem?.type === 'folder' ? 'Folder' : 'File'} "${itemPath}" not found.`;
+          else if (err.status === 400) errorMessage = err.error.error || 'Invalid request. Please check the item and try again.';
+          else if (err.status === 500) errorMessage = 'Server error. Please contact support.';
+
           this.deleteError = errorMessage;
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
@@ -546,6 +554,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.cdr.detectChanges();
         }
       });
+
     this.subscriptions.push(sub);
   }
 
@@ -569,20 +578,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       folderPath: itemPath
     };
 
-    const sub = this.http.post<{ shareLink: string }>(url, requestBody, { headers: this.getAuthHeaders() })
+    const sub = this.http.post<{ shareLink: string }>(url, requestBody, { headers: this.getJsonHeaders() })
       .pipe(
         catchError((err) => {
           this.loading = false;
           let errorMessage = err.error?.error || 'Failed to generate share link. Please try again.';
-          if (err.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again.';
-          } else if (err.status === 404) {
-            errorMessage = `${item.type === 'folder' ? 'Folder' : 'File'} "${itemPath}" not found.`;
-          } else if (err.status === 400) {
-            errorMessage = err.error.error || 'Invalid request. Please check the item and try again.';
-          } else if (err.status === 500) {
-            errorMessage = 'Server error. Please contact support.';
-          }
+          if (err.status === 401) errorMessage = 'Authentication failed. Please log in again.';
+          else if (err.status === 404) errorMessage = `${item.type === 'folder' ? 'Folder' : 'File'} "${itemPath}" not found.`;
+          else if (err.status === 400) errorMessage = err.error.error || 'Invalid request. Please check the item and try again.';
+          else if (err.status === 500) errorMessage = 'Server error. Please contact support.';
+
           this.shareError = errorMessage;
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
@@ -602,6 +607,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.cdr.detectChanges();
         }
       });
+
     this.subscriptions.push(sub);
   }
 
@@ -616,13 +622,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   isImage(item: OneDriveItem): boolean {
-    return item.mimeType?.startsWith('image/') || 
-           item.name.toLowerCase().match(/\.(png|jpg|jpeg|gif|bmp)$/i) !== null;
+    return item.mimeType?.startsWith('image/') ||
+      item.name.toLowerCase().match(/\.(png|jpg|jpeg|gif|bmp)$/i) !== null;
   }
 
   isVideo(item: OneDriveItem): boolean {
-    return item.mimeType?.startsWith('video/') || 
-           item.name.toLowerCase().match(/\.(mp4|avi|mov|wmv)$/i) !== null;
+    return item.mimeType?.startsWith('video/') ||
+      item.name.toLowerCase().match(/\.(mp4|avi|mov|wmv)$/i) !== null;
   }
 
   fetchFolderPreview(folderName: string, item: OneDriveItem): void {
@@ -635,7 +641,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
     const url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
 
-    const sub = this.http.get<{ contents?: OneDriveItem[] }>(url, { headers: this.getAuthHeaders() })
+    const sub = this.http.get<{ contents?: OneDriveItem[] }>(url, { headers: this.getJsonHeaders() })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
@@ -670,7 +676,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           item.previewItems.forEach((previewItem, index) => {
             if (this.isVideo(previewItem) && previewItem.previewUrl) {
               const checkUrl = previewItem.previewUrl;
-              const checkSub = this.http.head(checkUrl, { headers: this.getAuthHeaders() })
+              const checkSub = this.http.head(checkUrl, { headers: this.getJsonHeaders() })
                 .pipe(
                   retry({ count: 2, delay: 1000 }),
                   catchError((err) => {
@@ -684,7 +690,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
                   next: () => {
                     if (index === 0 && item.isHovered) {
                       setTimeout(() => {
-                        this.cdr.detectChanges(); // Ensure DOM is updated
+                        this.cdr.detectChanges();
                         this.playVideoPreview(item, index);
                       }, 100);
                     }
@@ -705,6 +711,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.cdr.detectChanges();
         }
       });
+
     this.subscriptions.push(sub);
   }
 
@@ -729,13 +736,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         return;
       }
 
-      // Trigger change detection to render video/image element
       this.cdr.detectChanges();
 
-      // Perform preflight check for videos
+      // Preflight check for videos
       if (this.isVideo(item)) {
         const checkUrl = item.previewUrl;
-        const sub = this.http.head(checkUrl, { headers: this.getAuthHeaders() })
+        const sub = this.http.head(checkUrl, { headers: this.getJsonHeaders() })
           .pipe(
             retry({ count: 2, delay: 1000 }),
             catchError((err) => {
@@ -750,7 +756,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           )
           .subscribe({
             next: () => {
-              // Ensure previewUrl and video element are available
               setTimeout(() => {
                 if (!item.previewUrl) {
                   item.previewError = 'Preview URL lost after preflight check.';
@@ -767,7 +772,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
                   return;
                 }
                 this.playVideoPreview(item, undefined);
-              }, 200); // Increased delay to ensure DOM update
+              }, 200);
             }
           });
         this.subscriptions.push(sub);
@@ -782,23 +787,29 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   onThumbnailLeave(item: OneDriveItem): void {
     if (item.isHovered) {
       item.isHovered = false;
-      item.previewItems = item.type === 'folder' ? [] : item.previewItems;
-      item.previewError = undefined;
-      if (this.isVideo(item) || (item.type === 'folder' && item.previewItems?.some(i => this.isVideo(i)))) {
-        const videoSelector = item.type === 'folder' && item.previewItems?.length
+
+      // NOTE: your old code cleared previewItems before checking for videos.
+      // Keep it simple and safe:
+      const hadVideoInFolder = item.type === 'folder' && (item.previewItems?.some(i => this.isVideo(i)) ?? false);
+
+      if (this.isVideo(item) || hadVideoInFolder) {
+        const videoSelector = item.type === 'folder'
           ? `#video-preview-${item.id}-0`
           : `#video-preview-${item.id}`;
         const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
         if (videoElement) {
           videoElement.pause();
           videoElement.currentTime = 0;
-          videoElement.src = ''; // Clear src to prevent memory leaks
+          videoElement.src = '';
         }
       }
-      // Only clear previewUrl for folders, not files, to preserve it for subsequent hovers
+
       if (item.type === 'folder') {
+        item.previewItems = [];
         item.previewUrl = undefined;
       }
+
+      item.previewError = undefined;
       this.cdr.detectChanges();
     }
   }
@@ -808,6 +819,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       ? `#video-preview-${item.id}-${index}`
       : `#video-preview-${item.id}`;
     const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
+
     const previewUrl = item.type === 'folder' && item.previewItems?.length && index !== undefined
       ? item.previewItems[index].previewUrl
       : item.previewUrl;
@@ -828,44 +840,49 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     videoElement.muted = true;
     videoElement.currentTime = 0;
-    videoElement.src = previewUrl; // Explicitly set src
-    videoElement.load(); // Force reload to ensure src is applied
+    videoElement.src = previewUrl;
+    videoElement.load();
+
     videoElement.play().catch(err => {
-      item.previewError = err.status === 404 ? `Video "${item.name}" not found.` : `Failed to play video preview: ${err.message || 'Unknown error'}`;
+      item.previewError = err?.status === 404 ? `Video "${item.name}" not found.` : `Failed to play video preview: ${err?.message || 'Unknown error'}`;
       this.showPreviewToast(item.previewError);
       this.cdr.detectChanges();
-      setTimeout(() => {
-        videoElement.src = previewUrl; // Reassign src for retry
-        videoElement.load();
-        videoElement.play().catch(err2 => {
-          item.previewError = `Video playback failed after retry: ${err2.message || 'Unknown error'}`;
-          this.showPreviewToast(item.previewError);
-          this.cdr.detectChanges();
-        });
-      }, 50);
     });
+
     setTimeout(() => {
       if (item.isHovered && videoElement) {
         videoElement.pause();
         videoElement.currentTime = 0;
-        videoElement.src = ''; // Clear src to prevent memory leaks
+        videoElement.src = '';
         item.isHovered = false;
+
         if (item.type === 'folder') {
           item.previewItems = [];
           item.previewUrl = undefined;
         }
+
         item.previewError = undefined;
         this.cdr.detectChanges();
       }
     }, (item.previewDuration || 5) * 1000);
   }
 
-  private getAuthHeaders(): HttpHeaders {
+  // ✅ JSON headers for normal APIs
+  private getJsonHeaders(): HttpHeaders {
     const token = this.userSessionDetails?.jwtToken || '';
     return new HttpHeaders({
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json'
+    });
+  }
+
+  // ✅ Download headers for binary endpoints (ZIP, etc.)
+  private getDownloadHeaders(): HttpHeaders {
+    const token = this.userSessionDetails?.jwtToken || '';
+    return new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/octet-stream'
     });
   }
 
@@ -891,19 +908,16 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(normalizedFolderPath)}`
       : `https://datakavach.com/isparxcloud/folders?username=${encodeURIComponent(this.username)}`;
 
-    const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(url, { headers: this.getAuthHeaders() })
+    const sub = this.http.get<{ contents?: OneDriveItem[], folders?: OneDriveItem[], nextLink?: string }>(url, { headers: this.getJsonHeaders() })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loading = false;
           let errorMessage = err.error?.error || 'Failed to list contents. Please try again.';
-          if (err.status === 401) {
-            errorMessage = 'Authentication failed. Please log in again.';
-          } else if (err.status === 404) {
-            errorMessage = `The folder "${normalizedFolderPath || 'root'}" does not exist in your OneDrive.`;
-          } else if (err.error?.error?.includes('multi-factor authentication')) {
-            errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
-          }
+          if (err.status === 401) errorMessage = 'Authentication failed. Please log in again.';
+          else if (err.status === 404) errorMessage = `The folder "${normalizedFolderPath || 'root'}" does not exist in your OneDrive.`;
+          else if (err.error?.error?.includes('multi-factor authentication')) errorMessage = 'Multi-factor authentication is required for OneDrive access. Contact your administrator to resolve.';
+
           this.errorMessage = errorMessage;
           this.cdr.detectChanges();
           return throwError(() => new Error(errorMessage));
@@ -920,22 +934,17 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             previewError: undefined
           }));
 
-          // Calculate total size
           this.totalSize = this.oneDriveContents.reduce((sum, item) => sum + (item.size || 0), 0);
           this.remainingStorage = this.totalStorage - this.totalSize;
 
-          // Initialize filtered contents
           this.filteredContents = [...this.oneDriveContents];
           this.sortContents();
           this.filterContents();
 
-          // Update charts
           this.updateStorageChart();
           this.initFolderUsageChart();
 
-          // Handle pagination
           this.nextLink = response.nextLink || '';
-
           this.loading = false;
           this.cdr.detectChanges();
         },
@@ -944,6 +953,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
           this.cdr.detectChanges();
         }
       });
+
     this.subscriptions.push(sub);
   }
 
@@ -962,13 +972,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   sortContents(): void {
     this.filteredContents.sort((a, b) => {
-      if (this.sortBy === 'name') {
-        return a.name.localeCompare(b.name);
-      } else if (this.sortBy === 'type') {
-        return a.type.localeCompare(b.type);
-      } else if (this.sortBy === 'size') {
-        return (b.size || 0) - (a.size || 0);
-      }
+      if (this.sortBy === 'name') return a.name.localeCompare(b.name);
+      if (this.sortBy === 'type') return a.type.localeCompare(b.type);
+      if (this.sortBy === 'size') return (b.size || 0) - (a.size || 0);
       return 0;
     });
     this.cdr.detectChanges();
@@ -988,17 +994,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   updateStorageChart(): void {
     const canvas = document.getElementById('storageChart') as HTMLCanvasElement;
-    if (!canvas) {
-      return;
-    }
+    if (!canvas) return;
 
-    if (this.storageChart) {
-      this.storageChart.destroy();
-    }
+    if (this.storageChart) this.storageChart.destroy();
 
-    const colors = this.isBlackAndWhiteTheme
-      ? ['#333333', '#cccccc']
-      : ['#007bff', '#e9ecef'];
+    const colors = this.isBlackAndWhiteTheme ? ['#333333', '#cccccc'] : ['#007bff', '#e9ecef'];
 
     this.storageChart = new Chart<'doughnut', number[], string>(canvas, {
       type: 'doughnut',
@@ -1016,9 +1016,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         plugins: {
           legend: {
             position: 'bottom',
-            labels: {
-              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
-            }
+            labels: { color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b' }
           },
           title: {
             display: true,
@@ -1028,22 +1026,20 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         }
       }
     });
+
     this.cdr.detectChanges();
   }
 
   initFolderUsageChart(): void {
     const canvas = document.getElementById('folderUsageChart') as HTMLCanvasElement;
-    if (!canvas) {
-      return;
-    }
+    if (!canvas) return;
 
-    if (this.folderUsageChart) {
-      this.folderUsageChart.destroy();
-    }
+    if (this.folderUsageChart) this.folderUsageChart.destroy();
 
     const folders = this.filteredContents.filter(item => item.type === 'folder');
     const labels = folders.map(item => item.name);
     const data = folders.map(item => item.size || 0);
+
     const colors = this.isBlackAndWhiteTheme
       ? ['#333333', '#555555', '#777777', '#999999', '#bbbbbb']
       : ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8'];
@@ -1065,38 +1061,21 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         scales: {
           y: {
             beginAtZero: true,
-            title: {
-              display: true,
-              text: 'Size (Bytes)',
-              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
-            },
-            ticks: {
-              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
-            }
+            title: { display: true, text: 'Size (Bytes)', color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b' },
+            ticks: { color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b' }
           },
           x: {
-            title: {
-              display: true,
-              text: 'Folders',
-              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
-            },
-            ticks: {
-              color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
-            }
+            title: { display: true, text: 'Folders', color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b' },
+            ticks: { color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b' }
           }
         },
         plugins: {
-          legend: {
-            display: false
-          },
-          title: {
-            display: true,
-            text: 'Folder Usage',
-            color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b'
-          }
+          legend: { display: false },
+          title: { display: true, text: 'Folder Usage', color: this.isBlackAndWhiteTheme ? '#333333' : '#1e293b' }
         }
       }
     });
+
     this.cdr.detectChanges();
   }
 
@@ -1111,12 +1090,10 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   disableDevTools(event: KeyboardEvent): void {
-    // Block F12
     if (event.key === 'F12') {
       event.preventDefault();
       return;
     }
-    // Block Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
     if (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'i' || event.key === 'J' || event.key === 'j')) {
       event.preventDefault();
       return;
@@ -1128,60 +1105,38 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   ngOnDestroy(): void {
-    // Clean up charts
-    if (this.storageChart) {
-      this.storageChart.destroy();
-    }
-    if (this.folderUsageChart) {
-      this.folderUsageChart.destroy();
-    }
+    if (this.storageChart) this.storageChart.destroy();
+    if (this.folderUsageChart) this.folderUsageChart.destroy();
 
-    // Unsubscribe from all HTTP subscriptions
     this.subscriptions.forEach(sub => sub.unsubscribe());
 
-    // Clean up modal event listeners
     const renameModalElement = document.getElementById('renameModal');
-    if (renameModalElement) {
-      renameModalElement.removeEventListener('hidden.bs.modal', () => {
-        this.closeRenameModal();
-      });
-    }
-    const shareModalElement = document.getElementById('shareModal');
-    if (shareModalElement) {
-      shareModalElement.removeEventListener('hidden.bs.modal', () => {
-        this.closeShareModal();
-      });
-    }
-    const deleteModalElement = document.getElementById('deleteModal');
-    if (deleteModalElement) {
-      deleteModalElement.removeEventListener('hidden.bs.modal', () => {
-        this.closeDeleteModal();
-      });
-    }
+    if (renameModalElement) renameModalElement.removeEventListener('hidden.bs.modal', this.onRenameHidden);
 
-    // Clean up toasts
+    const shareModalElement = document.getElementById('shareModal');
+    if (shareModalElement) shareModalElement.removeEventListener('hidden.bs.modal', this.onShareHidden);
+
+    const deleteModalElement = document.getElementById('deleteModal');
+    if (deleteModalElement) deleteModalElement.removeEventListener('hidden.bs.modal', this.onDeleteHidden);
+
     const previewToastElement = document.getElementById('previewToast');
     if (previewToastElement) {
       const bootstrap = (window as any).bootstrap;
       if (bootstrap && bootstrap.Toast) {
         const toast = bootstrap.Toast.getInstance(previewToastElement);
-        if (toast) {
-          toast.dispose();
-        }
+        if (toast) toast.dispose();
       }
     }
+
     const deleteSuccessToastElement = document.getElementById('deleteSuccessToast');
     if (deleteSuccessToastElement) {
       const bootstrap = (window as any).bootstrap;
       if (bootstrap && bootstrap.Toast) {
         const toast = bootstrap.Toast.getInstance(deleteSuccessToastElement);
-        if (toast) {
-          toast.dispose();
-        }
+        if (toast) toast.dispose();
       }
     }
 
-    // Clean up any active video elements
     this.oneDriveContents.forEach(item => {
       if (item.isHovered && (this.isVideo(item) || (item.type === 'folder' && item.previewItems?.some(i => this.isVideo(i))))) {
         const videoSelector = item.type === 'folder' && item.previewItems?.length
@@ -1196,7 +1151,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       }
     });
 
-    // Remove keydown event listener
-    document.removeEventListener('keydown', this.disableDevTools.bind(this));
+    document.removeEventListener('keydown', this.boundDisableDevTools);
   }
 }
