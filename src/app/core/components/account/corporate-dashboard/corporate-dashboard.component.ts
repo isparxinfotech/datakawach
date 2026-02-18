@@ -14,7 +14,8 @@ Chart.register(...registerables);
 
 // Interface for OneDrive content items
 interface OneDriveItem {
-  name: string;
+  name: string;                 // raw name as returned by backend (may be encoded)
+  displayName?: string;         // decoded name for UI
   id: string;
   size: number;
   type: 'file' | 'folder';
@@ -111,10 +112,58 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     }
 
     this.fetchTotalUsers();
-
-    // ✅ Add event listener for keydown to block dev tools shortcuts
     document.addEventListener('keydown', this.boundDisableDevTools);
   }
+
+  // =========================
+  // ✅ PATH + ENCODING FIXES
+  // =========================
+
+  private normalizePath(path: string): string {
+    return path.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+  }
+
+  /** Decode repeatedly (handles "%2520" -> "%20" -> " ") */
+  private decodeRepeated(value: string, maxTimes: number = 3): string {
+    let out = value ?? '';
+    for (let i = 0; i < maxTimes; i++) {
+      try {
+        const decoded = decodeURIComponent(out);
+        if (decoded === out) break;
+        out = decoded;
+      } catch {
+        break; // if invalid encoding, stop decoding
+      }
+    }
+    return out;
+  }
+
+// ✅ MUST be public because template uses it
+public cleanSegment(segment: string): string {
+  if (!segment) return '';
+  try {
+    // handle things like Microsoft%2520Copilot -> Microsoft%20Copilot -> Microsoft Copilot
+    let s = segment;
+    for (let i = 0; i < 2; i++) s = decodeURIComponent(s);
+    return s;
+  } catch {
+    return segment;
+  }
+}
+  /** Build a clean path from currentPath + segment (no double-encoding) */
+  private buildPath(...segments: string[]): string {
+    const cleaned = segments
+      .filter(Boolean)
+      .map(s => this.cleanSegment(s));
+    return this.normalizePath(cleaned.join('/'));
+  }
+
+  /** Show readable name in UI */
+  getItemDisplayName(item: OneDriveItem): string {
+    return item.displayName || this.decodeRepeated(item.name);
+  }
+
+  // =========================
 
   private fetchUserCreatedDateTime(): void {
     if (!this.username) {
@@ -154,7 +203,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     const createdDate = new Date(this.createdDateTime);
     const expiration = new Date(createdDate);
-    expiration.setFullYear(createdDate.getFullYear() + 1); // Subscription expires after 1 year
+    expiration.setFullYear(createdDate.getFullYear() + 1);
 
     this.expirationDate = expiration.toLocaleDateString('en-US', {
       year: 'numeric',
@@ -251,10 +300,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.subscriptions.push(sub);
   }
 
-  private normalizePath(path: string): string {
-    return path.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
-  }
-
   toggleTheme(): void {
     this.isBlackAndWhiteTheme = !this.isBlackAndWhiteTheme;
     this.updateStorageChart();
@@ -275,7 +320,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       this.cdr.detectChanges();
       return;
     }
-    const newPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
+
+    const newPath = this.buildPath(this.currentPath, folderName);
     this.pathHistory.push(this.currentPath);
     this.currentPath = newPath;
     this.nextLink = '';
@@ -303,7 +349,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.loadFolderContents(newPath);
   }
 
-  // ✅ FIXED: uses download headers + observe response
+  // ✅ FIXED: download path building (no double encoding)
   downloadFolder(folderName: string): void {
     if (!this.username || !folderName) {
       this.errorMessage = 'Invalid folder or user email.';
@@ -315,8 +361,11 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.errorMessage = '';
     this.successMessage = '';
 
-    const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
-    const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const folderPath = this.buildPath(this.currentPath, folderName);
+
+    const url =
+      `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.username)}` +
+      `&folderPath=${encodeURIComponent(folderPath)}`;
 
     const sub = this.http
       .get(url, {
@@ -344,14 +393,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         next: (res) => {
           const blob = res.body as Blob;
 
-          // Try to read filename from Content-Disposition
           const cd = res.headers.get('content-disposition') || '';
           const match = /filename="(.+?)"/i.exec(cd);
-          const fileName = match?.[1] || `${folderName}.zip`;
+          const fileName = match?.[1] || `${this.cleanSegment(folderName)}.zip`;
 
           saveAs(blob, fileName);
 
-          this.successMessage = `Folder "${folderName}" downloaded successfully as ZIP.`;
+          this.successMessage = `Folder "${this.cleanSegment(folderName)}" downloaded successfully as ZIP.`;
           this.loading = false;
           this.cdr.detectChanges();
         }
@@ -362,7 +410,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   openRenameModal(folderName: string): void {
     this.selectedFolder = folderName;
-    this.newFolderName = folderName;
+    this.newFolderName = this.cleanSegment(folderName);
     this.renameError = '';
     this.successMessage = '';
     this.showRenameModal = true;
@@ -402,13 +450,13 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       return;
     }
 
-    const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${this.selectedFolder}` : this.selectedFolder);
+    const folderPath = this.buildPath(this.currentPath, this.selectedFolder);
     const url = 'https://datakavach.com/isparxcloud/rename-folder';
 
     const requestBody = {
       username: this.username,
-      folderPath: folderPath,
-      newFolderName: this.newFolderName
+      folderPath,
+      newFolderName: this.newFolderName.trim()
     };
 
     this.loading = true;
@@ -432,7 +480,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
-          this.successMessage = response.message || `Folder "${this.selectedFolder}" renamed to "${this.newFolderName}" successfully.`;
+          this.successMessage = response.message || `Folder renamed successfully.`;
           this.closeRenameModal();
           this.loadFolderContents(this.currentPath);
           this.loading = false;
@@ -512,6 +560,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.cdr.detectChanges();
   }
 
+  // ✅ FIXED: delete path building (no double encoding)
   deleteItem(): void {
     if (!this.username || !this.selectedItem?.name) {
       this.deleteError = 'Invalid item or user email.';
@@ -524,8 +573,12 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.successMessage = '';
     this.deleteSuccessMessage = '';
 
-    const itemPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${this.selectedItem.name}` : this.selectedItem.name);
-    const url = `https://datakavach.com/isparxcloud/delete-item?username=${encodeURIComponent(this.username)}&itemPath=${encodeURIComponent(itemPath)}&isFolder=${this.selectedItem.type === 'folder'}`;
+    const itemPath = this.buildPath(this.currentPath, this.selectedItem.name);
+
+    const url =
+      `https://datakavach.com/isparxcloud/delete-item?username=${encodeURIComponent(this.username)}` +
+      `&itemPath=${encodeURIComponent(itemPath)}` +
+      `&isFolder=${this.selectedItem.type === 'folder'}`;
 
     const sub = this.http.delete<{ message?: string }>(url, { headers: this.getJsonHeaders() })
       .pipe(
@@ -544,9 +597,9 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       )
       .subscribe({
         next: (response) => {
-          const message = response.message || `${this.selectedItem?.type === 'folder' ? 'Folder' : 'File'} "${this.selectedItem?.name}" deleted successfully.`;
-          this.successMessage = message; // For alert
-          this.deleteSuccessMessage = message; // For toast
+          const message = response.message || `${this.selectedItem?.type === 'folder' ? 'Folder' : 'File'} deleted successfully.`;
+          this.successMessage = message;
+          this.deleteSuccessMessage = message;
           this.showDeleteSuccessToast(message);
           this.closeDeleteModal();
           this.loadFolderContents(this.currentPath);
@@ -558,6 +611,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.subscriptions.push(sub);
   }
 
+  // ✅ FIXED: share path building (no double encoding)
   generateShareLink(item: OneDriveItem): void {
     if (!this.username || !item.name) {
       this.shareError = 'Invalid item or user email.';
@@ -569,7 +623,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     this.shareError = '';
     this.successMessage = '';
 
-    const itemPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
+    const itemPath = this.buildPath(this.currentPath, item.name);
     const endpoint = item.type === 'folder' ? 'share-folder' : 'share-file';
     const url = `https://datakavach.com/isparxcloud/${endpoint}`;
 
@@ -601,8 +655,8 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             this.cdr.detectChanges();
             return;
           }
-          this.shareLink = response.shareLink; // Use backend-provided URL directly
-          this.successMessage = `Share link for "${item.name}" generated successfully.`;
+          this.shareLink = response.shareLink;
+          this.successMessage = `Share link for "${this.getItemDisplayName(item)}" generated successfully.`;
           this.loading = false;
           this.cdr.detectChanges();
         }
@@ -631,6 +685,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       item.name.toLowerCase().match(/\.(mp4|avi|mov|wmv)$/i) !== null;
   }
 
+  // ✅ FIXED: preview path building (no double encoding)
   fetchFolderPreview(folderName: string, item: OneDriveItem): void {
     if (!this.username) {
       this.errorMessage = 'Please provide a username.';
@@ -638,15 +693,17 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       return;
     }
 
-    const folderPath = this.normalizePath(this.currentPath ? `${this.currentPath}/${folderName}` : folderName);
-    const url = `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}&folderPath=${encodeURIComponent(folderPath)}`;
+    const folderPath = this.buildPath(this.currentPath, folderName);
+    const url =
+      `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.username)}` +
+      `&folderPath=${encodeURIComponent(folderPath)}`;
 
     const sub = this.http.get<{ contents?: OneDriveItem[] }>(url, { headers: this.getJsonHeaders() })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           item.previewItems = [];
-          item.previewError = err.status === 404 ? `Folder "${folderName}" not found.` : 'Failed to fetch folder preview.';
+          item.previewError = err.status === 404 ? `Folder "${this.cleanSegment(folderName)}" not found.` : 'Failed to fetch folder preview.';
           this.showPreviewToast(item.previewError);
           this.cdr.detectChanges();
           return throwError(() => new Error(item.previewError));
@@ -659,12 +716,14 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
             .filter(i => this.isImage(i) || this.isVideo(i))
             .slice(0, 3)
             .map(i => {
-              const filePath = this.normalizePath(`${folderPath}/${i.name}`);
+              const filePath = this.buildPath(folderPath, i.name);
               const previewUrl = this.isVideo(i)
                 ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
                 : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`;
+
               return {
                 ...i,
+                displayName: this.decodeRepeated(i.name),
                 previewUrl,
                 previewDuration: this.isVideo(i) ? 5 : undefined,
                 isHovered: false,
@@ -672,42 +731,15 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
               };
             });
 
-          // Verify video previews
-          item.previewItems.forEach((previewItem, index) => {
-            if (this.isVideo(previewItem) && previewItem.previewUrl) {
-              const checkUrl = previewItem.previewUrl;
-              const checkSub = this.http.head(checkUrl, { headers: this.getJsonHeaders() })
-                .pipe(
-                  retry({ count: 2, delay: 1000 }),
-                  catchError((err) => {
-                    previewItem.previewError = err.status === 404 ? `Video "${previewItem.name}" not found.` : 'Failed to verify video preview.';
-                    this.showPreviewToast(previewItem.previewError);
-                    this.cdr.detectChanges();
-                    return throwError(() => new Error(previewItem.previewError));
-                  })
-                )
-                .subscribe({
-                  next: () => {
-                    if (index === 0 && item.isHovered) {
-                      setTimeout(() => {
-                        this.cdr.detectChanges();
-                        this.playVideoPreview(item, index);
-                      }, 100);
-                    }
-                  }
-                });
-              this.subscriptions.push(checkSub);
-            }
-          });
-
-          if (item.previewItems.length > 0 && !item.previewItems[0].previewError) {
+          if (item.previewItems.length > 0) {
             item.previewUrl = item.previewItems[0].previewUrl;
             item.previewDuration = item.previewItems[0].previewDuration;
             item.previewError = undefined;
           } else {
-            item.previewError = item.previewItems.length > 0 ? item.previewItems[0].previewError : 'No previewable items in folder.';
-            this.showPreviewToast(item.previewError || 'No previewable items available.');
+            item.previewError = 'No previewable items in folder.';
+            this.showPreviewToast(item.previewError);
           }
+
           this.cdr.detectChanges();
         }
       });
@@ -723,60 +755,14 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     if (item.type === 'folder') {
       this.fetchFolderPreview(item.name, item);
     } else if (this.isImage(item) || this.isVideo(item)) {
-      const filePath = this.normalizePath(this.currentPath ? `${this.currentPath}/${item.name}` : item.name);
+      const filePath = this.buildPath(this.currentPath, item.name);
+
       item.previewDuration = this.isVideo(item) ? 5 : undefined;
       item.previewUrl = this.isVideo(item)
         ? `https://datakavach.com/isparxcloud/video-preview?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`
         : `https://datakavach.com/isparxcloud/thumbnail?username=${encodeURIComponent(this.username)}&filePath=${encodeURIComponent(filePath)}`;
 
-      if (!item.previewUrl) {
-        item.previewError = 'No preview URL available.';
-        this.showPreviewToast(item.previewError);
-        this.cdr.detectChanges();
-        return;
-      }
-
       this.cdr.detectChanges();
-
-      // Preflight check for videos
-      if (this.isVideo(item)) {
-        const checkUrl = item.previewUrl;
-        const sub = this.http.head(checkUrl, { headers: this.getJsonHeaders() })
-          .pipe(
-            retry({ count: 2, delay: 1000 }),
-            catchError((err) => {
-              const errorMessage = err.status === 404
-                ? `Video "${item.name}" not found at path "${filePath}".`
-                : `Failed to verify video preview for "${item.name}": ${err.message || 'Unknown error'}`;
-              item.previewError = errorMessage;
-              this.showPreviewToast(errorMessage);
-              this.cdr.detectChanges();
-              return throwError(() => new Error(errorMessage));
-            })
-          )
-          .subscribe({
-            next: () => {
-              setTimeout(() => {
-                if (!item.previewUrl) {
-                  item.previewError = 'Preview URL lost after preflight check.';
-                  this.showPreviewToast(item.previewError);
-                  this.cdr.detectChanges();
-                  return;
-                }
-                const videoSelector = `#video-preview-${item.id}`;
-                const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
-                if (!videoElement) {
-                  item.previewError = 'Video element not found for preview.';
-                  this.showPreviewToast(item.previewError);
-                  this.cdr.detectChanges();
-                  return;
-                }
-                this.playVideoPreview(item, undefined);
-              }, 200);
-            }
-          });
-        this.subscriptions.push(sub);
-      }
     } else {
       item.previewError = 'No preview available for this file type.';
       this.showPreviewToast(item.previewError);
@@ -788,8 +774,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     if (item.isHovered) {
       item.isHovered = false;
 
-      // NOTE: your old code cleared previewItems before checking for videos.
-      // Keep it simple and safe:
       const hadVideoInFolder = item.type === 'folder' && (item.previewItems?.some(i => this.isVideo(i)) ?? false);
 
       if (this.isVideo(item) || hadVideoInFolder) {
@@ -812,59 +796,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
       item.previewError = undefined;
       this.cdr.detectChanges();
     }
-  }
-
-  private playVideoPreview(item: OneDriveItem, index?: number): void {
-    const videoSelector = item.type === 'folder' && index !== undefined
-      ? `#video-preview-${item.id}-${index}`
-      : `#video-preview-${item.id}`;
-    const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
-
-    const previewUrl = item.type === 'folder' && item.previewItems?.length && index !== undefined
-      ? item.previewItems[index].previewUrl
-      : item.previewUrl;
-
-    if (!previewUrl) {
-      item.previewError = 'No video preview URL available.';
-      this.showPreviewToast(item.previewError);
-      this.cdr.detectChanges();
-      return;
-    }
-
-    if (!videoElement) {
-      item.previewError = 'Video element not found.';
-      this.showPreviewToast(item.previewError);
-      this.cdr.detectChanges();
-      return;
-    }
-
-    videoElement.muted = true;
-    videoElement.currentTime = 0;
-    videoElement.src = previewUrl;
-    videoElement.load();
-
-    videoElement.play().catch(err => {
-      item.previewError = err?.status === 404 ? `Video "${item.name}" not found.` : `Failed to play video preview: ${err?.message || 'Unknown error'}`;
-      this.showPreviewToast(item.previewError);
-      this.cdr.detectChanges();
-    });
-
-    setTimeout(() => {
-      if (item.isHovered && videoElement) {
-        videoElement.pause();
-        videoElement.currentTime = 0;
-        videoElement.src = '';
-        item.isHovered = false;
-
-        if (item.type === 'folder') {
-          item.previewItems = [];
-          item.previewUrl = undefined;
-        }
-
-        item.previewError = undefined;
-        this.cdr.detectChanges();
-      }
-    }, (item.previewDuration || 5) * 1000);
   }
 
   // ✅ JSON headers for normal APIs
@@ -927,6 +858,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
         next: (response) => {
           this.oneDriveContents = (response.contents || response.folders || []).map(item => ({
             ...item,
+            displayName: this.decodeRepeated(item.name),
             type: item.type || (item.mimeType ? 'file' : 'folder'),
             isHovered: false,
             previewUrl: undefined,
@@ -963,7 +895,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     } else {
       const query = this.searchQuery.toLowerCase().trim();
       this.filteredContents = this.oneDriveContents.filter(item =>
-        item.name.toLowerCase().includes(query)
+        this.getItemDisplayName(item).toLowerCase().includes(query)
       );
     }
     this.sortContents();
@@ -972,7 +904,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
   sortContents(): void {
     this.filteredContents.sort((a, b) => {
-      if (this.sortBy === 'name') return a.name.localeCompare(b.name);
+      if (this.sortBy === 'name') return this.getItemDisplayName(a).localeCompare(this.getItemDisplayName(b));
       if (this.sortBy === 'type') return a.type.localeCompare(b.type);
       if (this.sortBy === 'size') return (b.size || 0) - (a.size || 0);
       return 0;
@@ -1037,7 +969,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
     if (this.folderUsageChart) this.folderUsageChart.destroy();
 
     const folders = this.filteredContents.filter(item => item.type === 'folder');
-    const labels = folders.map(item => item.name);
+    const labels = folders.map(item => this.getItemDisplayName(item));
     const data = folders.map(item => item.size || 0);
 
     const colors = this.isBlackAndWhiteTheme
@@ -1080,7 +1012,7 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
   }
 
   onImgError(event: Event, item: OneDriveItem): void {
-    item.previewError = `Failed to load preview for "${item.name}".`;
+    item.previewError = `Failed to load preview for "${this.getItemDisplayName(item)}".`;
     this.showPreviewToast(item.previewError);
     this.cdr.detectChanges();
   }
@@ -1118,38 +1050,6 @@ export class CorporateDashboardComponent implements OnInit, OnDestroy, AfterView
 
     const deleteModalElement = document.getElementById('deleteModal');
     if (deleteModalElement) deleteModalElement.removeEventListener('hidden.bs.modal', this.onDeleteHidden);
-
-    const previewToastElement = document.getElementById('previewToast');
-    if (previewToastElement) {
-      const bootstrap = (window as any).bootstrap;
-      if (bootstrap && bootstrap.Toast) {
-        const toast = bootstrap.Toast.getInstance(previewToastElement);
-        if (toast) toast.dispose();
-      }
-    }
-
-    const deleteSuccessToastElement = document.getElementById('deleteSuccessToast');
-    if (deleteSuccessToastElement) {
-      const bootstrap = (window as any).bootstrap;
-      if (bootstrap && bootstrap.Toast) {
-        const toast = bootstrap.Toast.getInstance(deleteSuccessToastElement);
-        if (toast) toast.dispose();
-      }
-    }
-
-    this.oneDriveContents.forEach(item => {
-      if (item.isHovered && (this.isVideo(item) || (item.type === 'folder' && item.previewItems?.some(i => this.isVideo(i))))) {
-        const videoSelector = item.type === 'folder' && item.previewItems?.length
-          ? `#video-preview-${item.id}-0`
-          : `#video-preview-${item.id}`;
-        const videoElement = document.querySelector(videoSelector) as HTMLVideoElement;
-        if (videoElement) {
-          videoElement.pause();
-          videoElement.currentTime = 0;
-          videoElement.src = '';
-        }
-      }
-    });
 
     document.removeEventListener('keydown', this.boundDisableDevTools);
   }
