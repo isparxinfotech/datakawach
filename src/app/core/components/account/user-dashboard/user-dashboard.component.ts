@@ -5,6 +5,7 @@ import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { retry, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
+import { saveAs } from 'file-saver';
 
 interface OneDriveFolder {
   name: string;
@@ -61,6 +62,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   bucketSubscription?: Subscription;
   contentsSubscription?: Subscription;
   folderSubscription?: Subscription;
+  downloadSubscription?: Subscription;
   retentionNeeded: number | null = null;
   showOtpModal: boolean = false;
   otpInput: string = '';
@@ -168,6 +170,66 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  private getDownloadHeaders(): HttpHeaders {
+    const token = this.userSessionDetails?.jwtToken || localStorage.getItem('jwtToken') || '';
+    return new HttpHeaders({
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/octet-stream',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+  }
+
+  private normalizePath(path: string): string {
+    return path.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+  }
+
+  private cleanSegment(segment: string): string {
+    if (!segment) {
+      return '';
+    }
+
+    try {
+      let cleanedSegment = segment;
+      for (let i = 0; i < 2; i++) {
+        cleanedSegment = decodeURIComponent(cleanedSegment);
+      }
+      return cleanedSegment;
+    } catch {
+      return segment;
+    }
+  }
+
+  private buildPath(...segments: string[]): string {
+    return this.normalizePath(
+      segments
+        .filter(Boolean)
+        .map((segment) => this.cleanSegment(segment))
+        .join('/')
+    );
+  }
+
+  private getZipFileName(contentDisposition: string | null, folderName: string): string {
+    const fallbackFileName = `${this.cleanSegment(folderName)}.zip`;
+
+    if (!contentDisposition) {
+      return fallbackFileName;
+    }
+
+    const utfFileNameMatch = /filename\*=UTF-8''([^;]+)/i.exec(contentDisposition);
+    if (utfFileNameMatch?.[1]) {
+      try {
+        return decodeURIComponent(utfFileNameMatch[1]);
+      } catch {
+        return utfFileNameMatch[1];
+      }
+    }
+
+    const fileNameMatch = /filename="?([^"]+)"?/i.exec(contentDisposition);
+    return fileNameMatch?.[1] || fallbackFileName;
+  }
+
   listRootFolders(): void {
     this.currentPath = '';
     this.pathHistory = [];
@@ -180,7 +242,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       this.oneDriveErrorMessage = 'Invalid folder name.';
       return;
     }
-    const newPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
+    const newPath = this.buildPath(this.currentPath, folderName);
     this.pathHistory.push(this.currentPath);
     this.currentPath = newPath;
     this.loadFolderContents(newPath);
@@ -469,30 +531,51 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.loadingOneDrive = true;
     this.oneDriveErrorMessage = '';
 
-    const folderPath = this.currentPath ? `${this.currentPath}/${folderName}` : folderName;
+    const folderPath = this.buildPath(this.currentPath, folderName);
     const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
 
-    this.http
+    this.downloadSubscription?.unsubscribe();
+    this.downloadSubscription = this.http
       .get(url, {
-        headers: this.getAuthHeaders(),
-        responseType: 'blob'
+        headers: this.getDownloadHeaders(),
+        responseType: 'blob',
+        observe: 'response'
       })
       .pipe(
+        retry({ count: 2, delay: 1000 }),
         catchError((err) => {
           this.loadingOneDrive = false;
-          this.oneDriveErrorMessage = err.error?.error || 'Failed to download folder. Please try again.';
+          let errorMessage = 'Failed to download folder. Please try again.';
+
+          if (err.status === 401) {
+            errorMessage = 'Authentication failed. Please log in again.';
+          } else if (err.status === 404) {
+            errorMessage = `Folder "${folderPath}" not found.`;
+          } else if (err.status === 406) {
+            errorMessage = 'Download failed (406). Backend returned ZIP but request headers were not compatible.';
+          } else if (err.status === 500) {
+            errorMessage = 'Server error while preparing the ZIP. Please try again later.';
+          }
+
+          this.oneDriveErrorMessage = errorMessage;
           return throwError(() => new Error(this.oneDriveErrorMessage));
         })
       )
       .subscribe({
-        next: (blob) => {
-          const link = document.createElement('a');
-          link.href = window.URL.createObjectURL(blob);
-          link.download = `${folderName}.zip`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(link.href);
+        next: (response) => {
+          const blob = response.body;
+          if (!blob) {
+            this.oneDriveErrorMessage = 'Received an empty ZIP response from the server.';
+            this.loadingOneDrive = false;
+            return;
+          }
+
+          const fileName = this.getZipFileName(
+            response.headers.get('content-disposition'),
+            folderName
+          );
+
+          saveAs(blob, fileName);
           this.loadingOneDrive = false;
         }
       });
@@ -697,6 +780,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.bucketSubscription?.unsubscribe();
     this.contentsSubscription?.unsubscribe();
     this.folderSubscription?.unsubscribe();
+    this.downloadSubscription?.unsubscribe();
     document.removeEventListener('keydown', this.disableDevTools.bind(this));
   }
 }
