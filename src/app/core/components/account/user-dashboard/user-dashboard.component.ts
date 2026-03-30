@@ -293,17 +293,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   }
 
   private canUseStreamedFolderDownload(): boolean {
-    const browserWindow = window as Window & {
-      showSaveFilePicker?: (options?: unknown) => Promise<{
-        createWritable: () => Promise<{
-          write: (data: BufferSource) => Promise<void>;
-          close: () => Promise<void>;
-          abort: () => Promise<void>;
-        }>;
-      }>;
-    };
-
-    return typeof browserWindow.showSaveFilePicker === 'function';
+    return typeof (window as any).showSaveFilePicker === 'function';
   }
 
   private async streamFolderDownloadToDisk(
@@ -311,15 +301,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     folderUrl: string,
     folderSize?: number
   ): Promise<void> {
-    const browserWindow = window as Window & {
-      showSaveFilePicker?: (options?: unknown) => Promise<{
-        createWritable: () => Promise<{
-          write: (data: BufferSource) => Promise<void>;
-          close: () => Promise<void>;
-          abort: () => Promise<void>;
-        }>;
-      }>;
-    };
+    const browserWindow = window as any;
 
     if (!browserWindow.showSaveFilePicker) {
       throw new Error('Streaming download is not supported in this browser.');
@@ -378,7 +360,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     );
 
     let loadedBytes = 0;
-    const progressStream = new TransformStream<Uint8Array, Uint8Array>({
+    const progressStream = new TransformStream({
       transform: (chunk, controller) => {
         loadedBytes += chunk.byteLength;
         this.folderDownloadLoadedBytes = loadedBytes;
@@ -395,10 +377,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     });
 
     try {
-      const writableStream = writable as unknown as WritableStream<Uint8Array>;
-      await response.body
+      await (response.body as any)
         .pipeThrough(progressStream)
-        .pipeTo(writableStream);
+        .pipeTo(writable as any);
 
       this.folderDownloadLoadedBytes = loadedBytes;
       this.folderDownloadTotalBytes = this.getKnownDownloadTotal(
