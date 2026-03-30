@@ -20,6 +20,8 @@ import { UserEditComponent } from './core/components/account/user-edit/user-edit
 import { CorporateDashboardComponent } from './core/components/account/corporate-dashboard/corporate-dashboard.component';
 import { GoogleDashboardComponent } from './core/components/account/google-dashboard/google-dashboard.component';
 import { SharedContentComponent } from './core/components/account/shared-content/shared-content.component';
+import { DataAiComponent } from './core/components/data-ai/data-ai.component';
+import { PhotographerDashboardComponent } from './core/components/account/photographer-dashboard/photographer-dashboard.component';
 
 const routes: Routes = [
     {
@@ -27,18 +29,22 @@ const routes: Routes = [
     component: HomeComponent,
     pathMatch: 'full'
   },
+
   {
     path: 'register',
     component: RegisterUserComponent
   },
+
   {
     path: 'login',
     component: LoginComponent
   },
+
   {
     path: 'logout',
     component: LogOutComponent
   },
+
   {path:'shared',
    component:SharedContentComponent
 
@@ -99,10 +105,21 @@ const routes: Routes = [
     component: UploadDocumentComponent,
     canActivate: [AuthGuard]
   },
+
+   {
+    path: 'photo-dashboard',
+    component: PhotographerDashboardComponent,
+    canActivate: [AuthGuard]
+  },
   {
     path: 'labdetails',
     component: LabDetailsComponent,
     canActivate: [AuthGuard]
+  },
+
+    {
+    path: 'DataAI',
+    component: DataAiComponent,
   },
 
   {
@@ -111,6 +128,7 @@ const routes: Routes = [
     canActivate: [AuthGuard]
   }
   ,
+
   {
     path: 'uploadtocloud',
     component: UploadToCloudComponent,

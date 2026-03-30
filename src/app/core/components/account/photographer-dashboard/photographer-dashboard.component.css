@@ -1,0 +1,83 @@
+/* Gradient background */
+.bg-gradient {
+  background: radial-gradient(1200px 600px at 10% -10%, #7c3aed 0%, rgba(124,58,237,0) 60%),
+              radial-gradient(1200px 600px at 110% -10%, #06b6d4 0%, rgba(6,182,212,0) 60%),
+              linear-gradient(180deg, #0b1020 0%, #0a0f1a 100%);
+  min-height: 100vh;
+}
+
+/* Glass effect cards */
+.glass-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.mini-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 12px;
+}
+
+/* Stat pills */
+.stat-pill {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .6rem .9rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 999px;
+  color: #fff;
+}
+.stat-icon { font-size: 1.1rem; opacity: .9; }
+.stat-value { font-weight: 700; line-height: 1; }
+.stat-label { font-size: .72rem; opacity: .8; }
+
+/* Lists and rows */
+.cool-list .list-group-item {
+  background: transparent; color: #fff; border: 0;
+  padding: .6rem .75rem; margin-bottom: .25rem;
+  border-radius: 10px;
+}
+.cool-list .list-group-item.glass-row {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.cool-list .list-group-item.active {
+  background: rgba(124,58,237,.25) !important;
+  border-color: rgba(124,58,237,.4);
+}
+
+/* Tiles */
+.tile {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: .75rem;
+  color: #fff;
+  transition: transform .15s ease-out, box-shadow .2s;
+}
+.tile:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.25); }
+
+.thumb-wrap { border-radius: 10px; overflow: hidden; background: #111; border: 1px solid rgba(255,255,255,0.1); }
+.thumb { width: 100%; height: 140px; object-fit: cover; display: block; }
+.thumb-sm { width: 64px; height: 48px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+
+/* Inputs on glass */
+.form-control.bg-transparent, .input-group-text.bg-transparent {
+  background: rgba(255,255,255,0.06)!important;
+  border: 1px solid rgba(255,255,255,0.12)!important;
+  color: #fff!important;
+}
+.form-control::placeholder { color: rgba(255,255,255,0.6)!important; }
+
+/* Sparkline stroke uses currentColor; set color here */
+.sparkline { width: 100%; height: 40px; }
+.sparkline polyline {
+  stroke: #22d3ee; stroke-width: 2.5;
+}
+
+/* Utility */
+.text-white-75 { color: rgba(255,255,255,0.85); }
+.text-white-50 { color: rgba(255,255,255,0.6); }

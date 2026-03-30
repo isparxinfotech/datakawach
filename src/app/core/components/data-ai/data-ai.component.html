@@ -1,0 +1,207 @@
+<!-- Light, legible UI with camera+upload and proxied previews -->
+<style>
+  :root{
+    --bg0:#f6f8fb; --bg1:#ffffff; --ink:#0e1726; --ink-2:#25324a; --muted:#5b6785;
+    --brandA:#2563eb; --brandB:#7c3aed; --ok:#16a34a; --err:#ef4444;
+    --stroke:#e6eaf2; --r-xl:18px; --r-lg:14px; --shadow:0 10px 30px rgba(16,24,40,.08);
+  }
+  body{background:var(--bg0);color:var(--ink)}
+  .bg{position:fixed;inset:0;pointer-events:none;z-index:-1;background:
+    radial-gradient(800px 400px at 0% -10%, #93c5fd33, transparent 60%),
+    radial-gradient(800px 400px at 100% 0%, #c4b5fd33, transparent 60%),
+    linear-gradient(180deg, #f9fbff 0%, #eef2ff 100%)}
+  .page{min-height:100dvh;padding:32px clamp(12px,4vw,44px)} .wrap{max-width:1200px;margin:0 auto}
+  .title{font-size:clamp(24px,3.2vw,38px);font-weight:800}
+  .subtitle{color:var(--muted);font-size:14px}
+  .panel{background:var(--bg1);border:1px solid var(--stroke);border-radius:var(--r-xl);box-shadow:var(--shadow);padding:clamp(14px,2.2vw,20px)}
+  .controls{display:grid;gap:16px;grid-template-columns:1.2fr 1.1fr .9fr} @media(max-width:1000px){.controls{grid-template-columns:1fr}}
+  .field{display:grid;gap:10px} .label{font-size:12px;color:var(--muted)}
+  .seg{display:inline-flex;background:#f2f5fb;border:1px solid var(--stroke);border-radius:999px;padding:4px;gap:4px}
+  .seg button{all:unset;cursor:pointer;padding:8px 12px;border-radius:999px;font-weight:700;color:var(--ink)}
+  .seg button[aria-pressed="true"]{background:#fff;border:1px solid var(--stroke);box-shadow:0 6px 20px rgba(16,24,40,.06)}
+  .text-input,.select,.range{width:100%;background:#fff;border:1px solid var(--stroke);color:var(--ink);border-radius:var(--r-lg);padding:12px 14px}
+  .text-input::placeholder{color:#94a3b8}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .drop{margin-top:6px;border:2px dashed #c7d2fe;border-radius:14px;padding:14px;text-align:center;background:#fafbff;color:var(--muted)}
+  .drop.dragover{border-color:#7c3aed;transform:scale(1.01)}
+  .btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;font-weight:800;
+       background:linear-gradient(90deg,var(--brandA),var(--brandB));color:#fff;box-shadow:0 8px 20px rgba(37,99,235,.25)}
+  .btn-ghost{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;font-weight:700;
+             background:#fff;border:1px solid var(--stroke);color:var(--ink)}
+  .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)} .dot{width:10px;height:10px;border-radius:50%;background:#cbd5e1}
+  .status.loading .dot{background:#60a5fa} .status.ok .dot{background:var(--ok)} .status.err .dot{background:var(--err)}
+  .skeleton-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(var(--tile,200px),1fr))}
+  .skeleton{height:220px;border-radius:14px;background:linear-gradient(110deg,#eef2ff 8%,#e2e8f0 18%,#eef2ff 33%);background-size:200% 100%;animation:shimmer 1.1s linear infinite;border:1px solid var(--stroke)}
+  @keyframes shimmer{to{background-position:-200% 0}}
+  .grid{--tile:220px;display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(var(--tile),1fr));margin-top:8px}
+  .card{position:relative;border-radius:14px;overflow:hidden;background:#fff;border:1px solid var(--stroke);box-shadow:var(--shadow)}
+  .thumb{aspect-ratio:1/1;background:#f1f5f9;display:grid;place-items:center}
+  .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
+  .check{position:absolute;top:10px;left:10px;background:#ffffffd9;border-radius:8px;padding:6px;border:1px solid var(--stroke)}
+  .foot{display:grid;gap:8px;padding:10px;background:#fff}
+  .meta{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .name{font-size:13px;color:var(--ink-2)} .size{font-size:12px;color:var(--muted)}
+  .empty{margin-top:12px;padding:22px;border:1px dashed var(--stroke);border-radius:12px;color:var(--muted);text-align:center;background:#fff}
+  .fab{position:sticky;bottom:12px;margin-top:6px;display:flex;justify-content:center}
+  .fab .bar{display:flex;gap:10px;padding:10px 12px;border-radius:12px;background:#ffffffee;border:1px solid var(--stroke)}
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:grid;place-items:center;z-index:60}
+  .modal{width:min(1000px,95vw);background:#fff;border:1px solid var(--stroke);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .modal header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px}
+  .modal main{background:#f8fafc}
+</style>
+
+<div class="bg"></div>
+
+<div class="page">
+  <div class="wrap">
+    <div class="title">Find My Photos</div>
+    <div class="subtitle">Paste your share link / Link ID, upload a face photo or use camera, then preview & download — no login needed.</div>
+
+    <div class="panel" role="region" aria-label="Controls">
+      <div class="controls">
+        <!-- Link -->
+        <div class="field">
+          <label class="label">Share Link or Link ID</label>
+          <input class="text-input" type="text" [(ngModel)]="linkInput" name="linkInput"
+                 placeholder="https://datakavach.com/shared?token=XXXX  or  2f1bd5d8-..." />
+          <div class="row" style="font-size:12px;color:var(--muted)">We auto-extract the token from the URL.</div>
+        </div>
+
+        <!-- Input mode -->
+        <div class="field">
+          <label class="label">Choose input</label>
+          <div class="seg" role="tablist" aria-label="Selfie input mode">
+            <button type="button" role="tab" [attr.aria-pressed]="!useCamera" (click)="switchMode(false)">Upload Photo</button>
+            <button type="button" role="tab" [attr.aria-pressed]="useCamera" (click)="switchMode(true)">Use Camera</button>
+          </div>
+
+          <!-- Upload -->
+          <div *ngIf="!useCamera">
+            <div class="drop" [class.dragover]="dragOver"
+                 (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+              <div *ngIf="!selfieFile">Drag & drop here, or</div>
+              <div class="row">
+                <button class="btn" type="button" (click)="fileEl.click()">Choose photo</button>
+                <input #fileEl type="file" accept="image/*" (change)="onFilePicked($event)" style="display:none" />
+                <span *ngIf="selfieFile" style="color:var(--muted)">Selected: <b>{{ selfieFile?.name }}</b> ({{ humanSize(selfieFile?.size) }})</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Camera -->
+          <div *ngIf="useCamera">
+            <div class="row">
+              <video #videoEl autoplay playsinline muted style="width:100%;border:1px solid var(--stroke);border-radius:12px;background:#000"></video>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <button class="btn" type="button" (click)="captureFrame()">Capture</button>
+              <button class="btn-ghost" type="button" (click)="stopCamera()">Stop Camera</button>
+              <span *ngIf="selfieFile" style="color:var(--muted)">&nbsp;Captured: <b>{{ selfieFile?.name }}</b> ({{ humanSize(selfieFile?.size) }})</span>
+            </div>
+            <canvas #canvasEl style="display:none"></canvas>
+          </div>
+        </div>
+
+        <!-- View options -->
+        <div class="field">
+          <label class="label">Display Options</label>
+          <div class="row">
+            <input class="text-input" style="max-width:240px" placeholder="Search filename…" [(ngModel)]="query" name="query"/>
+            <select class="select" [(ngModel)]="sort" name="sort">
+              <option value="name">Sort: Name</option>
+              <option value="size">Sort: Size</option>
+            </select>
+            <div class="row" style="gap:8px;">
+              <span style="color:var(--muted);font-size:12px;">Grid</span>
+              <input class="range" type="range" min="160" max="320" step="10" [(ngModel)]="tile" name="tile"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:14px;">
+        <button class="btn" (click)="onSubmit($event)" [disabled]="submitting || !linkInput || !selfieFile">
+          {{ submitting ? 'Finding your photos…' : 'Find My Photos' }}
+        </button>
+        <button class="btn-ghost" (click)="resetAll()" [disabled]="submitting">Reset</button>
+
+        <div class="status" [class.loading]="submitting" [class.ok]="!submitting && matched.length>0 && !errorMsg" [class.err]="!!errorMsg">
+          <span class="dot"></span>
+          <ng-container *ngIf="submitting">Matching your face with the photographer’s vault…</ng-container>
+          <ng-container *ngIf="!submitting && !errorMsg && matched.length>0">Found {{ matched.length }} matches 🎉</ng-container>
+          <ng-container *ngIf="errorMsg">{{ errorMsg }}</ng-container>
+        </div>
+      </div>
+
+      <!-- Skeletons -->
+      <div class="skeleton-grid" *ngIf="submitting" [style.--tile.px]="tile">
+        <div class="skeleton" *ngFor="let s of skeletons"></div>
+      </div>
+
+      <div class="empty" *ngIf="!submitting && matched.length===0 && !errorMsg">
+        Your matched photos will appear here ✨
+      </div>
+
+      <div class="grid" *ngIf="!submitting && matched.length" [style.--tile.px]="tile">
+        <div class="card" *ngFor="let m of filtered(); trackBy: trackById">
+          <div class="check">
+            <input
+              type="checkbox"
+              [checked]="selected.has(m.id)"
+              (change)="toggleOne(m.id, $event)"
+              [attr.aria-label]="'Select ' + (m.name || 'file')"
+            />
+          </div>
+          <div class="thumb" (click)="openPreview(m)">
+            <ng-container [ngSwitch]="m.kind">
+              <img *ngSwitchCase="'image'" [src]="m.viewSrc || ''" [alt]="m.name || 'photo'" loading="lazy" referrerpolicy="no-referrer" />
+              <video *ngSwitchCase="'video'" [src]="m.viewSrc || ''" muted playsinline></video>
+              <img *ngSwitchDefault src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Crect width='100%25' height='100%25' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' fill='%236b7280' font-size='14' text-anchor='middle' dominant-baseline='middle'%3ENo Preview%3C/text%3E%3C/svg%3E" />
+            </ng-container>
+          </div>
+          <div class="foot">
+            <div class="meta">
+              <div class="name">{{ (m.name || 'file') | slice:0:32 }}{{ (m.name || 'file').length>32?'…':'' }}</div>
+              <div class="size" *ngIf="m.size">{{ humanSize(m.size) }}</div>
+            </div>
+            <div class="row">
+              <button class="btn-ghost" (click)="openPreview(m)">View</button>
+              <a *ngIf="m.downloadUrl" class="btn-ghost" [href]="m.downloadUrl" target="_blank" rel="noopener">Download</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sticky bulk bar (only if real filePath is available) -->
+      <div class="fab" *ngIf="selected.size>0 && canBulkDownload">
+        <div class="bar">
+          <div class="row" style="color:var(--muted);padding:6px 8px;">Selected {{ selected.size }}</div>
+          <button class="btn" (click)="downloadSelected()" [disabled]="downloading">
+            {{ downloading ? 'Preparing ZIP…' : 'Download Selected' }}
+          </button>
+          <button class="btn-ghost" (click)="toggleAll(false)">Clear</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="backdrop" *ngIf="preview" (click)="closePreview($event)">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <header>
+      <h3>{{ preview.name || 'file' }}</h3>
+      <button class="btn-ghost" (click)="preview=null">Close</button>
+    </header>
+    <main>
+      <ng-container [ngSwitch]="preview.kind">
+        <img *ngSwitchCase="'image'" [src]="preview.viewSrc || ''" alt="preview" referrerpolicy="no-referrer" />
+        <video *ngSwitchCase="'video'" [src]="preview.viewSrc || ''" controls playsinline></video>
+        <div class="empty">Preview not available.</div>
+      </ng-container>
+    </main>
+    <footer>
+      <a *ngIf="preview.downloadUrl" class="btn" [href]="preview.downloadUrl" target="_blank" rel="noopener">Download</a>
+    </footer>
+  </div>
+</div>

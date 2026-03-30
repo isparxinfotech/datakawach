@@ -33,6 +33,9 @@ import { ChatComponent } from './core/components/account/chat/chat.component';
 import { GoogleDashboardComponent } from './core/components/account/google-dashboard/google-dashboard.component';
 import { QRCodeModule } from 'angularx-qrcode';
 import { SharedContentComponent } from './core/components/account/shared-content/shared-content.component';
+import { DataAiComponent } from './core/components/data-ai/data-ai.component';
+import { PhotographerDashboardComponent } from './core/components/account/photographer-dashboard/photographer-dashboard.component';
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -58,8 +61,10 @@ import { SharedContentComponent } from './core/components/account/shared-content
     CorporateDashboardComponent,
     ChatComponent,
     GoogleDashboardComponent,
-    SharedContentComponent
-  ],
+    SharedContentComponent,
+    DataAiComponent,
+    PhotographerDashboardComponent 
+   ],
   imports: [
     BrowserModule,
     AppRoutingModule,

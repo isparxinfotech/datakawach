@@ -1,0 +1,298 @@
+<div style="background: radial-gradient(1200px 600px at 10% -10%, #7c3aed 0%, rgba(124,58,237,0) 60%), radial-gradient(1200px 600px at 110% -10%, #06b6d4 0%, rgba(6,182,212,0) 60%), linear-gradient(180deg, #0b1020 0%, #0a0f1a 100%); min-height: 100vh; overflow-x: hidden;" class="container-fluid p-0 d-flex h-100">
+  <div style="flex: 1;">
+    <!-- Mobile top bar -->
+    <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.3);" class="p-3 d-md-none d-flex text-white align-items-center">
+      <a href="dashboard" class="text-white text-decoration-none" data-bs-toggle="offcanvas" data-bs-target="#bdSidebar">
+        <i class="fa-solid fa-bars" style="font-size: 1.3rem;"></i>
+      </a>
+      <span style="margin-left: 1rem; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px;">📸 Data Kavach</span>
+    </div>
+
+    <div class="p-4">
+      <!-- Navbar -->
+      <nav style="background: rgba(255,255,255,0.06); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 1rem 1.5rem; margin-bottom: 2rem; box-shadow: 0 8px 24px rgba(0,0,0,0.2);" class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+          <span style="color: #fff; font-weight: 700; font-size: 1.4rem; background: linear-gradient(135deg, #8b5cf6, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+            📸 Data Kavach Studio
+          </span>
+          <div style="background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(6,182,212,0.2)); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 0.5rem 1rem; color: #fff; font-weight: 600; font-size: 0.9rem;" class="ms-auto">
+            <i class="fa fa-user-circle me-2" style="color: #8b5cf6;"></i>
+            {{ userSessionDetails?.username }}
+          </div>
+        </div>
+      </nav>
+
+      <!-- Alerts -->
+      <div *ngIf="isLoading" style="background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.15)); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px; padding: 1rem; color: #60a5fa; margin-bottom: 1.5rem; backdrop-filter: blur(10px);">
+        <i class="fa fa-spinner fa-spin me-2"></i>Loading your gallery...
+      </div>
+      <div *ngIf="!isLoading && error" style="background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(220,38,38,0.15)); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 1rem; color: #f87171; margin-bottom: 1.5rem; backdrop-filter: blur(10px);">
+        <i class="fa fa-exclamation-triangle me-2"></i>{{ error }}
+      </div>
+
+      <div *ngIf="!isLoading && !error" class="row g-4">
+        <!-- Left: Events Panel -->
+        <div class="col-12 col-lg-4">
+          <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); backdrop-filter: blur(16px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); overflow: hidden;">
+            <!-- Header with gradient -->
+            <div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h5 style="margin: 0; color: #fff; font-weight: 700; font-size: 1.3rem; letter-spacing: 0.3px;">
+                    <i class="fa fa-calendar-alt me-2"></i>Events
+                  </h5>
+                  <p style="margin: 0.25rem 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.85rem;">Manage your photo collections</p>
+                </div>
+                <button style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 10px; padding: 0.5rem 1rem; font-weight: 600; transition: all 0.2s;" class="btn btn-sm" (click)="loadRootEvents()" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                  <i class="fa fa-sync-alt me-1"></i>Refresh
+                </button>
+              </div>
+            </div>
+
+            <div style="padding: 1.5rem;">
+              <!-- Stats Pills -->
+              <div class="d-flex flex-wrap gap-2 mb-3">
+                <div style="display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.9rem; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3); border-radius: 999px; color: #fff; font-size: 0.85rem;">
+                  <i class="fa fa-folder" style="color: #a78bfa;"></i>
+                  <span style="font-weight: 700;">{{ events.length }}</span>
+                  <span style="opacity: 0.8;">Events</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.9rem; background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); border-radius: 999px; color: #fff; font-size: 0.85rem;">
+                  <i class="fa fa-images" style="color: #22d3ee;"></i>
+                  <span style="font-weight: 700;">{{ contents.length }}</span>
+                  <span style="opacity: 0.8;">Items</span>
+                </div>
+              </div>
+
+              <!-- Events List -->
+              <div *ngIf="events.length === 0" style="text-align: center; padding: 3rem 1rem; color: rgba(255,255,255,0.5);">
+                <i class="fa fa-folder-open" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+                <p style="margin: 0; font-size: 0.95rem;">No events yet. Create your first event below!</p>
+              </div>
+
+              <ul class="list-group" style="background: transparent; max-height: 380px; overflow-y: auto;">
+                <li *ngFor="let ev of events" 
+                    style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; padding: 0.9rem 1rem; margin-bottom: 0.5rem; border-radius: 12px; cursor: pointer; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center;"
+                    [style.background]="ev.name === selectedEvent ? 'linear-gradient(135deg, rgba(124,58,237,0.25), rgba(6,182,212,0.15))' : 'rgba(255,255,255,0.06)'"
+                    [style.border-color]="ev.name === selectedEvent ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.12)'"
+                    [style.box-shadow]="ev.name === selectedEvent ? '0 4px 16px rgba(124,58,237,0.3)' : 'none'"
+                    (click)="selectEvent(ev.name)"
+                    onmouseover="if(this.style.background.indexOf('linear-gradient') === -1) { this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateX(4px)'; }"
+                    onmouseout="if(this.style.background.indexOf('linear-gradient') === -1) { this.style.background='rgba(255,255,255,0.06)'; this.style.transform='translateX(0)'; }"
+                    class="list-group-item">
+                  <div class="d-flex align-items-center gap-3" style="flex: 1; min-width: 0;">
+                    <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #8b5cf6, #06b6d4); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                      <i class="fa fa-folder" style="color: #fff; font-size: 1.1rem;"></i>
+                    </div>
+                    <span style="font-weight: 600; font-size: 0.95rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ ev.name }}</span>
+                  </div>
+                  <i class="fa fa-chevron-right" style="opacity: 0.6; font-size: 0.9rem;"></i>
+                </li>
+              </ul>
+
+              <hr style="border-color: rgba(255,255,255,0.1); margin: 1.5rem 0;" />
+
+              <!-- Create New Event -->
+              <div style="background: linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.1)); border: 1px solid rgba(139,92,246,0.2); border-radius: 14px; padding: 1.25rem;">
+                <div style="margin-bottom: 1rem;">
+                  <h6 style="color: #fff; font-weight: 700; margin-bottom: 0.5rem; font-size: 1rem;">
+                    <i class="fa fa-plus-circle me-2" style="color: #8b5cf6;"></i>Create New Event
+                  </h6>
+                  <p style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin: 0;">Upload a folder to create your event</p>
+                </div>
+
+                <div style="margin-bottom: 0.9rem;">
+                  <input type="text" 
+                         style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 10px; padding: 0.75rem; width: 100%; font-size: 0.9rem;"
+                         placeholder="✨ Enter event name..."
+                         [(ngModel)]="newEventName"
+                         [disabled]="uploading" />
+                </div>
+
+                <div class="d-flex flex-column gap-2">
+                  <label style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; color: #fff; border-radius: 10px; padding: 0.7rem 1.2rem; font-weight: 600; cursor: pointer; text-align: center; transition: all 0.2s; display: inline-block;"
+                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(139,92,246,0.4)';"
+                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                    <input type="file" style="display: none;" webkitdirectory directory (change)="onPickDirectory($event)" />
+                    <i class="fa fa-folder-open me-2"></i>Choose Folder
+                  </label>
+
+                  <button style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; border-radius: 10px; padding: 0.7rem 1.2rem; font-weight: 600; transition: all 0.2s;"
+                          (click)="uploadDirectoryToNewEvent()"
+                          [disabled]="!newEventName?.trim() || dirFiles.length === 0 || uploading"
+                          [style.opacity]="!newEventName?.trim() || dirFiles.length === 0 || uploading ? '0.5' : '1'"
+                          [style.cursor]="!newEventName?.trim() || dirFiles.length === 0 || uploading ? 'not-allowed' : 'pointer'"
+                          onmouseover="if(!this.disabled) { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(16,185,129,0.4)'; }"
+                          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+                    <i [class]="uploading ? 'fa fa-spinner fa-spin me-2' : 'fa fa-upload me-2'"></i>
+                    {{ uploading ? 'Uploading...' : 'Create & Upload' }}
+                  </button>
+
+                  <div *ngIf="dirFiles.length > 0" style="text-align: center; color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.25rem;">
+                    <i class="fa fa-check-circle me-1" style="color: #10b981;"></i>{{ dirFiles.length }} files selected
+                  </div>
+                </div>
+
+                <div *ngIf="uploadMsg" 
+                     style="margin-top: 1rem; padding: 0.75rem; border-radius: 10px; font-size: 0.85rem; text-align: center;"
+                     [style.background]="isSuccess ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'"
+                     [style.border]="isSuccess ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(239,68,68,0.3)'"
+                     [style.color]="isSuccess ? '#34d399' : '#f87171'">
+                  <i [class]="isSuccess ? 'fa fa-check-circle me-2' : 'fa fa-exclamation-circle me-2'"></i>{{ uploadMsg }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Event Content Panel -->
+        <div class="col-12 col-lg-8" *ngIf="selectedEvent">
+          <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); backdrop-filter: blur(16px); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); overflow: hidden;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+              <div class="d-flex flex-wrap gap-3 align-items-center">
+                <div style="flex: 1; min-width: 200px;">
+                  <h5 style="margin: 0; color: #fff; font-weight: 700; font-size: 1.3rem;">
+                    <i class="fa fa-folder-open me-2"></i>{{ selectedEvent }}
+                  </h5>
+                  <p style="margin: 0.25rem 0 0 0; color: rgba(255,255,255,0.7); font-size: 0.85rem;">Browse and manage your content</p>
+                </div>
+
+                <button style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; border-radius: 10px; padding: 0.6rem 1.2rem; font-weight: 600; transition: all 0.2s; white-space: nowrap;"
+                        [disabled]="sharing"
+                        (click)="shareEvent()"
+                        [style.opacity]="sharing ? '0.7' : '1'"
+                        onmouseover="if(!this.disabled) this.style.background='rgba(255,255,255,0.3)'"
+                        onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                  <i [class]="sharing ? 'fa fa-spinner fa-spin me-2' : 'fa fa-share-alt me-2'"></i>
+                  {{ sharing ? 'Generating...' : 'Share Event' }}
+                </button>
+              </div>
+
+              <!-- Share Link Input -->
+              <div *ngIf="shareLink" style="margin-top: 1rem; display: flex; gap: 0.5rem; align-items: stretch;">
+                <input type="text" 
+                       [value]="shareLink" 
+                       readonly 
+                       style="flex: 1; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #fff; border-radius: 10px; padding: 0.7rem 1rem; font-size: 0.85rem; font-family: monospace;" />
+                <button style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; border-radius: 10px; padding: 0.7rem 1.5rem; font-weight: 600; transition: all 0.2s;"
+                        (click)="copyShare()"
+                        onmouseover="this.style.transform='scale(1.05)'"
+                        onmouseout="this.style.transform='scale(1)'">
+                  <i class="fa fa-copy me-1"></i>Copy
+                </button>
+              </div>
+            </div>
+
+            <div style="padding: 1.5rem;">
+              <!-- Breadcrumb -->
+              <nav *ngIf="breadcrumb?.length" style="margin-bottom: 1.25rem;">
+                <ol style="display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem 1rem;">
+                  <li *ngFor="let crumb of breadcrumb; let i = index" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <a *ngIf="i !== breadcrumb.length - 1"
+                       href="javascript:void(0)"
+                       (click)="onCrumb(i)"
+                       style="color: #22d3ee; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: all 0.2s;"
+                       onmouseover="this.style.color='#06b6d4'; this.style.textDecoration='underline'"
+                       onmouseout="this.style.color='#22d3ee'; this.style.textDecoration='none'">
+                      {{ crumb }}
+                    </a>
+                    <span *ngIf="i === breadcrumb.length - 1" style="color: #fff; font-weight: 700; font-size: 0.9rem;">{{ crumb }}</span>
+                    <i *ngIf="i !== breadcrumb.length - 1" class="fa fa-chevron-right" style="color: rgba(255,255,255,0.4); font-size: 0.7rem;"></i>
+                  </li>
+                </ol>
+              </nav>
+
+              <!-- Contents Header -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <h6 style="margin: 0; color: #fff; font-weight: 700; font-size: 1.1rem;">
+                  <i class="fa fa-th-large me-2" style="color: #8b5cf6;"></i>Contents
+                </h6>
+                <button style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 8px; padding: 0.4rem 1rem; font-size: 0.85rem; font-weight: 600; transition: all 0.2s;"
+                        (click)="breadcrumb?.length === 1 ? loadImmediateChildren() : onCrumb(breadcrumb.length - 1)"
+                        onmouseover="this.style.background='rgba(255,255,255,0.15)'"
+                        onmouseout="this.style.background='rgba(255,255,255,0.08)'">
+                  <i class="fa fa-sync-alt me-1"></i>Refresh
+                </button>
+              </div>
+
+              <!-- Loading State -->
+              <div *ngIf="loadingContents" style="text-align: center; padding: 4rem 2rem; color: rgba(255,255,255,0.6);">
+                <i class="fa fa-spinner fa-spin" style="font-size: 2.5rem; color: #8b5cf6; margin-bottom: 1rem;"></i>
+                <p style="margin: 0; font-size: 1rem;">Loading contents...</p>
+              </div>
+
+              <!-- Empty State -->
+              <div *ngIf="!loadingContents && contents.length === 0" style="text-align: center; padding: 4rem 2rem; color: rgba(255,255,255,0.5);">
+                <i class="fa fa-inbox" style="font-size: 3.5rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+                <p style="margin: 0; font-size: 1.05rem; font-weight: 600;">This folder is empty</p>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.8;">Upload some content to get started</p>
+              </div>
+
+              <!-- Contents Grid -->
+              <div *ngIf="!loadingContents && contents.length > 0" class="row row-cols-2 row-cols-md-3 row-cols-lg-3 g-3">
+                <div *ngFor="let it of contents" class="col">
+                  <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 0.75rem; transition: all 0.3s; cursor: pointer; height: 100%;"
+                       onmouseover="this.style.transform='translateY(-6px)'; this.style.boxShadow='0 12px 28px rgba(0,0,0,0.4)'; this.style.background='rgba(255,255,255,0.1)'"
+                       onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'; this.style.background='rgba(255,255,255,0.06)'">
+                    
+                    <!-- Folder Tile -->
+                    <div *ngIf="it.isFolder">
+                      <div style="width: 100%; height: 140px; border-radius: 10px; background: linear-gradient(135deg, rgba(251,191,36,0.15), rgba(245,158,11,0.15)); border: 1px solid rgba(251,191,36,0.2); display: flex; align-items: center; justify-content: center; margin-bottom: 0.75rem;">
+                        <i class="fa fa-folder" style="font-size: 3.5rem; color: #fbbf24; opacity: 0.7;"></i>
+                      </div>
+                      <div style="color: #fff; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.75rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="{{ it.name }}">
+                        {{ it.name }}
+                      </div>
+                      <div class="d-flex gap-2">
+                        <button style="flex: 1; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; color: #fff; border-radius: 8px; padding: 0.5rem; font-size: 0.8rem; font-weight: 600; transition: all 0.2s;"
+                                (click)="openFolder(it)"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'">
+                          <i class="fa fa-folder-open me-1"></i>Open
+                        </button>
+                        <button style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none; color: #fff; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.8rem; transition: all 0.2s;"
+                                (click)="deleteItem(it)"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'">
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- File Tile -->
+                    <div *ngIf="!it.isFolder">
+                      <div style="width: 100%; height: 140px; border-radius: 10px; overflow: hidden; background: #111; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.75rem;">
+                        <img [src]="thumbSrc(it) || ''" 
+                             alt="preview" 
+                             style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+                      </div>
+                      <div style="color: #fff; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.75rem; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="{{ it.name }}">
+                        {{ it.name }}
+                      </div>
+                      <div class="d-flex gap-2">
+                        <a [href]="it.webUrl || thumbSrc(it) || '#'" 
+                           target="_blank"
+                           style="flex: 1; background: linear-gradient(135deg, #06b6d4, #0891b2); border: none; color: #fff; border-radius: 8px; padding: 0.5rem; font-size: 0.8rem; font-weight: 600; text-align: center; text-decoration: none; transition: all 0.2s;"
+                           onmouseover="this.style.transform='scale(1.05)'"
+                           onmouseout="this.style.transform='scale(1)'">
+                          <i class="fa fa-external-link-alt me-1"></i>View
+                        </a>
+                        <button style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none; color: #fff; border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.8rem; transition: all 0.2s;"
+                                (click)="deleteItem(it)"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'">
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

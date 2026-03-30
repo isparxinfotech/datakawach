@@ -67,7 +67,7 @@
                   </div>
                   <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" (click)="showOtpModal = false">Cancel</button>
-                    <button type="button" class="btn btn-primary" (click)="verifyOtpAndDownload()" [disabled]="!otpInput || otpInput.length !== 6">
+                    <button type="button" class="btn btn-primary" (click)="verifyOtpAndDownload()" [disabled]="!otpInput || otpInput.length !== 6 || isFolderDownloadInProgress">
                       Verify and Download
                     </button>
                   </div>
@@ -90,6 +90,43 @@
               <button *ngIf="pathHistory.length > 0" class="btn btn-outline-primary" (click)="navigateBack()">
                 <i class="bi bi-arrow-left me-1"></i> Back
               </button>
+            </div>
+
+            <div class="card shadow-sm p-3 mb-4 border-primary" *ngIf="isFolderDownloadInProgress">
+              <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                <div>
+                  <div class="fw-semibold text-dark">Downloading "{{downloadingFolderName}}"</div>
+                  <small class="text-muted">
+                    {{ formatSize(folderDownloadLoadedBytes) }}
+                    <ng-container *ngIf="folderDownloadTotalBytes !== null">
+                      / {{ formatSize(folderDownloadTotalBytes) }}
+                    </ng-container>
+                    downloaded
+                  </small>
+                </div>
+                <span class="badge text-bg-primary" *ngIf="folderDownloadProgress !== null">
+                  {{ folderDownloadProgress }}%
+                </span>
+                <span class="badge text-bg-secondary" *ngIf="folderDownloadProgress === null">
+                  In progress
+                </span>
+              </div>
+
+              <div class="progress" style="height: 18px;">
+                <div
+                  class="progress-bar progress-bar-striped progress-bar-animated"
+                  role="progressbar"
+                  [style.width.%]="folderDownloadProgress ?? 100"
+                  [attr.aria-valuenow]="folderDownloadProgress ?? null"
+                  aria-valuemin="0"
+                  aria-valuemax="100">
+                  {{ folderDownloadProgress !== null ? (folderDownloadProgress + '%') : 'Downloading...' }}
+                </div>
+              </div>
+
+              <small class="text-muted mt-2" *ngIf="folderDownloadTotalBytes === null">
+                Waiting for total download size from the server.
+              </small>
             </div>
 
             <!-- Content Cards -->
@@ -122,7 +159,7 @@
                       <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-primary" (click)="listFolderContents(item.name)" title="View folder contents">
                         <i class="bi bi-folder me-1"></i> View Folder
                       </button>
-                      <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-success" (click)="downloadFolder(item.name)" title="Download folder as ZIP">
+                      <button *ngIf="item.type === 'folder'" class="btn btn-sm btn-outline-success" (click)="downloadFolder(item.name)" [disabled]="isFolderDownloadInProgress" title="Download folder as ZIP">
                         <i class="bi bi-download me-1"></i> Download
                       </button>
                     </div>

@@ -150,13 +150,14 @@ public cleanSegment(segment: string): string {
     return segment;
   }
 }
+
   /** Build a clean path from currentPath + segment (no double-encoding) */
   private buildPath(...segments: string[]): string {
     const cleaned = segments
       .filter(Boolean)
       .map(s => this.cleanSegment(s));
     return this.normalizePath(cleaned.join('/'));
-  }
+  } 
 
   /** Show readable name in UI */
   getItemDisplayName(item: OneDriveItem): string {

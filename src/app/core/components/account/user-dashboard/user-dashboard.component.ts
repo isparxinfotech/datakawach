@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpEventType, HttpHeaders } from '@angular/common/http';
 import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
@@ -69,6 +69,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   otpErrorMessage: string = '';
   folderToDownload: string = '';
   foldersLoaded: boolean = false;
+  isFolderDownloadInProgress: boolean = false;
+  downloadingFolderName: string = '';
+  folderDownloadProgress: number | null = null;
+  folderDownloadLoadedBytes: number = 0;
+  folderDownloadTotalBytes: number | null = null;
 
   constructor(private authService: AuthService, private http: HttpClient) {}
 
@@ -228,6 +233,14 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
     const fileNameMatch = /filename="?([^"]+)"?/i.exec(contentDisposition);
     return fileNameMatch?.[1] || fallbackFileName;
+  }
+
+  private resetFolderDownloadProgress(): void {
+    this.isFolderDownloadInProgress = false;
+    this.downloadingFolderName = '';
+    this.folderDownloadProgress = null;
+    this.folderDownloadLoadedBytes = 0;
+    this.folderDownloadTotalBytes = null;
   }
 
   listRootFolders(): void {
@@ -528,8 +541,12 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   }
 
   private initiateFolderDownload(folderName: string): void {
-    this.loadingOneDrive = true;
     this.oneDriveErrorMessage = '';
+    this.isFolderDownloadInProgress = true;
+    this.downloadingFolderName = this.cleanSegment(folderName);
+    this.folderDownloadProgress = 0;
+    this.folderDownloadLoadedBytes = 0;
+    this.folderDownloadTotalBytes = null;
 
     const folderPath = this.buildPath(this.currentPath, folderName);
     const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
@@ -539,12 +556,13 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       .get(url, {
         headers: this.getDownloadHeaders(),
         responseType: 'blob',
-        observe: 'response'
+        observe: 'events',
+        reportProgress: true
       })
       .pipe(
         retry({ count: 2, delay: 1000 }),
         catchError((err) => {
-          this.loadingOneDrive = false;
+          this.resetFolderDownloadProgress();
           let errorMessage = 'Failed to download folder. Please try again.';
 
           if (err.status === 401) {
@@ -562,21 +580,35 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         })
       )
       .subscribe({
-        next: (response) => {
-          const blob = response.body;
-          if (!blob) {
-            this.oneDriveErrorMessage = 'Received an empty ZIP response from the server.';
-            this.loadingOneDrive = false;
+        next: (event) => {
+          if (event.type === HttpEventType.DownloadProgress) {
+            this.folderDownloadLoadedBytes = event.loaded;
+            this.folderDownloadTotalBytes = event.total ?? null;
+            this.folderDownloadProgress = event.total
+              ? Math.min(100, Math.round((event.loaded / event.total) * 100))
+              : null;
             return;
           }
 
-          const fileName = this.getZipFileName(
-            response.headers.get('content-disposition'),
-            folderName
-          );
+          if (event.type === HttpEventType.Response) {
+            const blob = event.body;
+            if (!blob) {
+              this.oneDriveErrorMessage = 'Received an empty ZIP response from the server.';
+              this.resetFolderDownloadProgress();
+              return;
+            }
 
-          saveAs(blob, fileName);
-          this.loadingOneDrive = false;
+            const fileName = this.getZipFileName(
+              event.headers.get('content-disposition'),
+              folderName
+            );
+
+            this.folderDownloadLoadedBytes = this.folderDownloadTotalBytes || blob.size;
+            this.folderDownloadTotalBytes = this.folderDownloadTotalBytes || blob.size;
+            this.folderDownloadProgress = 100;
+            saveAs(blob, fileName);
+            this.resetFolderDownloadProgress();
+          }
         }
       });
   }

@@ -57,7 +57,6 @@ export class LoginComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit(): void {
-    // Add event listener for keydown to block dev tools shortcuts
     document.addEventListener('keydown', this.disableDevTools.bind(this));
   }
 
@@ -137,7 +136,7 @@ export class LoginComponent implements OnInit, OnDestroy, AfterViewInit {
     this.qrCodeError = false;
     this.qrCodeLoading = true;
     this.cdr.detectChanges();
-    this.onLoginUser(); // or regenerate QR logic if different
+    this.onLoginUser();
   }
 
   onQrCodeLoadError() {
@@ -225,6 +224,14 @@ export class LoginComponent implements OnInit, OnDestroy, AfterViewInit {
   private handleSuccessfulLogin(response: userSessionDetails) {
     this.authService.saveUserDetails(response);
     const userType = response.userType || 5;
+
+    // ✅ New: redirect photographers (userType === 9) to photo dashboard
+    if (userType === 9) {
+      this.router.navigate(['/photo-dashboard']); // <-- change to your actual route if different
+      return;
+    }
+
+    // existing behavior
     if (userType === 3) {
       this.router.navigate(['/corporatedashboard']);
     } else if (userType === 1) {
