@@ -4,7 +4,7 @@ import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { retry, catchError } from 'rxjs/operators';
-import { throwError } from 'rxjs';
+import { EMPTY, throwError } from 'rxjs';
 import { saveAs } from 'file-saver';
 
 interface OneDriveFolder {
@@ -68,12 +68,21 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   otpInput: string = '';
   otpErrorMessage: string = '';
   folderToDownload: string = '';
+  folderSizeToDownload: number | null = null;
   foldersLoaded: boolean = false;
   isFolderDownloadInProgress: boolean = false;
   downloadingFolderName: string = '';
   folderDownloadProgress: number | null = null;
   folderDownloadLoadedBytes: number = 0;
   folderDownloadTotalBytes: number | null = null;
+  folderDownloadItemSize: number | null = null;
+  isFileDownloadInProgress: boolean = false;
+  downloadingFileName: string = '';
+  fileDownloadProgress: number | null = null;
+  fileDownloadLoadedBytes: number = 0;
+  fileDownloadTotalBytes: number | null = null;
+  fileDownloadItemSize: number | null = null;
+  fileDownloadSubscription?: Subscription;
 
   constructor(private authService: AuthService, private http: HttpClient) {}
 
@@ -241,6 +250,173 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.folderDownloadProgress = null;
     this.folderDownloadLoadedBytes = 0;
     this.folderDownloadTotalBytes = null;
+    this.folderDownloadItemSize = null;
+    this.folderSizeToDownload = null;
+  }
+
+  private resetFileDownloadProgress(): void {
+    this.isFileDownloadInProgress = false;
+    this.downloadingFileName = '';
+    this.fileDownloadProgress = null;
+    this.fileDownloadLoadedBytes = 0;
+    this.fileDownloadTotalBytes = null;
+    this.fileDownloadItemSize = null;
+  }
+
+  private getKnownDownloadTotal(totalBytes: number | null | undefined, itemSize: number | null): number | null {
+    if (typeof totalBytes === 'number' && totalBytes > 0) {
+      return totalBytes;
+    }
+
+    if (typeof itemSize === 'number' && itemSize > 0) {
+      return itemSize;
+    }
+
+    return null;
+  }
+
+  private calculateDownloadProgress(loadedBytes: number, totalBytes: number | null): number | null {
+    if (!totalBytes || totalBytes <= 0) {
+      return null;
+    }
+
+    return Math.min(100, Math.round((loadedBytes / totalBytes) * 100));
+  }
+
+  private startDirectFileDownload(downloadUrl: string, fileName: string): void {
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  private canUseStreamedFolderDownload(): boolean {
+    const browserWindow = window as Window & {
+      showSaveFilePicker?: (options?: unknown) => Promise<{
+        createWritable: () => Promise<{
+          write: (data: BufferSource) => Promise<void>;
+          close: () => Promise<void>;
+          abort: () => Promise<void>;
+        }>;
+      }>;
+    };
+
+    return typeof browserWindow.showSaveFilePicker === 'function';
+  }
+
+  private async streamFolderDownloadToDisk(
+    folderName: string,
+    folderUrl: string,
+    folderSize?: number
+  ): Promise<void> {
+    const browserWindow = window as Window & {
+      showSaveFilePicker?: (options?: unknown) => Promise<{
+        createWritable: () => Promise<{
+          write: (data: BufferSource) => Promise<void>;
+          close: () => Promise<void>;
+          abort: () => Promise<void>;
+        }>;
+      }>;
+    };
+
+    if (!browserWindow.showSaveFilePicker) {
+      throw new Error('Streaming download is not supported in this browser.');
+    }
+
+    const response = await fetch(folderUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${this.userSessionDetails?.jwtToken || localStorage.getItem('jwtToken') || ''}`,
+        'Accept': 'application/octet-stream',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to download folder. Please try again.';
+
+      if (response.status === 401) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else if (response.status === 404) {
+        errorMessage = `Folder "${this.buildPath(this.currentPath, folderName)}" not found.`;
+      } else if (response.status === 500) {
+        errorMessage = 'Server error while preparing the ZIP. Please try again later.';
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    if (!response.body) {
+      throw new Error('Streaming response is not available for this folder download.');
+    }
+
+    const fileName = this.getZipFileName(response.headers.get('content-disposition'), folderName);
+    const fileHandle = await browserWindow.showSaveFilePicker({
+      suggestedName: fileName,
+      types: [
+        {
+          description: 'ZIP archive',
+          accept: {
+            'application/zip': ['.zip']
+          }
+        }
+      ]
+    });
+
+    const writable = await fileHandle.createWritable();
+    const reader = response.body.getReader();
+    const contentLengthHeader = response.headers.get('content-length');
+    const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
+
+    this.folderDownloadItemSize = folderSize ?? null;
+    this.folderDownloadTotalBytes = this.getKnownDownloadTotal(
+      Number.isFinite(contentLength) ? contentLength : null,
+      this.folderDownloadItemSize
+    );
+
+    let loadedBytes = 0;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        if (!value) {
+          continue;
+        }
+
+        loadedBytes += value.byteLength;
+        await writable.write(value);
+
+        this.folderDownloadLoadedBytes = loadedBytes;
+        this.folderDownloadTotalBytes = this.getKnownDownloadTotal(
+          this.folderDownloadTotalBytes,
+          this.folderDownloadItemSize
+        );
+        this.folderDownloadProgress = this.calculateDownloadProgress(
+          loadedBytes,
+          this.folderDownloadTotalBytes
+        );
+      }
+
+      await writable.close();
+      this.folderDownloadLoadedBytes = loadedBytes;
+      this.folderDownloadTotalBytes = this.getKnownDownloadTotal(
+        loadedBytes,
+        this.folderDownloadItemSize
+      );
+      this.folderDownloadProgress = 100;
+    } catch (error) {
+      await writable.abort();
+      throw error;
+    }
   }
 
   listRootFolders(): void {
@@ -515,7 +691,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             this.showOtpModal = false;
             this.otpInput = '';
             this.otpErrorMessage = '';
-            this.initiateFolderDownload(this.folderToDownload);
+            this.initiateFolderDownload(this.folderToDownload, this.folderSizeToDownload ?? undefined);
           } else {
             this.otpErrorMessage = 'Invalid or expired OTP. Please try again.';
           }
@@ -523,7 +699,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
       });
   }
 
-  downloadFolder(folderName: string): void {
+  downloadFolder(folderName: string, folderSize?: number): void {
     if (!folderName || !this.email) {
       this.oneDriveErrorMessage = 'Invalid folder or user details.';
       return;
@@ -531,25 +707,53 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
 
     if (this.retentionNeeded === 1) {
       this.folderToDownload = folderName;
+      this.folderSizeToDownload = folderSize ?? null;
       this.showOtpModal = true;
       this.otpInput = '';
       this.otpErrorMessage = '';
       this.generateOtp();
     } else {
-      this.initiateFolderDownload(folderName);
+      this.initiateFolderDownload(folderName, folderSize);
     }
   }
 
-  private initiateFolderDownload(folderName: string): void {
+  private initiateFolderDownload(folderName: string, folderSize?: number): void {
     this.oneDriveErrorMessage = '';
     this.isFolderDownloadInProgress = true;
     this.downloadingFolderName = this.cleanSegment(folderName);
     this.folderDownloadProgress = 0;
     this.folderDownloadLoadedBytes = 0;
-    this.folderDownloadTotalBytes = null;
+    this.folderDownloadItemSize = folderSize ?? null;
+    this.folderDownloadTotalBytes = this.getKnownDownloadTotal(null, this.folderDownloadItemSize);
 
     const folderPath = this.buildPath(this.currentPath, folderName);
     const url = `https://datakavach.com/isparxcloud/download-folder?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`;
+
+    if (this.canUseStreamedFolderDownload()) {
+      this.downloadSubscription?.unsubscribe();
+
+      void this.streamFolderDownloadToDisk(folderName, url, folderSize)
+        .then(() => {
+          this.resetFolderDownloadProgress();
+        })
+        .catch((error: unknown) => {
+          this.resetFolderDownloadProgress();
+
+          if (error instanceof Error && error.name === 'AbortError') {
+            this.oneDriveErrorMessage = 'Folder download was cancelled.';
+            return;
+          }
+
+          if (error instanceof Error && error.message) {
+            this.oneDriveErrorMessage = error.message;
+            return;
+          }
+
+          this.oneDriveErrorMessage = 'Failed to stream folder download. Please try again.';
+        });
+
+      return;
+    }
 
     this.downloadSubscription?.unsubscribe();
     this.downloadSubscription = this.http
@@ -583,10 +787,11 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         next: (event) => {
           if (event.type === HttpEventType.DownloadProgress) {
             this.folderDownloadLoadedBytes = event.loaded;
-            this.folderDownloadTotalBytes = event.total ?? null;
-            this.folderDownloadProgress = event.total
-              ? Math.min(100, Math.round((event.loaded / event.total) * 100))
-              : null;
+            this.folderDownloadTotalBytes = this.getKnownDownloadTotal(event.total, this.folderDownloadItemSize);
+            this.folderDownloadProgress = this.calculateDownloadProgress(
+              event.loaded,
+              this.folderDownloadTotalBytes
+            );
             return;
           }
 
@@ -603,8 +808,8 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
               folderName
             );
 
-            this.folderDownloadLoadedBytes = this.folderDownloadTotalBytes || blob.size;
-            this.folderDownloadTotalBytes = this.folderDownloadTotalBytes || blob.size;
+            this.folderDownloadLoadedBytes = blob.size;
+            this.folderDownloadTotalBytes = this.getKnownDownloadTotal(blob.size, this.folderDownloadItemSize);
             this.folderDownloadProgress = 100;
             saveAs(blob, fileName);
             this.resetFolderDownloadProgress();
@@ -772,18 +977,63 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
-  downloadFile(downloadUrl: string, fileName: string): void {
+  downloadFile(downloadUrl: string, fileName: string, fileSize?: number): void {
     if (!downloadUrl || !fileName) {
       this.oneDriveErrorMessage = 'Invalid file details.';
       return;
     }
 
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    this.oneDriveErrorMessage = '';
+    this.isFileDownloadInProgress = true;
+    this.downloadingFileName = fileName;
+    this.fileDownloadItemSize = fileSize ?? null;
+    this.fileDownloadLoadedBytes = 0;
+    this.fileDownloadTotalBytes = this.getKnownDownloadTotal(null, this.fileDownloadItemSize);
+    this.fileDownloadProgress = 0;
+
+    this.fileDownloadSubscription?.unsubscribe();
+    this.fileDownloadSubscription = this.http
+      .get(downloadUrl, {
+        responseType: 'blob',
+        observe: 'events',
+        reportProgress: true
+      })
+      .pipe(
+        catchError(() => {
+          this.resetFileDownloadProgress();
+          this.startDirectFileDownload(downloadUrl, fileName);
+          this.oneDriveErrorMessage = 'Live file progress is not available for this file. The browser download has been started directly.';
+          return EMPTY;
+        })
+      )
+      .subscribe({
+        next: (event) => {
+          if (event.type === HttpEventType.DownloadProgress) {
+            this.fileDownloadLoadedBytes = event.loaded;
+            this.fileDownloadTotalBytes = this.getKnownDownloadTotal(event.total, this.fileDownloadItemSize);
+            this.fileDownloadProgress = this.calculateDownloadProgress(
+              event.loaded,
+              this.fileDownloadTotalBytes
+            );
+            return;
+          }
+
+          if (event.type === HttpEventType.Response) {
+            const blob = event.body;
+            if (!blob) {
+              this.oneDriveErrorMessage = 'Received an empty file response from the server.';
+              this.resetFileDownloadProgress();
+              return;
+            }
+
+            this.fileDownloadLoadedBytes = blob.size;
+            this.fileDownloadTotalBytes = this.getKnownDownloadTotal(blob.size, this.fileDownloadItemSize);
+            this.fileDownloadProgress = 100;
+            saveAs(blob, fileName);
+            this.resetFileDownloadProgress();
+          }
+        }
+      });
   }
 
   disableRightClick(event: MouseEvent): void {
@@ -813,6 +1063,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     this.contentsSubscription?.unsubscribe();
     this.folderSubscription?.unsubscribe();
     this.downloadSubscription?.unsubscribe();
+    this.fileDownloadSubscription?.unsubscribe();
     document.removeEventListener('keydown', this.disableDevTools.bind(this));
   }
 }
