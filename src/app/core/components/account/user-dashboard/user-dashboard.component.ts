@@ -368,7 +368,6 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     });
 
     const writable = await fileHandle.createWritable();
-    const reader = response.body.getReader();
     const contentLengthHeader = response.headers.get('content-length');
     const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
 
@@ -379,22 +378,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     );
 
     let loadedBytes = 0;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        if (!value) {
-          continue;
-        }
-
-        loadedBytes += value.byteLength;
-        await writable.write(value);
-
+    const progressStream = new TransformStream<Uint8Array, Uint8Array>({
+      transform: (chunk, controller) => {
+        loadedBytes += chunk.byteLength;
         this.folderDownloadLoadedBytes = loadedBytes;
         this.folderDownloadTotalBytes = this.getKnownDownloadTotal(
           this.folderDownloadTotalBytes,
@@ -404,9 +390,16 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           loadedBytes,
           this.folderDownloadTotalBytes
         );
+        controller.enqueue(chunk);
       }
+    });
 
-      await writable.close();
+    try {
+      const writableStream = writable as unknown as WritableStream<Uint8Array>;
+      await response.body
+        .pipeThrough(progressStream)
+        .pipeTo(writableStream);
+
       this.folderDownloadLoadedBytes = loadedBytes;
       this.folderDownloadTotalBytes = this.getKnownDownloadTotal(
         loadedBytes,
