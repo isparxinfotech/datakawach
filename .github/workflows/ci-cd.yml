@@ -34,33 +34,59 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
+          set -euo pipefail
+          APP_ROOT="/home/ec2-user/datakavachfrontend/datakawach"
+          DIST_DIR="$APP_ROOT/dist/hrkui"
+          BACKUP_DIR="/home/ec2-user/datakavachfrontend/backup"
+
           # 🔐 Decode and prepare SSH key
           echo "$EC2_SSH_KEY" | base64 -d > ssh_key
           chmod 600 ssh_key
 
           echo "📁 Creating necessary directories on EC2..."
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
-            mkdir -p /home/ec2-user/datakavachfrontend/backup &&
-            mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist &&
+            set -e
+            mkdir -p '"$BACKUP_DIR"' &&
+            mkdir -p '"$APP_ROOT"'/dist &&
             echo "✅ Directories ready."'
 
           echo "🗃️ Backing up old build if it exists..."
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
-            if [ -d /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui ]; then
+            set -e
+            if [ -d '"$DIST_DIR"' ]; then
               timestamp=$(date +%s)
-              mv /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui /home/ec2-user/datakavachfrontend/backup/hrkui-$timestamp
+              mv '"$DIST_DIR"' '"$BACKUP_DIR"'/hrkui-$timestamp
               echo "✅ Backup created: hrkui-$timestamp"
             fi'
 
           echo "📤 Uploading new build to EC2..."
-          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST 'mkdir -p /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui'
-          scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:/home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
+          ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST 'mkdir -p '"$DIST_DIR"
+          scp -i ssh_key -r dist/hrkui/* $EC2_USER@$EC2_HOST:$DIST_DIR
 
           echo "🔁 Validating and restarting NGINX..."
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
-            if [ -f /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui/index.html ]; then
-              echo "✅ Deployment successful"
-              sudo systemctl reload nginx
+            set -e
+            if [ -f '"$DIST_DIR"'/index.html ]; then
+              echo "✅ Build files uploaded"
+              echo "🧪 Running nginx config test..."
+
+              if ! sudo nginx -t; then
+                echo "❌ nginx config validation failed"
+                sudo systemctl status nginx --no-pager || true
+                sudo journalctl -xeu nginx.service --no-pager -n 80 || true
+                exit 1
+              fi
+
+              echo "🔄 Reloading nginx..."
+              if sudo systemctl is-active --quiet nginx; then
+                sudo systemctl reload nginx || sudo systemctl restart nginx
+              else
+                sudo systemctl start nginx
+              fi
+
+              echo "📋 nginx service status:"
+              sudo systemctl status nginx --no-pager || true
+              echo "✅ Deployment completed and nginx is healthy"
             else
               echo "❌ Deployment failed - index.html missing"
               exit 1
@@ -84,13 +110,33 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
         run: |
+          set -euo pipefail
+          APP_ROOT="/home/ec2-user/datakavachfrontend/datakawach"
+          DIST_DIR="$APP_ROOT/dist/hrkui"
+          BACKUP_DIR="/home/ec2-user/datakavachfrontend/backup"
+
           echo "🛑 Deploy failed, starting rollback..."
           ssh -i ssh_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST '
-            latest_backup=$(ls -td /home/ec2-user/datakavachfrontend/backup/hrkui-* 2>/dev/null | head -n1)
+            set -e
+            latest_backup=$(ls -td '"$BACKUP_DIR"'/hrkui-* 2>/dev/null | head -n1)
             if [ -n "$latest_backup" ]; then
-              rm -rf /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
-              cp -r $latest_backup /home/ec2-user/datakavachfrontend/datakawach/dist/hrkui
-              sudo systemctl reload nginx
+              rm -rf '"$DIST_DIR"'
+              cp -r "$latest_backup" '"$DIST_DIR"'
+
+              echo "🧪 Re-validating nginx config before reload..."
+              if ! sudo nginx -t; then
+                echo "❌ nginx config is still invalid during rollback"
+                sudo systemctl status nginx --no-pager || true
+                sudo journalctl -xeu nginx.service --no-pager -n 80 || true
+                exit 1
+              fi
+
+              if sudo systemctl is-active --quiet nginx; then
+                sudo systemctl reload nginx || sudo systemctl restart nginx
+              else
+                sudo systemctl start nginx
+              fi
+
               echo "✅ Rollback successful: restored from $latest_backup"
             else
               echo "❌ No backup found to rollback."
