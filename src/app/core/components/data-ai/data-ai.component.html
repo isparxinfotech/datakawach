@@ -83,7 +83,7 @@
               <div class="row">
                 <button class="btn" type="button" (click)="fileEl.click()">Choose photo</button>
                 <input #fileEl type="file" accept="image/*" (change)="onFilePicked($event)" style="display:none" />
-                <span *ngIf="selfieFile" style="color:var(--muted)">Selected: <b>{{ selfieFile?.name }}</b> ({{ humanSize(selfieFile?.size) }})</span>
+                <span *ngIf="selfieFile" style="color:var(--muted)">Selected: <b>{{ selfieFile.name }}</b> ({{ humanSize(selfieFile.size) }})</span>
               </div>
             </div>
           </div>
@@ -96,7 +96,7 @@
             <div class="row" style="margin-top:8px">
               <button class="btn" type="button" (click)="captureFrame()">Capture</button>
               <button class="btn-ghost" type="button" (click)="stopCamera()">Stop Camera</button>
-              <span *ngIf="selfieFile" style="color:var(--muted)">&nbsp;Captured: <b>{{ selfieFile?.name }}</b> ({{ humanSize(selfieFile?.size) }})</span>
+              <span *ngIf="selfieFile" style="color:var(--muted)">&nbsp;Captured: <b>{{ selfieFile.name }}</b> ({{ humanSize(selfieFile.size) }})</span>
             </div>
             <canvas #canvasEl style="display:none"></canvas>
           </div>

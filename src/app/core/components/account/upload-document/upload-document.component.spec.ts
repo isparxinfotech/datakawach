@@ -1,6 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { UploadDocumentComponent } from './upload-document.component';
+import {
+  SHALLOW_COMPONENT_TEST_IMPORTS,
+  SHALLOW_COMPONENT_TEST_SCHEMAS
+} from 'src/testing/shallow-test-setup';
 
 describe('UploadDocumentComponent', () => {
   let component: UploadDocumentComponent;
@@ -8,11 +12,12 @@ describe('UploadDocumentComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [UploadDocumentComponent]
+      declarations: [UploadDocumentComponent],
+      imports: SHALLOW_COMPONENT_TEST_IMPORTS,
+      schemas: SHALLOW_COMPONENT_TEST_SCHEMAS
     });
     fixture = TestBed.createComponent(UploadDocumentComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
   });
 
   it('should create', () => {

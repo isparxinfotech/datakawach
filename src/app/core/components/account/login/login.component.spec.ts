@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { RouterTestingModule } from '@angular/router/testing';
 import { AuthService } from 'src/app/services/auth.service';
@@ -10,7 +11,7 @@ describe('LoginComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [ReactiveFormsModule, RouterTestingModule],
+      imports: [HttpClientTestingModule, ReactiveFormsModule, RouterTestingModule],
       declarations: [LoginComponent],
       providers: [{ provide: AuthService, useValue: jasmine.createSpyObj('AuthService', ['loginUser']) }],
     }).compileComponents();
@@ -33,7 +34,7 @@ describe('LoginComponent', () => {
   });
 
   it('should validate the form when all required fields are filled', () => {
-    component.frmValidate.controls['username'].setValue('testuser');
+    component.frmValidate.controls['username'].setValue('testuser@example.com');
     component.frmValidate.controls['password'].setValue('testpassword');
     expect(component.frmValidate.valid).toBeTrue();
   });

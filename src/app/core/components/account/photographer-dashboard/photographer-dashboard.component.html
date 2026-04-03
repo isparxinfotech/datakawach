@@ -119,9 +119,9 @@
 
                   <button style="background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff; border-radius: 10px; padding: 0.7rem 1.2rem; font-weight: 600; transition: all 0.2s;"
                           (click)="uploadDirectoryToNewEvent()"
-                          [disabled]="!newEventName?.trim() || dirFiles.length === 0 || uploading"
-                          [style.opacity]="!newEventName?.trim() || dirFiles.length === 0 || uploading ? '0.5' : '1'"
-                          [style.cursor]="!newEventName?.trim() || dirFiles.length === 0 || uploading ? 'not-allowed' : 'pointer'"
+                          [disabled]="!newEventName.trim() || dirFiles.length === 0 || uploading"
+                          [style.opacity]="!newEventName.trim() || dirFiles.length === 0 || uploading ? '0.5' : '1'"
+                          [style.cursor]="!newEventName.trim() || dirFiles.length === 0 || uploading ? 'not-allowed' : 'pointer'"
                           onmouseover="if(!this.disabled) { this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(16,185,129,0.4)'; }"
                           onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
                     <i [class]="uploading ? 'fa fa-spinner fa-spin me-2' : 'fa fa-upload me-2'"></i>
@@ -186,7 +186,7 @@
 
             <div style="padding: 1.5rem;">
               <!-- Breadcrumb -->
-              <nav *ngIf="breadcrumb?.length" style="margin-bottom: 1.25rem;">
+              <nav *ngIf="breadcrumb.length" style="margin-bottom: 1.25rem;">
                 <ol style="display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; padding: 0; margin: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 0.75rem 1rem;">
                   <li *ngFor="let crumb of breadcrumb; let i = index" style="display: flex; align-items: center; gap: 0.5rem;">
                     <a *ngIf="i !== breadcrumb.length - 1"
@@ -209,7 +209,7 @@
                   <i class="fa fa-th-large me-2" style="color: #8b5cf6;"></i>Contents
                 </h6>
                 <button style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #fff; border-radius: 8px; padding: 0.4rem 1rem; font-size: 0.85rem; font-weight: 600; transition: all 0.2s;"
-                        (click)="breadcrumb?.length === 1 ? loadImmediateChildren() : onCrumb(breadcrumb.length - 1)"
+                        (click)="breadcrumb.length === 1 ? loadImmediateChildren() : onCrumb(breadcrumb.length - 1)"
                         onmouseover="this.style.background='rgba(255,255,255,0.15)'"
                         onmouseout="this.style.background='rgba(255,255,255,0.08)'">
                   <i class="fa fa-sync-alt me-1"></i>Refresh

@@ -1,6 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { UserEditComponent } from './user-edit.component';
+import {
+  SHALLOW_COMPONENT_TEST_IMPORTS,
+  SHALLOW_COMPONENT_TEST_SCHEMAS
+} from 'src/testing/shallow-test-setup';
 
 describe('UserEditComponent', () => {
   let component: UserEditComponent;
@@ -8,11 +12,12 @@ describe('UserEditComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [UserEditComponent]
+      declarations: [UserEditComponent],
+      imports: SHALLOW_COMPONENT_TEST_IMPORTS,
+      schemas: SHALLOW_COMPONENT_TEST_SCHEMAS
     });
     fixture = TestBed.createComponent(UserEditComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
   });
 
   it('should create', () => {

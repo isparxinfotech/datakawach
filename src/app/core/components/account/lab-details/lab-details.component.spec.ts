@@ -1,6 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { LabDetailsComponent } from './lab-details.component';
+import {
+  SHALLOW_COMPONENT_TEST_IMPORTS,
+  SHALLOW_COMPONENT_TEST_SCHEMAS
+} from 'src/testing/shallow-test-setup';
 
 describe('LabDetailsComponent', () => {
   let component: LabDetailsComponent;
@@ -8,11 +12,12 @@ describe('LabDetailsComponent', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      declarations: [LabDetailsComponent]
+      declarations: [LabDetailsComponent],
+      imports: SHALLOW_COMPONENT_TEST_IMPORTS,
+      schemas: SHALLOW_COMPONENT_TEST_SCHEMAS
     });
     fixture = TestBed.createComponent(LabDetailsComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
   });
 
   it('should create', () => {
