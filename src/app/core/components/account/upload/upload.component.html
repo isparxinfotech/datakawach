@@ -266,7 +266,7 @@
                   >
                   <div *ngIf="fileNameError" class="text-red-500 text-sm mt-3">{{ fileNameError }}</div>
                   <small class="text-blue-500 text-sm mt-3 block">
-                    Max {{ MAX_PATH_LENGTH }} characters, no special characters (e.g., <, >, :, ", /, \, |, ?, *).
+                    Any file type is allowed. Only reserved path characters like &lt;, &gt;, :, ", /, \, |, ?, and * are blocked.
                   </small>
                 </div>
 
@@ -286,7 +286,7 @@
                     class="w-full p-4 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 bg-white shadow-md hover:shadow-lg transition-all duration-300"
                   >
                   <small class="text-blue-500 text-sm mt-3 block">
-                    Avoid names like 'forms', 'lists', or names with special characters (e.g., <, >, :, ", /, \, |, ?, *, %, #). Use simple names like 'my-folder' or 'backup-data'. Max {{ MAX_PATH_LENGTH }} characters per file/folder name.
+                    Any file type can be uploaded, including archive, mailbox, and binary files such as `.pst`. Only invalid path characters are sanitized automatically. Max {{ MAX_PATH_LENGTH }} characters per file or folder name.
                   </small>
                   <small *ngIf="selectedFiles.length > 0" class="text-blue-500 text-sm mt-3 block">
                     Selected: {{ selectedFiles.length }} {{ uploadType === 'file' ? 'file(s)' : 'file(s) in folder' }}

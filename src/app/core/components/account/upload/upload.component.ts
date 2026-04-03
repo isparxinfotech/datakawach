@@ -139,6 +139,8 @@ export class UploadComponent implements OnInit, OnDestroy {
     private totalChunks: number = 0;
     private uploadedChunks: number = 0;
     public readonly MAX_PATH_LENGTH = 255;
+    private readonly INVALID_FILE_NAME_CHARS = /[<>:"\/\\|?*\u0000-\u001F]/g;
+    private readonly INVALID_FILE_NAME_CHAR_PATTERN = /[<>:"\/\\|?*\u0000-\u001F]/;
     private readonly CONCURRENCY_LIMIT = 10;
     private readonly CHUNK_SIZE_ALIGNMENT = 327680;
     private readonly MAX_RETRIES = 3;
@@ -195,15 +197,26 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     private sanitizeFileName(fileName: string): string {
-        const extension = fileName.includes('.') ? fileName.split('.').pop() : '';
-        const baseName = fileName.replace(`.${extension}`, '');
-        const sanitized = baseName
-            .replace(/\s+|[.]+/g, '_')
-            .replace(/[<>:"\/\\|?*]+/g, '')
-            .replace(/[^a-zA-Z0-9_-]/g, '');
-        const maxBaseLength = this.MAX_PATH_LENGTH - (extension ? extension.length + 1 : 0);
-        const truncatedBase = sanitized.substring(0, maxBaseLength);
-        return truncatedBase + (extension ? `.${extension}` : '');
+        const normalizedName = (fileName || '')
+            .trim()
+            .replace(this.INVALID_FILE_NAME_CHARS, '_')
+            .replace(/\.+$/g, '') || 'unnamed-file';
+
+        if (normalizedName.length <= this.MAX_PATH_LENGTH) {
+            return normalizedName;
+        }
+
+        const lastDotIndex = normalizedName.lastIndexOf('.');
+        const hasExtension = lastDotIndex > 0 && lastDotIndex < normalizedName.length - 1;
+
+        if (!hasExtension) {
+            return normalizedName.substring(0, this.MAX_PATH_LENGTH);
+        }
+
+        const baseName = normalizedName.substring(0, lastDotIndex);
+        const extension = normalizedName.substring(lastDotIndex);
+        const maxBaseLength = Math.max(1, this.MAX_PATH_LENGTH - extension.length);
+        return `${baseName.substring(0, maxBaseLength)}${extension}`;
     }
 
     async initializeUser() {
@@ -283,9 +296,9 @@ export class UploadComponent implements OnInit, OnDestroy {
             this.fileNameError = 'File name is required';
             this.validationMessage = 'File name is required';
         } else if (this.fileName) {
-            if (/[<>:"\/\\|?*]/.test(this.fileName)) {
-                this.fileNameError = 'File name contains invalid characters';
-                this.validationMessage = 'File name contains invalid characters';
+            if (this.INVALID_FILE_NAME_CHAR_PATTERN.test(this.fileName)) {
+                this.fileNameError = 'File name contains reserved path characters';
+                this.validationMessage = 'File name contains reserved path characters';
             } else if (this.fileName.length > this.MAX_PATH_LENGTH) {
                 this.fileNameError = `File name is too long (max ${this.MAX_PATH_LENGTH} characters)`;
                 this.validationMessage = `File name is too long (max ${this.MAX_PATH_LENGTH} characters)`;
@@ -1027,15 +1040,20 @@ export class UploadComponent implements OnInit, OnDestroy {
     ): Promise<UploadResponse['successUrls'][0] | null> {
         const url = this.uploadType === 'file' ? 'https://datakavach.com/isparxcloud/generate-upload-url' : 'https://datakavach.com/isparxcloud/upload-folder';
         const formData = new FormData();
-        formData.append('username', this.userSessionDetails!.username);
-        formData.append('folderName', normalizedFolderPath);
-        formData.append('fileName', fileName);
-        formData.append('fileSize', file.size.toString());
-        if (this.uploadType === 'folder') {
+        if (this.uploadType === 'file') {
+            formData.append('username', this.userSessionDetails!.username);
+            formData.append('folderName', normalizedFolderPath);
+            formData.append('fileName', fileName);
+            formData.append('fileSize', file.size.toString());
+            if (relativePath && relativePath !== '.') {
+                formData.append('relativePath', relativePath);
+            }
+        } else {
+            formData.append('email', this.userSessionDetails!.username);
             formData.append('baseFolderName', normalizedFolderPath);
             formData.append('fileNames', fileName);
             formData.append('fileSizes', file.size.toString());
-            formData.append('relativePaths', relativePath || '.');
+            formData.append('relativePaths', relativePath || fileName);
         }
 
         try {
@@ -1048,9 +1066,13 @@ export class UploadComponent implements OnInit, OnDestroy {
                 throw new Error(`Failed to refresh presigned URL for ${fileName}: ${errors.join('; ')}`);
             }
 
+            const expectedRelativePath = this.uploadType === 'file'
+                ? (relativePath && relativePath !== '.' ? relativePath : '')
+                : (relativePath || fileName);
+
             const matchingUrl = response.successUrls.find(
                 url => url.fileName === fileName &&
-                       url.relativePath === (relativePath || '.') &&
+                       url.relativePath === expectedRelativePath &&
                        url.chunkIndex === chunkIndex.toString() &&
                        url.startByte === startByte.toString() &&
                        url.endByte === endByte.toString() &&
@@ -1079,7 +1101,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     ): Promise<boolean> {
         const chunkIndex = presigned.chunkIndex ? parseInt(presigned.chunkIndex, 10) : 0;
         const startByte = presigned.startByte ? parseInt(presigned.startByte, 10) : 0;
-        const endByte = presigned.endByte ? parseInt(presigned.endByte, 10) : file.size;
+        const endByte = presigned.endByte ? parseInt(presigned.endByte, 10) : file.size - 1;
         const totalSize = presigned.totalSize ? parseInt(presigned.totalSize, 10) : file.size;
         const relativePath = presigned.relativePath || '.';
         const key = `${fileName}|${relativePath}`;
@@ -1087,10 +1109,11 @@ export class UploadComponent implements OnInit, OnDestroy {
 
         while (retryCount < this.MAX_RETRIES) {
             try {
-                const chunk = file.slice(startByte, endByte);
+                // Backend returns an inclusive end byte; File.slice expects an exclusive end offset.
+                const chunk = file.slice(startByte, endByte + 1);
                 const headers = new HttpHeaders({
                     'Content-Type': file.type || 'application/octet-stream',
-                    'Content-Range': `bytes ${startByte}-${endByte - 1}/${totalSize}`
+                    'Content-Range': `bytes ${startByte}-${endByte}/${totalSize}`
                 });
 
                 const uploadResponse = await lastValueFrom(this.http.put(presigned.uploadUrl, chunk, {

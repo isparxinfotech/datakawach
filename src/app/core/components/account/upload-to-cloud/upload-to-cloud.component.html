@@ -63,7 +63,7 @@
                 <div class="mb-4">
                   <label for="fileInput" class="form-label fw-semibold text-grey">Select Folder or Files</label>
                   <input type="file" id="fileInput" (change)="onFileChange($event)" multiple webkitdirectory directory allowdirs class="form-control border-grey" [disabled]="loading" />
-                  <small class="text-grey d-block mt-2">Select a folder to upload its entire structure or choose multiple files (Chrome/Edge only for folders).</small>
+                  <small class="text-grey d-block mt-2">Select a folder to upload its entire structure or choose multiple files. Any file type is allowed, including `.pst` and other binary files.</small>
                 </div>
                 <div *ngIf="selectedItems.length > 0" class="mb-4">
                   <h4 class="text-grey">Selected Items:</h4>
