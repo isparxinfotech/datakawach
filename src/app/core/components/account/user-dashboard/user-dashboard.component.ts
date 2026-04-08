@@ -4,8 +4,9 @@ import { Subscription } from 'rxjs';
 import { AuthService } from 'src/app/services/auth.service';
 import { userSessionDetails } from 'src/app/models/user-session-responce.model';
 import { retry, catchError } from 'rxjs/operators';
-import { EMPTY, throwError } from 'rxjs';
+import { EMPTY, throwError, firstValueFrom } from 'rxjs';
 import { saveAs } from 'file-saver';
+import * as JSZip from 'jszip';
 
 interface OneDriveFolder {
   name: string;
@@ -35,6 +36,13 @@ interface S3Content {
   size?: number;
   downloadUrl?: string;
   prefix?: string;
+}
+
+interface ZipFileItem {
+  path: string;
+  name: string;
+  downloadUrl: string;
+  type: 'file' | 'folder';
 }
 
 @Component({
@@ -83,6 +91,7 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
   fileDownloadTotalBytes: number | null = null;
   fileDownloadItemSize: number | null = null;
   fileDownloadSubscription?: Subscription;
+  private readonly ZIP_FALLBACK_CONCURRENCY = 4;
 
   constructor(private authService: AuthService, private http: HttpClient) {}
 
@@ -296,6 +305,115 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
     return typeof (window as any).showSaveFilePicker === 'function';
   }
 
+  private getDownloadableContents(folderPath: string): Promise<OneDriveContent[]> {
+    const fetchPage = async (url: string): Promise<{ contents: OneDriveContent[]; nextLink?: string }> => {
+      return await firstValueFrom(
+        this.http.get<{ contents: OneDriveContent[]; nextLink?: string }>(url, {
+          headers: this.getAuthHeaders()
+        })
+      );
+    };
+
+    return (async () => {
+      const allContents: OneDriveContent[] = [];
+      let nextUrl = folderPath
+        ? `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=${encodeURIComponent(folderPath)}`
+        : `https://datakavach.com/isparxcloud/folder-contents?username=${encodeURIComponent(this.email)}&folderPath=root`;
+
+      while (nextUrl) {
+        const response = await fetchPage(nextUrl);
+        if (!response || !Array.isArray(response.contents)) {
+          throw new Error(`Invalid folder response received for "${folderPath || 'root'}".`);
+        }
+
+        allContents.push(...response.contents);
+        nextUrl = response.nextLink || '';
+      }
+
+      return allContents;
+    })();
+  }
+
+  private async fetchDownloadBlob(downloadUrl: string, fileName: string): Promise<Blob> {
+    try {
+      return await firstValueFrom(
+        this.http.get(downloadUrl, {
+          headers: this.getDownloadHeaders(),
+          responseType: 'blob'
+        })
+      );
+    } catch {
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.userSessionDetails?.jwtToken || localStorage.getItem('jwtToken') || ''}`,
+          'Accept': 'application/octet-stream'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file "${this.cleanSegment(fileName)}" for ZIP creation.`);
+      }
+
+      return await response.blob();
+    }
+  }
+
+  private async addFolderToZip(
+    zip: JSZip,
+    folderPath: string,
+    zipPrefix: string
+  ): Promise<void> {
+    const contents = await this.getDownloadableContents(folderPath);
+    const folders = contents.filter((item) => item.type === 'folder');
+    const files = contents.filter((item) => item.type !== 'folder');
+
+    for (const folder of folders) {
+      const childPath = this.buildPath(folderPath, folder.name);
+      const childZipPath = zipPrefix ? `${zipPrefix}/${this.cleanSegment(folder.name)}` : this.cleanSegment(folder.name);
+      zip.folder(childZipPath);
+      await this.addFolderToZip(zip, childPath, childZipPath);
+    }
+
+    const fileTasks: ZipFileItem[] = files
+      .filter((item): item is OneDriveContent & { downloadUrl: string } => !!item.downloadUrl)
+      .map((item) => ({
+        path: zipPrefix ? `${zipPrefix}/${this.cleanSegment(item.name)}` : this.cleanSegment(item.name),
+        name: item.name,
+        downloadUrl: item.downloadUrl!,
+        type: 'file'
+      }));
+
+    const queue = [...fileTasks];
+    const workers = Array.from({ length: Math.min(this.ZIP_FALLBACK_CONCURRENCY, Math.max(queue.length, 1)) }, async () => {
+      while (queue.length > 0) {
+        const task = queue.shift();
+        if (!task) {
+          return;
+        }
+
+        const blob = await this.fetchDownloadBlob(task.downloadUrl, task.name);
+        zip.file(task.path, blob, { compression: 'STORE' });
+      }
+    });
+
+    await Promise.all(workers);
+  }
+
+  private async buildFolderZipFromContents(folderName: string): Promise<Blob> {
+    const zip = new JSZip();
+    const rootName = this.cleanSegment(folderName) || 'download';
+    zip.folder(rootName);
+    const folderPath = this.buildPath(this.currentPath, folderName);
+    await this.addFolderToZip(zip, folderPath, rootName);
+
+    return await zip.generateAsync({
+      type: 'blob',
+      compression: 'STORE',
+      streamFiles: true
+    });
+  }
+
   private async streamFolderDownloadToDisk(
     folderName: string,
     folderUrl: string,
@@ -329,7 +447,9 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
         errorMessage = 'Server error while preparing the ZIP. Please try again later.';
       }
 
-      throw new Error(errorMessage);
+      const downloadError = new Error(errorMessage) as Error & { status?: number };
+      downloadError.status = response.status;
+      throw downloadError;
     }
 
     if (!response.body) {
@@ -715,12 +835,23 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           this.resetFolderDownloadProgress();
         })
         .catch((error: unknown) => {
-          this.resetFolderDownloadProgress();
-
           if (error instanceof Error && error.name === 'AbortError') {
+            this.resetFolderDownloadProgress();
             this.oneDriveErrorMessage = 'Folder download was cancelled.';
             return;
           }
+
+          const status = typeof error === 'object' && error && 'status' in error
+            ? Number((error as { status?: number }).status)
+            : null;
+
+          if (status === 503 || status === 504) {
+            this.oneDriveErrorMessage = 'Server is busy preparing the ZIP. Falling back to client-side ZIP creation.';
+            void this.downloadFolderAsClientZip(folderName, folderSize);
+            return;
+          }
+
+          this.resetFolderDownloadProgress();
 
           if (error instanceof Error && error.message) {
             this.oneDriveErrorMessage = error.message;
@@ -755,6 +886,12 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
             errorMessage = 'Download failed (406). Backend returned ZIP but request headers were not compatible.';
           } else if (err.status === 500) {
             errorMessage = 'Server error while preparing the ZIP. Please try again later.';
+          }
+
+          if (err.status === 503 || err.status === 504) {
+            this.oneDriveErrorMessage = `${errorMessage} Falling back to client-side ZIP creation.`;
+            void this.downloadFolderAsClientZip(folderName, folderSize);
+            return EMPTY;
           }
 
           this.oneDriveErrorMessage = errorMessage;
@@ -794,6 +931,29 @@ export class UserDashboardComponent implements OnInit, OnDestroy {
           }
         }
       });
+  }
+
+  private async downloadFolderAsClientZip(folderName: string, folderSize?: number): Promise<void> {
+    try {
+      this.isFolderDownloadInProgress = true;
+      this.folderDownloadProgress = 0;
+      this.folderDownloadLoadedBytes = 0;
+      this.folderDownloadItemSize = folderSize ?? null;
+
+      const zipBlob = await this.buildFolderZipFromContents(folderName);
+      const fileName = `${this.cleanSegment(folderName)}.zip`;
+
+      this.folderDownloadLoadedBytes = zipBlob.size;
+      this.folderDownloadTotalBytes = this.getKnownDownloadTotal(zipBlob.size, this.folderDownloadItemSize);
+      this.folderDownloadProgress = 100;
+      saveAs(zipBlob, fileName);
+      this.resetFolderDownloadProgress();
+    } catch (error: unknown) {
+      this.resetFolderDownloadProgress();
+      this.oneDriveErrorMessage = error instanceof Error && error.message
+        ? error.message
+        : 'Client-side ZIP creation failed. Please try again later.';
+    }
   }
 
   loadS3Buckets(): void {
